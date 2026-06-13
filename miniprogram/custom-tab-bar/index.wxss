@@ -1,0 +1,223 @@
+/* ============================================ */
+/*  自定义 TabBar - 动物森友会森林治愈风格       */
+/*  深林绿底 + 木纹装饰 + 叶子点缀               */
+/* ============================================ */
+
+/* ===== TabBar 主容器 ===== */
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 110rpx;
+  background:
+    linear-gradient(180deg, #2D4A3E 0%, #355447 60%, #3D6254 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  z-index: 9999;
+  /* 顶部木纹边框线 */
+  border-top: 2rpx solid rgba(139, 105, 20, 0.4);
+  box-shadow:
+    0 -4rpx 20rpx rgba(0, 0, 0, 0.25),
+    0 -1rpx 3rpx rgba(139, 105, 20, 0.15);
+}
+
+/* ===== 每个Tab项 ===== */
+.tab-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100rpx;
+  height: 100%;
+  position: relative;
+}
+
+.tab-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4rpx;
+}
+
+/* ===== 图标区域 ===== */
+.icon-wrap {
+  width: 48rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.tab-icon {
+  width: 44rpx;
+  height: 44rpx;
+}
+
+/* Emoji图标文字 - 默认状态（弱化显示） */
+.tab-icon-text {
+  font-size: 38rpx;
+  line-height: 1;
+  opacity: 0.45;
+  transition: all 0.3s ease;
+  filter: grayscale(0.3);
+}
+
+/* Emoji图标文字 - 选中状态（叶子绿高亮） */
+.tab-icon-text.active {
+  opacity: 1;
+  transform: scale(1.12);
+  filter: grayscale(0);
+  /* 选中时添加微光效果 */
+  text-shadow: 0 0 8rpx rgba(124, 179, 66, 0.5);
+}
+
+/* 选中指示器 - 底部小圆点 */
+.dot-indicator {
+  position: absolute;
+  bottom: -4rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: var(--leaf-green, #7CB342);
+  box-shadow: 0 0 6rpx rgba(124, 179, 66, 0.6);
+}
+
+/* ===== 文字标签 ===== */
+.tab-text {
+  font-size: 20rpx;
+  color: #8B9A7D; /* 弱化奶油色 */
+  line-height: 1;
+  letter-spacing: 1rpx;
+  transition: all 0.3s ease;
+  font-weight: 400;
+}
+
+/* 选中状态的文字 */
+.active .tab-text {
+  color: #F5E6C8; /* 奶油米黄高亮 */
+  font-weight: 600;
+  text-shadow: 0 1rpx 4rpx rgba(0, 0, 0, 0.3);
+}
+
+/* 选中项底部绿色高亮条 */
+.tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 25%;
+  width: 50%;
+  height: 4rpx;
+  background: linear-gradient(90deg, transparent, #7CB342, transparent);
+  border-radius: 2rpx;
+}
+
+/* ===== 中间浮动按钮（核心亮点！）===== */
+
+/* 中间项特殊布局 */
+.tab-item.center {
+  width: auto;
+  margin-top: -30rpx; /* 向上浮出TabBar */
+}
+
+/* 浮动按钮主体 - 木纹渐变圆形 */
+.center-btn {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #B8860B 0%, #DAA520 40%, #F0C850 70%, #DAA520 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  animation: tabFloat 3s ease-in-out infinite;
+  /* 暖橙色外发光 */
+  box-shadow:
+    0 8rpx 28rpx rgba(255, 171, 64, 0.45),
+    0 4rpx 14rpx rgba(184, 134, 11, 0.35),
+    0 2rpx 6rpx rgba(0, 0, 0, 0.2),
+    inset 0 2rpx 8rpx rgba(255, 255, 255, 0.3),
+    inset 0 -2rpx 6rpx rgba(139, 105, 20, 0.3);
+}
+
+/* 外圈木纹装饰环 */
+.center-btn::before {
+  content: '';
+  position: absolute;
+  top: -8rpx;
+  left: -8rpx;
+  right: -8rpx;
+  bottom: -8rpx;
+  border-radius: 50%;
+  border: 3rpx solid rgba(184, 134, 11, 0.5);
+  /* 内部微光效果 */
+  box-shadow:
+    0 0 10rpx rgba(218, 165, 32, 0.2),
+    inset 0 0 8rpx rgba(218, 165, 32, 0.1);
+  pointer-events: none;
+}
+
+/* 内圈细微纹理环 */
+.center-btn::after {
+  content: '';
+  position: absolute;
+  top: -3rpx;
+  left: -3rpx;
+  right: -3rpx;
+  bottom: -3rpx;
+  border-radius: 50%;
+  border: 1rpx solid rgba(245, 230, 200, 0.2);
+  pointer-events: none;
+}
+
+/* 按下时的交互效果 */
+.center-btn:active {
+  transform: scale(0.92);
+  animation: none;
+  box-shadow:
+    0 4rpx 16rpx rgba(255, 171, 64, 0.35),
+    0 2rpx 8rpx rgba(184, 134, 11, 0.25),
+    inset 0 2rpx 8rpx rgba(255, 255, 255, 0.2);
+}
+
+/* 按钮内部内容容器 */
+.center-btn-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rpx;
+  z-index: 1;
+  position: relative;
+}
+
+/* 中心图标 */
+.center-icon {
+  font-size: 44rpx;
+  line-height: 1;
+  filter: drop-shadow(0 2rpx 4rpx rgba(0, 0, 0, 0.2));
+}
+
+/* 中心文字 */
+.center-text {
+  font-size: 18rpx;
+  color: #FFF8E7;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+  text-shadow: 0 1rpx 3rpx rgba(139, 105, 20, 0.5);
+}
+
+/* ===== 浮动动画关键帧 ===== */
+@keyframes tabFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8rpx); }
+}
+
+/* ===== 安全区占位 ===== */
+.safe-area-bottom {
+  height: env(safe-area-inset-bottom, 0);
+}

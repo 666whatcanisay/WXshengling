@@ -1,0 +1,164 @@
+<view class="page">
+  <!-- ===== 新手引导遮罩（木纹风格） ===== -->
+  <view wx:if="{{showTutorial}}" class="tutorial-overlay">
+    <view class="tutorial-modal-wood">
+      <text class="tutorial-icon">{{tutorialSteps[tutorialStep].icon}}</text>
+      <text class="tutorial-title">{{tutorialSteps[tutorialStep].title}}</text>
+      <text class="tutorial-desc">{{tutorialSteps[tutorialStep].desc}}</text>
+      <view class="tutorial-dots">
+        <view wx:for="{{tutorialSteps}}" wx:key="index" class="tutorial-dot {{index === tutorialStep ? 'active' : ''}}"></view>
+      </view>
+      <view class="tutorial-actions">
+        <button class="btn-wood" bindtap="skipTutorial">跳过</button>
+        <button class="btn-leaf" bindtap="nextTutorialStep">
+          {{tutorialStep < tutorialSteps.length - 1 ? '下一步' : '开始成长之旅！'}}
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <!-- ===== 页面内容 ===== -->
+  <scroll-view scroll-y class="page-scroll" enhanced show-scrollbar="{{false}}">
+    <view class="page-inner">
+
+      <!-- 1. 木纹标题栏 -->
+      <view class="wood-title">
+        <text class="leaf-icon-left">🌿</text>
+        <text class="wood-title-text">成长营地</text>
+        <text class="leaf-icon-right">🌿</text>
+      </view>
+
+      <!-- 2. 问候区卡片 -->
+      <view class="card greeting-card">
+        <view class="greeting-row">
+          <text class="greeting-time">{{greeting}} ☀️</text>
+          <text class="greeting-name">{{user.nickname || user.username || '小伙伴'}}</text>
+        </view>
+        <view class="greeting-streak">
+          <text class="streak-text">今天是你坚持成长的第 {{todayGrowth.streakDays}} 天</text>
+          <text class="camp-deco">🏕️ ⛺ 🌲</text>
+        </view>
+      </view>
+
+      <!-- 3. 宠物英雄区（居中实边卡片） -->
+      <view wx:if="{{activePet}}" class="card-solid pet-hero-card" bindtap="goPets">
+        <!-- 宠物浮动区域 -->
+        <view class="pet-float-area">
+          <view class="pet-glow-ring"></view>
+          <view class="pet-emoji-wrap {{petStatusClass}}">
+            <text class="pet-emoji-large">{{petEmoji}}</text>
+          </view>
+        </view>
+        <!-- 宠物名字 -->
+        <text class="pet-display-name">{{activePet.name}}</text>
+        <!-- 对话气泡 -->
+        <view class="quote-card pet-speech">
+          <text class="quote-accent">💬</text>
+          <text class="quote-text">{{petTalk}}</text>
+        </view>
+        <!-- 状态徽章 -->
+        <view class="status-badge status-{{activePet.status}}">
+          <text>{{petStatusText}} {{activePet.status === 'happy' ? '😊' : activePet.status === 'normal' ? '😐' : '😢'}}</text>
+        </view>
+      </view>
+
+      <!-- 4. 等级 & XP 进度 -->
+      <view wx:if="{{activePet}}" class="card level-section">
+        <view class="wood-title-mini">
+          <text>🌳 Lv.{{activePet.level}} 等级</text>
+        </view>
+        <view class="xp-bar-wood">
+          <view class="xp-fill-leaf" style="width:{{todayGrowth.completionRate}}%"></view>
+        </view>
+        <view class="xp-info-row">
+          <text class="xp-percent-text">{{todayGrowth.completionRate}}%</text>
+          <text class="xp-remain-text">距离升级还差 {{todayGrowth.xp}}XP</text>
+        </view>
+      </view>
+
+      <!-- 5. 今日任务 -->
+      <view class="card quest-section">
+        <view class="section-title-row">
+          <text class="section-title-leaf">🎋 今日任务</text>
+        </view>
+        <view wx:for="{{todayTasks}}" wx:key="id"
+              class="task-row-wood {{item.completed ? 'done' : ''}}"
+              data-id="{{item.id}}"
+              bindtap="quickCheckin">
+          <view class="wood-checkbox {{item.completed ? 'checked' : ''}}">
+            <text wx:if="{{item.completed}}" class="check-mark">✓</text>
+          </view>
+          <text class="task-label {{item.completed ? 'task-done' : ''}}">{{item.title}}</text>
+          <view class="xp-chip {{item.completed ? 'chip-done' : ''}}">
+            <text>+{{item.xp_reward}}XP</text>
+          </view>
+        </view>
+        <view class="quest-footer">
+          <text class="quest-summary">完成 {{todayGrowth.completedTasks}}/{{todayGrowth.totalTasks}}</text>
+        </view>
+      </view>
+
+      <!-- 6. 每日签到（实边卡片） -->
+      <view class="card-solid signin-section" bindtap="dailySignIn">
+        <view class="signin-header">
+          <text class="signin-fire">{{signedIn ? '✅' : '🔥'}}</text>
+          <text class="signin-label">{{signedIn ? '今日已签到' : '每日签到'}}</text>
+        </view>
+        <view wx:if="{{!signedIn}}" class="signin-btn-wrap">
+          <view class="btn-leaf signin-btn">签到 +10XP</view>
+        </view>
+        <view class="signin-streak-row">
+          <text class="streak-flame">🔥</text>
+          <text class="streak-num">连续 {{signInDays}} 天</text>
+        </view>
+      </view>
+
+      <!-- 7. 今日成长 -->
+      <view class="card growth-section">
+        <view class="section-title-row">
+          <text class="section-title-leaf">🌱 今日成长</text>
+        </view>
+        <view class="growth-stats-row">
+          <view class="growth-stat-block">
+            <text class="growth-stat-val">+{{todayGrowth.xp}}</text>
+            <text class="growth-stat-lbl">经验</text>
+          </view>
+          <view class="growth-divider-line"></view>
+          <view class="growth-stat-block">
+            <text class="growth-stat-val">{{todayGrowth.streakDays}}天</text>
+            <text class="growth-stat-lbl">连续打卡</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 8. AI 鼓励（引用悬浮卡片） -->
+      <view wx:if="{{encouragement}}" class="quote-card encouragement-quote">
+        <text class="quote-accent">✨</text>
+        <text class="quote-text">{{encouragement.text}}</text>
+        <view class="encourage-badge">
+          <text>你已经超过了 {{todayGrowth.completionRate}}% 的营友</text>
+        </view>
+      </view>
+
+      <!-- 9. 快速心情 -->
+      <view class="card mood-section">
+        <view class="section-title-row">
+          <text class="section-title-leaf">🌸 今日心情</text>
+          <text class="mood-done-tag" wx:if="{{moodSubmitted}}">已记录 ✓</text>
+        </view>
+        <view class="mood-grid">
+          <view wx:for="{{moods}}" wx:key="index"
+                class="mood-chip {{selectedMood === index ? 'mood-selected' : ''}}"
+                data-mood="{{index}}"
+                bindtap="selectMood">
+            <text>{{item}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部留白 -->
+      <view class="bottom-spacer"></view>
+
+    </view>
+  </scroll-view>
+</view>

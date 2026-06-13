@@ -1,0 +1,83 @@
+<!-- 反馈页面 - 动森森林风格 -->
+<view class="page">
+  <scroll-view scroll-y class="page-scroll" enhanced show-scrollbar="{{false}}">
+    <view class="page-inner">
+
+    <!-- 木纹标题栏 -->
+    <view class="wood-title">
+      <text class="title-icon">💬</text>
+      <text class="title-text">意见反馈</text>
+      <text class="title-icon">💬</text>
+    </view>
+
+  <!-- 反馈表单 -->
+  <view class="card-solid feedback-form">
+    <!-- 反馈类型选择 -->
+    <view class="form-section">
+      <text class="form-label">📋 反馈类型</text>
+      <view class="type-chips">
+        <view
+          wx:for="{{feedbackTypes}}"
+          wx:key="*this"
+          class="type-chip {{selectedType === item ? 'chip-active' : ''}}"
+          bindtap="selectType"
+          data-type="{{item}}"
+        >{{item}}</view>
+      </view>
+    </view>
+
+    <!-- 标题输入 -->
+    <view class="form-section">
+      <text class="form-label">📝 问题标题</text>
+      <input
+        class="wood-input"
+        placeholder="简要描述你的问题或建议..."
+        placeholder-class="input-placeholder"
+        value="{{title}}"
+        bindinput="onTitleInput"
+      />
+    </view>
+
+    <!-- 详细描述 -->
+    <view class="form-section">
+      <text class="form-label">📄 详细描述</text>
+      <textarea
+        class="wood-textarea"
+        placeholder="请详细描述你遇到的问题、建议的功能等..."
+        placeholder-class="textarea-placeholder"
+        value="{{description}}"
+        bindinput="onDescriptionInput"
+        auto-height
+        maxlength="500"
+      />
+      <text class="char-count">{{description.length}}/500</text>
+    </view>
+
+    <!-- 联系方式（可选） -->
+    <view class="form-section">
+      <text class="form-label">📧 联系方式（选填）</text>
+      <input
+        class="wood-input"
+        placeholder="方便我们回复你的邮箱或微信..."
+        placeholder-class="input-placeholder"
+        value="{{contact}}"
+        bindinput="onContactInput"
+      />
+    </view>
+
+    <!-- 提交按钮 -->
+    <button class="btn-wood submit-btn" bindtap="submitFeedback">🚀 提交反馈</button>
+  </view>
+
+  <!-- 温馨提示卡片 -->
+  <view class="quote-card tip-card">
+    <view class="quote-bar"></view>
+    <view class="quote-content">
+      <text class="tip-title">🌸 温馨提示</text>
+      <text class="tip-body">每一条反馈都是我们前进的动力！我们会认真阅读每一条建议，持续优化体验～感谢你的支持！🙏</text>
+    </view>
+  </view>
+
+    </view>
+  </scroll-view>
+</view>

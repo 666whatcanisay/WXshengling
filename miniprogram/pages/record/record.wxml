@@ -1,0 +1,97 @@
+<!-- 每日打卡 - 动森森林风格 -->
+<view class="page">
+  <scroll-view scroll-y class="page-scroll" enhanced show-scrollbar="{{false}}">
+    <view class="page-inner">
+
+    <!-- 木纹标题栏 -->
+    <view class="wood-title">
+      <text class="title-icon">🌿</text>
+      <text class="title-text">✅ 今日打卡</text>
+      <text class="title-icon">🌿</text>
+    </view>
+
+  <!-- 今日进度卡片 -->
+  <view class="card-solid progress-card">
+    <view class="progress-header">
+      <view class="progress-date-info">
+        <text class="date-label">📅 {{today}}</text>
+        <text class="date-greeting">今天也要加油哦！💪</text>
+      </view>
+      <view class="progress-circle-wrap">
+        <view class="progress-ring-bg"></view>
+        <text class="progress-pct">{{progressPercent}}%</text>
+      </view>
+    </view>
+    <view class="progress-bar-area">
+      <view class="p-bar-track">
+        <view class="p-bar-fill" style="width: {{progressPercent}}%"></view>
+      </view>
+      <text class="p-bar-text">{{completedCount}}/{{totalCount}} 任务已完成</text>
+    </view>
+  </view>
+
+  <!-- 任务列表 -->
+  <view class="section-title">🍃 今日任务清单</view>
+  <view class="task-list-section">
+    <view
+      wx:for="{{tasks}}"
+      wx:key="id"
+      class="task-row card {{item.completed ? 'task-done' : ''}}"
+    >
+      <view
+        class="task-check {{item.completed ? 'checked' : ''}}"
+        bindtap="completeTask"
+        data-id="{{item.id}}"
+      >
+        <text wx:if="{{item.completed}}" class="check-mark">✓</text>
+      </view>
+      <view class="task-body">
+        <text class="t-name {{item.completed ? 'done-name' : ''}}">{{item.title}}</text>
+        <view class="t-meta">
+          <text class="t-xp">+{{item.xp_reward}} XP ⭐</text>
+          <text wx:if="{{item.completed}}" class="t-done-tag">已完成 ✨</text>
+          <text wx:else class="t-pending-tag">待完成 🌙</text>
+        </view>
+      </view>
+      <!-- 打卡按钮（未完成时显示） -->
+      <button
+        wx:if="{{!item.completed}}"
+        class="btn-checkin-mini"
+        bindtap="completeTask"
+        data-id="{{item.id}}"
+      >打卡</button>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view wx:if="{{tasks.length === 0 && !loading}}" class="empty-tip">
+    <text class="empty-icon">🌲</text>
+    <text class="empty-text">今天还没有任务，去添加一个吧！</text>
+  </view>
+
+  <!-- 打卡结果弹窗 -->
+  <view wx:if="{{checkinResult}}" class="modal-overlay" bindtap="closeResult">
+    <view class="result-popup wood-frame" catchtap>
+      <text class="result-emoji">🎉</text>
+      <text class="result-headline">打卡成功！</text>
+      <view class="result-grid">
+        <view class="rg-item">
+          <text class="rg-label">基础经验</text>
+          <text class="rg-value">+{{checkinResult.xp_added}}</text>
+        </view>
+        <view class="rg-item">
+          <text class="rg-label">连续奖励</text>
+          <text class="rg-value bonus-color">+{{checkinResult.streak_bonus}} 🔥</text>
+        </view>
+      </view>
+      <view class="result-total-line">
+        <text class="rt-label">总计获得</text>
+        <text class="rt-value">+{{checkinResult.total_xp}} XP ✨</text>
+      </view>
+      <button class="btn-wood result-ok-btn" bindtap="closeResult">继续加油！</button>
+    </view>
+  </view>
+
+    </view>
+  </scroll-view>
+</view>

@@ -1,0 +1,383 @@
+/* ===== AI 伙伴小屋 - 全功能版样式 ===== */
+
+/* 页面基础 */
+.page { min-height: 100vh; background: radial-gradient(ellipse at center top, #355447 0%, #2D4A3E 70%); }
+.page-scroll { height: 100vh; }
+.page-inner, .menu-container, .mode-container { max-width: 720rpx; margin: 0 auto; padding: 20rpx 24rpx 150rpx; box-sizing: border-box; }
+
+/* 返回按钮 - 木纹风格 */
+.back-bar {
+  display: flex; align-items: center; gap: 10rpx;
+  padding: 14rpx 28rpx;
+  background: linear-gradient(135deg, rgba(139,105,20,0.3), rgba(184,134,11,0.2));
+  border: 2rpx solid rgba(139,105,20,0.35);
+  border-radius: 999rpx;
+  margin-bottom: 16rpx;
+  width: fit-content;
+}
+.back-bar:active { transform: scale(0.96); opacity: 0.85; }
+.back-icon { font-size: 30rpx; }
+.back-text { font-size: 25rpx; color: #F5E6C8; font-weight: 600; }
+
+/* ===== 分区标签 ===== */
+.section-label {
+  font-size: 24rpx; color: #AED581; letter-spacing: 4px;
+  margin: 28rpx 0 14rpx; padding-left: 8rpx;
+  text-shadow: 0 1rpx 4rpx rgba(0,0,0,0.3);
+}
+
+/* ===== 菜单卡片 ===== */
+.menu-entry-card { margin-bottom: 18rpx; overflow: hidden; position: relative; transition: transform 0.15s; }
+.menu-entry-card:active { transform: scale(0.98); }
+
+.card-wood-stripe {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 7rpx;
+  background: linear-gradient(180deg, #DAA520, #8B6914);
+  border-radius: 28rpx 0 0 28rpx;
+}
+.stripe-gold { background: linear-gradient(180deg, #FFD700, #DAA520); }
+.stripe-orange { background: linear-gradient(180deg, #FFAB40, #FF8F00); }
+.stripe-purple { background: linear-gradient(180deg, #CE93D8, #9C27B0); }
+.stripe-blue { background: linear-gradient(180deg, #64B5F6, #1976D2); }
+.stripe-pink { background: linear-gradient(180deg, #F48FB1, #E91E63); }
+.stripe-teal { background: linear-gradient(180deg, #80CBC4, #009688); }
+.stripe-green { background: linear-gradient(180deg, #AED581, #689F38); }
+.stripe-cyan { background: linear-gradient(180deg, #80DEEA, #00BCD4); }
+
+.card-solid-inner { display: flex; align-items: center; gap: 18rpx; padding: 10rpx 20rpx 10rpx 26rpx; }
+.card-icon-wrap {
+  width: 72rpx; height: 72rpx; display: flex; align-items: center; justify-content: center;
+  background: rgba(124,179,66,0.13); border-radius: 50%; flex-shrink: 0;
+}
+.card-large-icon { font-size: 36rpx; }
+.card-body { flex: 1; min-width: 0; }
+.card-title { display: block; font-size: 29rpx; font-weight: 700; color: #F5E6C8; margin-bottom: 3rpx; }
+.card-desc { display: block; font-size: 22rpx; color: #A89978; line-height: 1.4; }
+.card-arrow { font-size: 34rpx; color: #6B7D6E; flex-shrink: 0; }
+
+/* ===== 木纹标题栏 ===== */
+.wood-title {
+  display: flex; align-items: center; justify-content: center; gap: 16rpx;
+  background: linear-gradient(135deg, #8B6914, #B8860B);
+  border-radius: 50rpx; padding: 16rpx 44rpx; margin-bottom: 24rpx;
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.28);
+}
+.wood-title-leaf { font-size: 26rpx; animation: sway 3s ease-in-out infinite; }
+.wood-title-text { font-size: 30rpx; font-weight: 800; color: #F5E6C8; letter-spacing: 3px; }
+
+/* ===== 基础组件 ===== */
+.card-solid {
+  background: linear-gradient(135deg, #3D6254, #4A7361);
+  border: 3rpx solid #B8860B; border-radius: 28rpx;
+  padding: 28rpx; margin-bottom: 20rpx;
+  box-shadow: 0 6rpx 24rpx rgba(0,0,0,0.25);
+}
+.card-solid-sm {
+  background: linear-gradient(135deg, #3D6254, #4A7361);
+  border: 2rpx solid rgba(184,134,11,0.5); border-radius: 18rpx;
+  padding: 16rpx 20rpx; margin-bottom: 12rpx;
+}
+.card {
+  background: rgba(61,98,84,0.55);
+  border: 2rpx dashed rgba(165,190,140,0.35);
+  border-radius: 20rpx; padding: 20rpx 24rpx; margin-bottom: 16rpx;
+}
+.btn-wood {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 72rpx; padding: 0 36rpx;
+  background: linear-gradient(135deg, #8B6914, #B8860B);
+  border-radius: 999rpx; font-size: 27rpx; font-weight: 600;
+  color: #F5E6C8; border: none;
+  box-shadow: 0 4rpx 14rpx rgba(0,0,0,0.25);
+}
+.btn-leaf {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 72rpx; padding: 0 36rpx;
+  background: linear-gradient(135deg, #7CB342, #689F38);
+  border-radius: 999rpx; font-size: 27rpx; font-weight: 600;
+  color: #fff; border: none;
+  box-shadow: 0 4rpx 14rpx rgba(124,179,66,0.35);
+}
+.quote-card {
+  background: linear-gradient(135deg, rgba(74,115,97,0.8), rgba(61,98,84,0.7));
+  border-left: 5rpx solid #7CB342; border-radius: 18rpx;
+  padding: 18rpx 22rpx; margin-top: 20rpx;
+}
+.quote-card-text { font-size: 25rpx; color: #E8D9BB; line-height: 1.6; }
+
+.section-title { font-size: 27rpx; font-weight: 700; color: #F5E6C8; margin: 20rpx 0 12rpx; }
+.wood-input {
+  width: 100%; height: 80rpx;
+  background: rgba(45,74,62,0.5); border: 2rpx solid rgba(139,105,20,0.4);
+  border-radius: 18rpx; padding: 0 24rpx;
+  font-size: 27rpx; color: #F5E6C8; box-sizing: border-box;
+}
+.wood-textarea {
+  width: 100%; min-height: 160rpx;
+  background: rgba(45,74,62,0.5); border: 2rpx solid rgba(139,105,20,0.4);
+  border-radius: 18rpx; padding: 20rpx 24rpx;
+  font-size: 26rpx; color: #F5E6C8; line-height: 1.6; box-sizing: border-box;
+}
+
+/* ===== 规划师模式 ===== */
+.plan-card { text-align: left; }
+.days-chips { display: flex; gap: 16rpx; margin: 16rpx 0 24rpx; }
+.wood-chip {
+  padding: 12rpx 28rpx; border-radius: 999rpx;
+  border: 2rpx solid rgba(139,105,20,0.4);
+  font-size: 25rpx; color: #C4B89A; background: transparent;
+}
+.wood-chip.chip-active {
+  background: linear-gradient(135deg, #7CB342, #689F38);
+  color: #fff; border-color: #7CB342;
+  box-shadow: 0 4rpx 12rpx rgba(124,179,66,0.3);
+}
+
+/* ===== 教练模式 ===== */
+.stats-row { display: flex; gap: 16rpx; margin-bottom: 24rpx; }
+.stat-item {
+  flex: 1; text-align: center; padding: 20rpx 12rpx;
+  border: 2rpx dashed rgba(165,190,140,0.35);
+  border-radius: 20rpx; background: rgba(45,74,62,0.3);
+}
+.stat-num { display: block; font-size: 40rpx; font-weight: 800; color: #AED581; }
+.stat-label { display: block; font-size: 21rpx; color: #C4B89A; margin-top: 6rpx; }
+.coach-empty { text-align: center; padding: 40rpx 0; }
+.coach-empty-text { font-size: 26rpx; color: #8B9A7D; }
+
+/* ===== 答案之书 ===== */
+.oracle-card { text-align: center; }
+.oracle-hint {
+  display: block; font-size: 24rpx; color: #A89978;
+  margin-bottom: 16rpx; font-style: italic;
+}
+.oracle-input { text-align: center; margin-bottom: 20rpx; }
+.btn-oracle { width: 100%; margin-top: 16rpx; }
+
+/* 翻牌动画 */
+.oracle-flip-area {
+  display: flex; justify-content: center; padding: 30rpx 0;
+}
+.oracle-card-flip {
+  width: 200rpx; height: 260rpx;
+  background: linear-gradient(135deg, #8B6914, #DAA520);
+  border-radius: 20rpx;
+  animation: card-flip 1.2s ease-in-out;
+  box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.4);
+}
+@keyframes card-flip {
+  0% { transform: rotateY(0deg) scale(1); opacity: 1; }
+  50% { transform: rotateY(90deg) scale(1.05); opacity: 0.5; }
+  100% { transform: rotateY(0deg) scale(1); opacity: 1; }
+}
+
+/* 答案结果 */
+.oracle-result { margin-top: 24rpx; text-align: left; }
+.oracle-q {
+  display: block; font-size: 24rpx; color: #C4B89A;
+  text-align: center; margin-bottom: 20rpx; font-style: italic;
+}
+.oracle-answer-box {
+  background: rgba(45,74,62,0.5); border-radius: 18rpx;
+  padding: 20rpx 24rpx; margin-bottom: 16rpx; text-align: center;
+}
+.oracle-answer-label {
+  display: block; font-size: 22rpx; color: #A89978; margin-bottom: 8rpx;
+}
+.oracle-answer-text {
+  display: block; font-size: 42rpx; font-weight: 900;
+  letter-spacing: 4rpx; text-shadow: 0 2rpx 12rpx rgba(0,0,0,0.3);
+}
+.oracle-explain-box {
+  background: rgba(124,179,66,0.08); border-left: 4rpx solid #7CB342;
+  border-radius: 14rpx; padding: 18rpx 22rpx;
+}
+.oracle-explain-label {
+  display: block; font-size: 22rpx; color: #AED581; margin-bottom: 8rpx;
+}
+.oracle-explain-text { font-size: 25rpx; color: #E8D9BB; line-height: 1.65; }
+
+/* ===== 今日运势 ===== */
+.btn-fortune-btn { width: 100%; height: 88rpx; font-size: 30rpx; margin-top: 20rpx; }
+.fortune-card { text-align: center; }
+.fortune-date {
+  display: block; font-size: 26rpx; color: #FFD54F;
+  font-weight: 700; margin-bottom: 20rpx;
+  letter-spacing: 2px;
+}
+.fortune-stars-row { display: flex; justify-content: center; gap: 24rpx; margin-bottom: 24rpx; }
+.fortune-star-item { text-align: center; }
+.star-label { display: block; font-size: 23rpx; color: #C4B89A; margin-bottom: 8rpx; }
+.star-value { font-size: 28rpx; letter-spacing: 2rpx; }
+.fortune-advice {
+  background: rgba(255,215,79,0.06); border-radius: 16rpx;
+  padding: 18rpx 22rpx; margin-bottom: 16rpx; text-align: left;
+}
+.advice-label { display: block; font-size: 24rpx; color: #FFD54F; font-weight: 700; margin-bottom: 8rpx; }
+.advice-text { font-size: 25rpx; color: #E8D9BB; line-height: 1.6; }
+.fortune-lucky {
+  background: rgba(124,179,66,0.08); border-radius: 16rpx;
+  padding: 16rpx 22rpx; text-align: left;
+}
+.lucky-label { display: block; font-size: 24rpx; color: #AED581; font-weight: 700; margin-bottom: 6rpx; }
+.lucky-text { font-size: 26rpx; color: #F5E6C8; font-weight: 600; }
+
+/* ===== 成长翻译 ===== */
+.translate-card { text-align: left; }
+.translate-result { margin-top: 20rpx; }
+.trans-original, .trans-translated {
+  display: flex; align-items: center; gap: 12rpx; margin-bottom: 12rpx;
+}
+.trans-tag {
+  font-size: 20rpx; padding: 4rpx 14rpx; border-radius: 999rpx;
+  font-weight: 600; flex-shrink: 0;
+}
+.trans-user { background: rgba(218,165,32,0.2); color: #DAA520; }
+.trans-ai { background: rgba(124,179,66,0.2); color: #7CB342; }
+.trans-text { font-size: 26rpx; color: #F5E6C8; }
+.trans-encourage { display: flex; align-items: flex-start; gap: 12rpx; }
+.encourage-icon { font-size: 28rpx; flex-shrink: 0; }
+.encourage-text { font-size: 25rpx; color: #E8D9BB; line-height: 1.6; }
+
+/* ===== 昵称生成器 ===== */
+.nickname-card { text-align: left; }
+.nick-hint { display: block; font-size: 23rpx; color: #A89978; margin-bottom: 12rpx; }
+.nickname-results { margin-top: 20rpx; }
+.nickname-item {
+  display: flex; align-items: center; gap: 14rpx;
+  padding: 16rpx 20rpx; margin-bottom: 10rpx;
+}
+.nickname-prefix {
+  font-size: 22rpx; color: #DAA520; font-weight: 800;
+  min-width: 48rpx; flex-shrink: 0;
+}
+.nickname-text { flex: 1; font-size: 28rpx; font-weight: 700; color: #F5E6C8; }
+.nickname-copy {
+  font-size: 22rpx; color: #7CB342; padding: 6rpx 18rpx;
+  border: 2rpx solid rgba(124,179,66,0.4); border-radius: 999rpx;
+  flex-shrink: 0;
+}
+
+/* ===== 目标命名器 ===== */
+.goalname-card { text-align: left; }
+.gn-hint { display: block; font-size: 23rpx; color: #A89978; margin-bottom: 12rpx; }
+.goalname-results { margin-top: 20rpx; }
+.gn-before {
+  display: block; font-size: 23rpx; color: #8B9A7D;
+  margin-bottom: 12rpx; text-decoration: line-through;
+}
+.goalname-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18rpx 22rpx; margin-bottom: 10rpx;
+}
+.gn-name { font-size: 29rpx; font-weight: 800; color: #FFD54F; }
+.gn-use {
+  font-size: 22rpx; color: #7CB342; padding: 6rpx 18rpx;
+  border: 2rpx solid rgba(124,179,66,0.4); border-radius: 999rpx;
+}
+
+/* ===== 未来来信 ===== */
+.future-card { text-align: left; }
+.future-hint { display: block; font-size: 23rpx; color: #A89978; margin-bottom: 12rpx; }
+.future-letter-result { margin-top: 24rpx; }
+.letter-header { text-align: center; margin-bottom: 20rpx; }
+.letter-from {
+  display: block; font-size: 24rpx; color: #F48FB1;
+  font-weight: 700; margin-bottom: 6rpx;
+}
+.letter-dream { display: block; font-size: 23rpx; color: #C4B89A; }
+.letter-body { background: rgba(244,143,177,0.04); }
+.letter-content {
+  font-size: 25rpx; color: #E8D9BB; line-height: 1.75;
+  white-space: pre-wrap;
+}
+
+/* ===== 时间胶囊 ===== */
+.capsule-card { text-align: left; }
+.capsule-hint { display: block; font-size: 23rpx; color: #A89978; margin-bottom: 12rpx; }
+.capsule-saved-view { text-align: center; }
+.capsule-sealed {
+  padding: 32rpx 0 24rpx;
+}
+.sealed-icon { font-size: 80rpx; display: block; margin-bottom: 16rpx; }
+.sealed-text {
+  display: block; font-size: 30rpx; font-weight: 800; color: #80CBC4;
+  margin-bottom: 10rpx;
+}
+.sealed-date { display: block; font-size: 23rpx; color: #C4B89A; margin-bottom: 4rpx; }
+.sealed-open { display: block; font-size: 23rpx; color: #80CBC4; }
+.capsule-content-preview { text-align: left; margin: 20rpx 0; }
+.preview-label { display: block; font-size: 22rpx; color: #A89978; margin-bottom: 8rpx; }
+.preview-text { font-size: 25rpx; color: #F5E6C8; line-height: 1.5; }
+
+/* ===== 随机挑战 ===== */
+.challenge-draw-btn { width: 100%; height: 96rpx; font-size: 32rpx; margin-top: 30rpx; }
+.challenge-card { text-align: center; }
+.challenge-active { padding: 20rpx 0; }
+.challenge-icon-lg { font-size: 120rpx; display: block; margin-bottom: 20rpx; animation: bounce-gentle 2s ease-in-out infinite; }
+@keyframes bounce-gentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12rpx); }
+}
+.challenge-task {
+  display: block; font-size: 36rpx; font-weight: 800; color: #F5E6C8;
+  margin-bottom: 24rpx; letter-spacing: 2px;
+}
+.challenge-reward {
+  display: inline-block; background: rgba(255,215,79,0.08);
+  border: 2rpx solid rgba(255,215,79,0.25);
+  border-radius: 999rpx; padding: 10rpx 28rpx; margin-bottom: 24rpx;
+}
+.reward-label { display: block; font-size: 21rpx; color: #A89978; }
+.reward-xp { display: block; font-size: 28rpx; font-weight: 800; color: #FFD54F; margin-top: 4rpx; }
+.challenge-done-btn { width: 85%; font-size: 28rpx; }
+.challenge-completed { padding: 30rpx 0; }
+.completed-badge {
+  display: block; font-size: 36rpx; font-weight: 900; color: #7CB342;
+  margin-bottom: 20rpx;
+}
+.completed-task { display: block; font-size: 26rpx; color: #C4B89A; margin-bottom: 10rpx; text-decoration: line-through; }
+.completed-xp { display: block; font-size: 28rpx; font-weight: 700; color: #FFD54F; }
+
+/* ===== 聊天模式 ===== */
+.chat-area { display: flex; flex-direction: column; height: 60vh; }
+.chat-messages { flex: 1; padding: 16rpx; }
+.msg { display: flex; gap: 12rpx; margin-bottom: 20rpx; align-items: flex-start; }
+.msg-user { flex-direction: row-reverse; }
+.msg-avatar {
+  width: 56rpx; height: 56rpx; border-radius: 50%;
+  background: rgba(124,179,66,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28rpx; flex-shrink: 0;
+}
+.msg-bubble {
+  max-width: 70%; padding: 16rpx 22rpx;
+  border-radius: 20rpx; font-size: 25rpx;
+  line-height: 1.55; word-break: break-all;
+}
+.bubble-wood {
+  background: linear-gradient(135deg, #8B6914, #B8860B);
+  color: #F5E6C8; border-bottom-right-radius: 6rpx;
+}
+.bubble-leaf {
+  background: linear-gradient(135deg, rgba(124,179,66,0.85), rgba(104,159,56,0.85));
+  color: #fff; border-bottom-left-radius: 6rpx;
+}
+.chat-empty { text-align: center; padding: 60rpx 0; }
+.chat-empty-icon { font-size: 64rpx; display: block; margin-bottom: 12rpx; opacity: 0.5; }
+.chat-empty-text { font-size: 25rpx; color: #8B9A7D; }
+.chat-input-row {
+  display: flex; gap: 12rpx; padding: 16rpx;
+  border-top: 1rpx dashed rgba(165,190,140,0.25);
+}
+.wood-chat-input {
+  flex: 1; height: 72rpx;
+  background: rgba(45,74,62,0.5);
+  border: 2rpx solid rgba(139,105,20,0.4);
+  border-radius: 36rpx; padding: 0 28rpx;
+  font-size: 25rpx; color: #F5E6C8;
+}
+.send-btn-mini { height: 72rpx !important; padding: 0 28rpx !important; font-size: 25rpx !important; }
+
+/* ===== 动画 ===== */
+@keyframes sway { 0%,100%{transform:rotate(0deg)} 25%{transform:rotate(3deg)} 75%{transform:rotate(-3deg)} }

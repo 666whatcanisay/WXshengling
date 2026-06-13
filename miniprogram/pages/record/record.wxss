@@ -1,0 +1,315 @@
+/* ========== 每日打卡 - 动森森林主题样式 ========== */
+
+/* 页面容器 */
+.page-container {
+  min-height: 100vh;
+  background: #2D4A3E;
+  padding: 30rpx 24rpx;
+  box-sizing: border-box;
+}
+
+/* ---------- 木纹标题栏 ---------- */
+.wood-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 80rpx;
+  background: linear-gradient(135deg, #8B6914, #B8860B);
+  border-radius: 50rpx;
+  margin-bottom: 28rpx;
+  gap: 16rpx;
+}
+.title-icon {
+  font-size: 28rpx;
+}
+.title-text {
+  color: #F5E6C8;
+  font-size: 34rpx;
+  font-weight: bold;
+}
+
+/* ---------- 实边卡片 ---------- */
+.card-solid {
+  background: rgba(61,98,84,0.7);
+  border: 3rpx solid #8B6914;
+  border-radius: 28rpx;
+  padding: 26rpx;
+  margin-bottom: 26rpx;
+}
+.card {
+  background: rgba(61,98,84,0.55);
+  border: 2rpx dashed rgba(165,190,140,0.35);
+  border-radius: 22rpx;
+  padding: 20rpx 22rpx;
+  margin-bottom: 14rpx;
+}
+
+/* ---------- 进度卡片 ---------- */
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+.progress-date-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+.date-label {
+  font-size: 27rpx;
+  color: #F5E6C8;
+  font-weight: bold;
+}
+.date-greeting {
+  font-size: 23rpx;
+  color: #C4B89A;
+}
+.progress-circle-wrap {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8B6914, #DAA520);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.progress-ring-bg {
+  position: absolute;
+  width: 86rpx;
+  height: 86rpx;
+  border-radius: 50%;
+  background: #355447;
+}
+.progress-pct {
+  font-size: 28rpx;
+  color: #FFD700;
+  font-weight: bold;
+  position: relative;
+  z-index: 1;
+}
+
+/* 进度条区域 */
+.progress-bar-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+.p-bar-track {
+  width: 100%;
+  height: 16rpx;
+  background: rgba(45,74,62,0.55);
+  border-radius: 8rpx;
+  overflow: hidden;
+}
+.p-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #7CB342, #AED581);
+  border-radius: 8rpx;
+  transition: width 0.35s;
+}
+.p-bar-text {
+  text-align: right;
+  font-size: 23rpx;
+  color: #C4B89A;
+}
+
+/* ---------- 区块标题 ---------- */
+.section-title {
+  font-size: 28rpx;
+  color: #F5E6C8;
+  margin: 10rpx 0 18rpx;
+  padding-left: 10rpx;
+}
+
+/* ---------- 任务行 ---------- */
+.task-list-section {
+  margin-bottom: 20rpx;
+}
+.task-done {
+  opacity: 0.55;
+}
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.task-check {
+  width: 46rpx;
+  height: 46rpx;
+  border-radius: 50%;
+  border: 3rpx solid rgba(139,105,20,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.25s;
+}
+.task-check.checked {
+  background: #7CB342;
+  border-color: #7CB342;
+}
+.check-mark {
+  color: #fff;
+  font-size: 26rpx;
+  font-weight: bold;
+}
+.task-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+.t-name {
+  font-size: 28rpx;
+  color: #F5E6C8;
+  font-weight: 500;
+}
+.done-name {
+  text-decoration: line-through;
+  color: #8B9A7D;
+}
+.t-meta {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.t-xp {
+  font-size: 22rpx;
+  color: #DAA520;
+  font-weight: bold;
+}
+.t-done-tag {
+  font-size: 20rpx;
+  color: #AED581;
+  background: rgba(124,179,66,0.15);
+  padding: 2rpx 12rpx;
+  border-radius: 14rpx;
+}
+.t-pending-tag {
+  font-size: 20rpx;
+  color: #8B9A7D;
+  background: rgba(139,154,125,0.15);
+  padding: 2rpx 12rpx;
+  border-radius: 14rpx;
+}
+
+/* 迷你打卡按钮 */
+.btn-checkin-mini {
+  padding: 0 22rpx !important;
+  height: 60rpx !important;
+  line-height: 60rpx !important;
+  font-size: 24rpx !important;
+  background: linear-gradient(135deg, #8B6914, #B8860B) !important;
+  color: #F5E6C8 !important;
+  border-radius: 30rpx !important;
+  border: none !important;
+  flex-shrink: 0;
+}
+
+/* ---------- 弹窗 ---------- */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(45,74,62,0.85);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx;
+}
+.wood-frame {
+  width: 100%;
+  max-width: 560rpx;
+  background: #355447;
+  border: 4rpx solid #8B6914;
+  border-radius: 28rpx;
+  overflow: hidden;
+  padding: 36rpx 28rpx;
+}
+.result-emoji {
+  font-size: 64rpx;
+  display: block;
+  text-align: center;
+  margin-bottom: 10rpx;
+}
+.result-headline {
+  font-size: 34rpx;
+  color: #F5E6C8;
+  font-weight: bold;
+  display: block;
+  text-align: center;
+  margin-bottom: 24rpx;
+}
+.result-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
+  margin-bottom: 18rpx;
+}
+.rg-item {
+  background: rgba(74,115,97,0.3);
+  border-radius: 16rpx;
+  padding: 16rpx;
+  text-align: center;
+}
+.rg-label {
+  display: block;
+  font-size: 23rpx;
+  color: #C4B89A;
+  margin-bottom: 6rpx;
+}
+.rg-value {
+  font-size: 30rpx;
+  color: #F5E6C8;
+  font-weight: bold;
+}
+.bonus-color { color: #FFAB40; }
+.result-total-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 20rpx;
+  background: rgba(218,165,32,0.08);
+  border-radius: 16rpx;
+  margin-bottom: 24rpx;
+  border-left: 4rpx solid #DAA520;
+}
+.rt-label {
+  font-size: 26rpx;
+  color: #C4B89A;
+  font-weight: bold;
+}
+.rt-value {
+  font-size: 30rpx;
+  color: #FFD700;
+  font-weight: bold;
+}
+.result-ok-btn {
+  width: 100% !important;
+  height: 76rpx !important;
+  line-height: 76rpx !important;
+  border-radius: 38rpx !important;
+  font-size: 30rpx !important;
+}
+
+/* ---------- 空状态 ---------- */
+.empty-tip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80rpx 0;
+}
+.empty-icon {
+  font-size: 72rpx;
+  opacity: 0.4;
+  margin-bottom: 16rpx;
+}
+.empty-text {
+  font-size: 28rpx;
+  color: #8B9A7D;
+}

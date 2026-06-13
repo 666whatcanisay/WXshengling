@@ -1,0 +1,43 @@
+<!-- 启动页 - 动森营地森林风格 -->
+<view class="splash-page">
+  <!-- 背景渐变层 -->
+  <view class="splash-bg"></view>
+
+  <!-- 森林装饰元素 -->
+  <view class="forest-decor">
+    <text class="f-tree tree-1">🌲</text>
+    <text class="f-tree tree-2">🌳</text>
+    <text class="f-tree tree-3">🌴</text>
+    <text class="f-leaf leaf-1">🍃</text>
+    <text class="f-leaf leaf-2">🍂</text>
+    <text class="f-star star-1">✨</text>
+    <text class="f-star star-2">⭐</text>
+  </view>
+
+  <!-- 主内容区 -->
+  <view class="splash-content">
+    <!-- 营地Logo -->
+    <view class="camp-logo">
+      <text class="logo-camp">🏕️</text>
+      <view class="logo-ring"></view>
+    </view>
+
+    <!-- 标题 -->
+    <text class="splash-title">森林营地</text>
+    <text class="splash-subtitle">Forest Camp</text>
+
+    <!-- 加载动画文字 -->
+    <view class="loading-area">
+      <text class="loading-dots">{{loadingText}}{{dots}}</text>
+      <!-- 进度条 -->
+      <view class="splash-progress">
+        <view class="splash-bar-fill"></view>
+      </view>
+    </view>
+
+    <!-- 底部标语 -->
+    <view class="splash-footer">
+      <text class="footer-text">🌿 在这里，每一份努力都会被看见 ✨</text>
+    </view>
+  </view>
+</view>

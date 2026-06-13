@@ -1,0 +1,231 @@
+<!-- 登录页面 - 账号密码登录 + 微信授权登录 -->
+<view class="page">
+  <!-- 背景装饰 -->
+  <view class="bg-decor">
+    <text class="decor-leaf decor-1">🌿</text>
+    <text class="decor-leaf decor-2">🍃</text>
+    <text class="decor-leaf decor-3">🌲</text>
+    <text class="decor-leaf decor-4">🍂</text>
+    <text class="decor-leaf decor-5">✨</text>
+    <text class="decor-leaf decor-6">🌸</text>
+  </view>
+
+  <!-- 主内容区 -->
+  <view class="main-content">
+
+    <!-- Logo & 品牌区 -->
+    <view class="brand-area">
+      <view class="logo-ring">
+        <text class="logo-icon">🏕️</text>
+      </view>
+      <text class="app-title">森林营地</text>
+      <text class="app-subtitle">Forest Camp · AI 成长伙伴</text>
+    </view>
+
+    <!-- 登录卡片 -->
+    <view class="login-card">
+
+      <!-- 登录/注册 切换 Tab -->
+      <view class="mode-tabs">
+        <view
+          class="mode-tab {{mode === 'login' ? 'mode-active' : ''}}"
+          bindtap="switchMode"
+          data-mode="login"
+        >登录</view>
+        <view
+          class="mode-tab {{mode === 'register' ? 'mode-active' : ''}}"
+          bindtap="switchMode"
+          data-mode="register"
+        >注册</view>
+      </view>
+
+      <!-- ===== 登录表单 ===== -->
+      <view wx:if="{{mode === 'login'}}" class="form-section">
+
+        <view class="form-group">
+          <text class="input-label">👤 用户名</text>
+          <input
+            class="wood-input"
+            placeholder="请输入用户名"
+            placeholder-class="input-placeholder"
+            value="{{username}}"
+            bindinput="onUsernameInput"
+            maxlength="20"
+          />
+        </view>
+
+        <view class="form-group">
+          <text class="input-label">🔒 密码</text>
+          <input
+            class="wood-input"
+            password="{{!showPwd}}"
+            placeholder="请输入密码"
+            placeholder-class="input-placeholder"
+            value="{{password}}"
+            bindinput="onPasswordInput"
+            maxlength="32"
+          />
+          <view class="pwd-toggle" bindtap="togglePwd">
+            <text>{{showPwd ? '🙈' : '👁'}}</text>
+          </view>
+        </view>
+
+        <!-- 协议勾选 -->
+        <view class="agreement-row">
+          <view class="checkbox-wrap" bindtap="toggleAgree">
+            <view class="custom-checkbox {{agreed ? 'checked' : ''}}">
+              <text wx:if="{{agreed}}" class="check-icon">✓</text>
+            </view>
+          </view>
+          <text class="agree-text">
+            我已阅读并同意
+            <text class="link" catchtap="showProtocol">《用户协议》</text>
+          </text>
+        </view>
+
+        <!-- 登录按钮 -->
+        <button
+          class="btn-login {{!agreed || loading ? 'disabled' : ''}}"
+          disabled="{{!agreed || loading}}"
+          loading="{{loading}}"
+          bindtap="handleAccountLogin"
+        >
+          {{loading ? '登录中...' : '🌿 登 录'}}
+        </button>
+
+      </view>
+
+      <!-- ===== 注册表单 ===== -->
+      <view wx:if="{{mode === 'register'}}" class="form-section">
+
+        <view class="form-group">
+          <text class="input-label">👤 用户名 *</text>
+          <input
+            class="wood-input"
+            placeholder="设置一个用户名（用于登录）"
+            placeholder-class="input-placeholder"
+            value="{{regUsername}}"
+            bindinput="onRegUsernameInput"
+            maxlength="20"
+          />
+        </view>
+
+        <view class="form-group">
+          <text class="input-label">🔒 密码 *</text>
+          <input
+            class="wood-input"
+            password="{{!showRegPwd}}"
+            placeholder="设置密码（至少6位）"
+            placeholder-class="input-placeholder"
+            value="{{regPassword}}"
+            bindinput="onRegPasswordInput"
+            maxlength="32"
+          />
+        </view>
+
+        <view class="form-group">
+          <text class="input-label">🔒 确认密码 *</text>
+          <input
+            class="wood-input"
+            password="{{!showRegPwd2}}"
+            placeholder="再次输入密码"
+            placeholder-class="input-placeholder"
+            value="{{regPassword2}}"
+            bindinput="onRegPassword2Input"
+            maxlength="32"
+          />
+        </view>
+
+        <view class="form-group">
+          <text class="input-label">😊 昵称</text>
+          <input
+            class="wood-input"
+            placeholder="你的昵称（选填）"
+            placeholder-class="input-placeholder"
+            value="{{regNickname}}"
+            bindinput="onRegNicknameInput"
+            maxlength="16"
+          />
+        </view>
+
+        <!-- 协议勾选 -->
+        <view class="agreement-row">
+          <view class="checkbox-wrap" bindtap="toggleAgree">
+            <view class="custom-checkbox {{agreed ? 'checked' : ''}}">
+              <text wx:if="{{agreed}}" class="check-icon">✓</text>
+            </view>
+          </view>
+          <text class="agree-text">
+            我已阅读并同意
+            <text class="link" catchtap="showProtocol">《用户协议》</text>
+          </text>
+        </view>
+
+        <!-- 注册按钮 -->
+        <button
+          class="btn-register {{!agreed || regLoading ? 'disabled' : ''}}"
+          disabled="{{!agreed || regLoading}}"
+          loading="{{regLoading}}"
+          bindtap="handleAccountRegister"
+        >
+          {{regLoading ? '注册中...' : '🌱 注 册'}}
+        </button>
+
+      </view>
+
+      <!-- 分割线 -->
+      <view class="divider-line">
+        <view class="d-line"></view>
+        <text class="d-text">其他方式</text>
+        <view class="d-line"></view>
+      </view>
+
+      <!-- 微信一键登录 -->
+      <button
+        class="btn-wechat-login"
+        open-type="{{hasCachedUser ? '' : 'getUserProfile'}}"
+        bindtap="handleWechatLogin"
+        bindgetuserprofile="onGetUserProfile"
+      >
+        <text class="wechat-icon">💚</text>
+        <text>微信{{hasCachedUser ? '重新授权' : '一键'}}登录</text>
+      </button>
+
+      <!-- 底部说明 -->
+      <view class="login-footer">
+        <text class="footer-hint">未注册账号可使用微信登录自动创建</text>
+      </view>
+    </view>
+
+  </view>
+</view>
+
+<!-- 协议弹窗 -->
+<view wx:if="{{showProtocolModal}}" class="protocol-overlay" bindtap="closeProtocol">
+  <view class="protocol-modal" catchtap>
+    <view class="protocol-header">
+      <text class="protocol-title">用户协议与隐私政策</text>
+    </view>
+    <scroll-view scroll-y class="protocol-body">
+      <view class="protocol-section">
+        <text class="section-title">一、服务说明</text>
+        <text class="section-content">森林营地是一款帮助您管理目标、养成宠物、记录成长的AI助手小程序。我们致力于为您提供优质的成长陪伴体验。</text>
+      </view>
+      <view class="protocol-section">
+        <text class="section-title">二、信息收集</text>
+        <text class="section-content">我们需要收集您的昵称、头像用于身份识别。您的所有数据均存储在微信云开发数据库中，仅您本人可访问。</text>
+      </view>
+      <view class="protocol-section">
+        <text class="section-title">三、账号安全</text>
+        <text class="section-content">您的账号信息请妥善保管。管理员有权对违规账号进行处理。</text>
+      </view>
+      <view class="protocol-section">
+        <text class="section-title">四、免责声明</text>
+        <text class="section-content">本应用提供的AI建议仅供参考，不构成专业意见。</text>
+      </view>
+    </scroll-view>
+    <view class="protocol-actions">
+      <button class="btn-protocol-close" bindtap="closeProtocol">我已了解</button>
+    </view>
+  </view>
+</view>

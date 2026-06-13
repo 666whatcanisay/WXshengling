@@ -1,0 +1,141 @@
+<!-- 成就殿堂 - 动森森林风格 -->
+<view class="page">
+  <scroll-view scroll-y class="page-scroll" enhanced show-scrollbar="{{false}}">
+    <view class="page-inner">
+
+    <!-- 木纹标题栏 -->
+    <view class="wood-title">
+      <text class="title-icon">🌿</text>
+      <text class="title-text">🏆 成就殿堂</text>
+      <text class="title-icon">🌿</text>
+    </view>
+
+  <!-- 统计概览卡片 -->
+  <view class="card-solid stats-overview">
+    <view class="stats-grid">
+      <view class="stat-box">
+        <text class="stat-number">{{stats.totalCount}}</text>
+        <text class="stat-text">成就总数</text>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-box">
+        <text class="stat-number highlight">{{stats.totalXp}}</text>
+        <text class="stat-text">总经验值</text>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-box">
+        <text class="stat-number">{{stats.recentCount}}</text>
+        <text class="stat-text">本周解锁</text>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-box">
+        <text class="stat-number">{{stats.hiddenCount}}</text>
+        <text class="stat-text">隐藏成就</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 分类筛选标签 -->
+  <view class="section-title">🍃 分类筛选</view>
+  <view class="category-tabs">
+    <view
+      wx:for="{{categories}}"
+      wx:key="*this"
+      class="chip-wood {{currentCategory === item ? 'chip-active' : ''}}"
+      bindtap="switchCategory"
+      data-category="{{item}}"
+    >{{item}}</view>
+  </view>
+
+  <!-- 稀有度筛选 -->
+  <view class="section-title">💎 稀有度筛选</view>
+  <view class="rarity-chips">
+    <view
+      wx:for="{{rarities}}"
+      wx:key="value"
+      class="rarity-chip rarity-bg-{{item.value}} {{currentRarity === item.value ? 'rarity-active' : ''}}"
+      bindtap="switchRarity"
+      data-rarity="{{item.value}}"
+    >{{item.label}}</view>
+  </view>
+
+  <!-- 成就网格列表 -->
+  <view class="achievement-grid">
+    <view
+      wx:for="{{filteredAchievements}}"
+      wx:key="id"
+      class="achieve-card wood-border {{item.hidden && !item.unlocked_at ? 'achieve-locked' : ''}} {{item.is_new ? 'achieve-new' : ''}}"
+      bindtap="showDetail"
+      data-id="{{item.id}}"
+    >
+      <!-- 图标区域 -->
+      <view class="achieve-icon-wrap">
+        <text wx:if="{{item.hidden && !item.unlocked_at}}" class="achieve-icon locked-icon">🔒</text>
+        <text wx:else class="achieve-icon">{{item.icon}}</text>
+        <view wx:if="{{item.is_new}}" class="new-tag">✨NEW</view>
+      </view>
+
+      <!-- 名称与稀有度 -->
+      <text class="achieve-name">
+        <text wx:if="{{item.hidden && !item.unlocked_at}}">???</text>
+        <text wx:else>{{item.name}}</text>
+      </text>
+      <view class="rarity-label rarity-color-{{item.rarity}}">{{item.rarity_label}}</view>
+
+      <!-- 经验/状态 -->
+      <view class="achieve-footer">
+        <text wx:if="{{item.unlocked_at}}" class="achieve-xp">+{{item.xp_reward}} XP ✨</text>
+        <text wx:else class="achieve-status">未解锁 🌙</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态提示 -->
+  <view wx:if="{{filteredAchievements.length === 0}}" class="empty-tip">
+    <text class="empty-icon">🌲</text>
+    <text class="empty-text">暂无匹配的成就，继续探索吧！</text>
+  </view>
+
+  <!-- 加载中 -->
+  <view wx:if="{{loading}}" class="loading-wrap">
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <!-- 成就详情弹窗 -->
+  <view wx:if="{{selectedAchievement}}" class="modal-overlay" bindtap="closeDetail">
+    <view class="detail-popup wood-frame" catchtap>
+      <!-- 弹窗头部 -->
+      <view class="popup-header">
+        <text class="popup-icon">{{selectedAchievement.icon}}</text>
+        <text class="popup-name">{{selectedAchievement.name}}</text>
+        <view class="rarity-label-lg rarity-color-{{selectedAchievement.rarity}}">{{selectedAchievement.rarity_label}}</view>
+      </view>
+
+      <!-- 弹窗内容 -->
+      <view class="popup-body">
+        <text class="popup-desc">{{selectedAchievement.description}}</text>
+
+        <view class="popup-meta">
+          <view class="meta-item">
+            <text class="meta-key">🎁 经验奖励</text>
+            <text class="meta-val">+{{selectedAchievement.xp_reward}} XP</text>
+          </view>
+          <view class="meta-item">
+            <text class="meta-key">📅 解锁时间</text>
+            <text class="meta-val {{selectedAchievement.unlocked_at ? '' : 'val-locked'}}">{{selectedAchievement.unlocked_at || '未解锁'}}</text>
+          </view>
+          <view class="meta-item">
+            <text class="meta-key">🏷️ 所属分类</text>
+            <text class="meta-val">{{selectedAchievement.category}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 关闭按钮 -->
+      <button class="btn-wood close-popup-btn" bindtap="closeDetail">关闭</button>
+    </view>
+  </view>
+
+    </view>
+  </scroll-view>
+</view>

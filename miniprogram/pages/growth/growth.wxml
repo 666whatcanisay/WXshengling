@@ -1,0 +1,123 @@
+<!-- 成长足迹 - 动森森林风格 -->
+<view class="page">
+  <scroll-view scroll-y class="page-scroll" enhanced show-scrollbar="{{false}}">
+    <view class="page-inner">
+
+    <!-- 木纹标题栏 -->
+    <view class="wood-title">
+      <text class="title-icon">🌿</text>
+      <text class="title-text">📊 成长足迹</text>
+      <text class="title-icon">🌿</text>
+    </view>
+
+  <!-- 统计概览（3项） -->
+  <view class="card-solid overview-row">
+    <view class="overview-item">
+      <text class="overview-icon">⭐</text>
+      <text class="overview-num">{{stats.totalXp}}</text>
+      <text class="overview-label">总经验</text>
+    </view>
+    <view class="overview-divider"></view>
+    <view class="overview-item">
+      <text class="overview-icon">🆙</text>
+      <text class="overview-num">{{stats.levelUps}}</text>
+      <text class="overview-label">升级次数</text>
+    </view>
+    <view class="overview-divider"></view>
+    <view class="overview-item">
+      <text class="overview-icon">🏅</text>
+      <text class="overview-num">{{stats.achievements}}</text>
+      <text class="overview-label">成就解锁</text>
+    </view>
+  </view>
+
+  <!-- 热力图区域（28格） -->
+  <view class="card heatmap-card">
+    <view class="section-title-inline">🔥 活跃热力图</view>
+    <view class="heatmap-grid">
+      <!-- 模拟28天热力图，使用5种绿色深浅 -->
+      <view class="heat-cell heat-1" wx:for="{{[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28]}}" wx:key="*this">
+        <text class="heat-text">{{item}}</text>
+      </view>
+    </view>
+    <view class="heatmap-legend">
+      <text class="legend-sm">少</text>
+      <view class="legend-boxes">
+        <view class="l-box l-1"></view>
+        <view class="l-box l-2"></view>
+        <view class="l-box l-3"></view>
+        <view class="l-box l-4"></view>
+        <view class="l-box l-5"></view>
+      </view>
+      <text class="legend-sm">多</text>
+    </view>
+  </view>
+
+  <!-- 筛选标签 -->
+  <view class="filter-chips">
+    <view
+      class="f-chip {{filter === 'all' ? 'f-active' : ''}}"
+      bindtap="setFilter"
+      data-filter="all"
+    >全部 🌲</view>
+    <view
+      class="f-chip {{filter === 'xp' ? 'f-active' : ''}}"
+      bindtap="setFilter"
+      data-filter="xp"
+    >经验 ⭐</view>
+    <view
+      class="f-chip {{filter === 'level_up' ? 'f-active' : ''}}"
+      bindtap="setFilter"
+      data-filter="level_up"
+    >升级 🆙</view>
+    <view
+      class="f-chip {{filter === 'pet_stage' ? 'f-active' : ''}}"
+      bindtap="setFilter"
+      data-filter="pet_stage"
+    >宠物 🐾</view>
+    <view
+      class="f-chip {{filter === 'achievement' ? 'f-active' : ''}}"
+      bindtap="setFilter"
+      data-filter="achievement"
+    >成就 🏆</view>
+  </view>
+
+  <!-- 时间线列表 -->
+  <view class="timeline-wrap">
+    <view
+      wx:for="{{filteredLogs}}"
+      wx:key="id"
+      class="timeline-item"
+    >
+      <!-- 时间线圆点 -->
+      <view class="tl-dot dot-{{item.log_type}}"></view>
+      <view class="tl-line" wx:if="{{index < filteredLogs.length - 1}}"></view>
+
+      <!-- 内容卡片 -->
+      <view class="tl-card card">
+        <view class="tl-header">
+          <text class="tl-type-icon type-{{item.log_type}}">
+            <text wx:if="{{item.log_type === 'xp'}}">⭐</text>
+            <text wx:elif="{{item.log_type === 'level_up'}}">🆙</text>
+            <text wx:elif="{{item.log_type === 'pet_stage'}}">🐾</text>
+            <text wx:elif="{{item.log_type === 'achievement'}}">🏆</text>
+          </text>
+          <text class="tl-content">{{item.content}}</text>
+        </view>
+        <view class="tl-footer">
+          <text class="tl-date">{{item.created_at.slice(0,10)}}</text>
+          <text wx:if="{{item.xp_amount}}" class="tl-xp">+{{item.xp_amount}} XP</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view wx:if="{{filteredLogs.length === 0 && !loading}}" class="empty-tip">
+    <text class="empty-icon">🍂</text>
+    <text class="empty-text">暂无成长记录哦～</text>
+  </view>
+
+    </view>
+  </scroll-view>
+</view>

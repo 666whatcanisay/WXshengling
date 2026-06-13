@@ -1,0 +1,660 @@
+/* ============================================ */
+/*  动森森林治愈风格 - 首页样式表               */
+/*  配色: 深墨绿底 + 木纹棕 + 奶油米黄 + 叶子绿   */
+/* ============================================ */
+
+/* ----- 页面根容器 ----- */
+.page {
+  --bg-deep: #2D4A3E;
+  --bg-main: #355447;
+  --bg-card: #3D6254;
+  --bg-card-light: #4A7361;
+  --wood-dark: #8B6914;
+  --wood: #B8860B;
+  --wood-light: #DAA520;
+  --cream: #F5E6C8;
+  --cream-soft: #E8D9BB;
+  --leaf-green: #7CB342;
+  --leaf-light: #AED581;
+  --accent-orange: #FFAB40;
+  --text-primary: #F5E6C8;
+  --text-secondary: #C4B89A;
+  --text-muted: #8B9A7D;
+
+  min-height: 100vh;
+  background: radial-gradient(ellipse at center top, var(--bg-main) 0%, var(--bg-deep) 70%);
+  background-attachment: fixed;
+}
+
+/* 滚动容器 */
+.page-scroll {
+  height: 100vh;
+}
+.page-inner {
+  max-width: 720rpx;
+  margin: 0 auto;
+  padding: 24rpx 20rpx 60rpx;
+}
+
+/* ===== 1. 木纹标题栏 ===== */
+.wood-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  background: linear-gradient(135deg, var(--wood-dark), var(--wood));
+  border-radius: 50rpx;
+  padding: 18rpx 48rpx;
+  margin-bottom: 28rpx;
+  box-shadow: 0 6rpx 20rpx rgba(0, 0, 0, 0.3), inset 0 2rpx 4rpx rgba(255, 255, 255, 0.1);
+}
+.leaf-icon-left,
+.leaf-icon-right {
+  font-size: 32rpx;
+  animation: leafSway 3s ease-in-out infinite;
+}
+.leaf-icon-right {
+  animation-delay: -1.5s;
+}
+.wood-title-text {
+  font-size: 34rpx;
+  font-weight: 800;
+  color: var(--cream);
+  letter-spacing: 4rpx;
+}
+@keyframes leafSway {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(10deg); }
+  75% { transform: rotate(-10deg); }
+}
+
+/* ===== 2. 虚线边框卡片（通用） ===== */
+.card {
+  background: rgba(61, 98, 84, 0.6);
+  border: 2rpx dashed rgba(165, 190, 140, 0.4);
+  border-radius: 28rpx;
+  padding: 28rpx 30rpx;
+  margin-bottom: 22rpx;
+  backdrop-filter: blur(8rpx);
+}
+.card:active {
+  opacity: 0.85;
+  transform: scale(0.99);
+  transition: all 0.15s ease;
+}
+
+/* ===== 实边卡片（木色边框） ===== */
+.card-solid {
+  background: linear-gradient(135deg, var(--bg-card), var(--bg-card-light));
+  border: 3rpx solid var(--wood);
+  border-radius: 28rpx;
+  padding: 32rpx 28rpx;
+  margin-bottom: 22rpx;
+  box-shadow: 0 6rpx 24rpx rgba(0, 0, 0, 0.25), inset 0 1rpx 2rpx rgba(255, 255, 255, 0.05);
+}
+
+/* ===== 小木纹标题 ===== */
+.wood-title-mini {
+  display: inline-flex;
+  align-items: center;
+  background: linear-gradient(135deg, var(--wood-dark), var(--wood));
+  border-radius: 999rpx;
+  padding: 8rpx 26rpx;
+  margin-bottom: 18rpx;
+  box-shadow: 0 3rpx 10rpx rgba(0, 0, 0, 0.2);
+}
+.wood-title-mini text {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: var(--cream);
+  letter-spacing: 2rpx;
+}
+
+/* ===== 区块小标题（带叶子前缀） ===== */
+.section-title-row {
+  margin-bottom: 18rpx;
+}
+.section-title-leaf {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--cream);
+  letter-spacing: 2rpx;
+}
+
+/* ===== 问候区卡片 ===== */
+.greeting-card {
+  text-align: center;
+}
+.greeting-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6rpx;
+  margin-bottom: 12rpx;
+}
+.greeting-time {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: var(--cream);
+}
+.greeting-name {
+  font-size: 28rpx;
+  color: var(--cream-soft);
+  font-weight: 500;
+}
+.greeting-streak {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10rpx;
+  padding-top: 14rpx;
+  border-top: 1rpx dashed rgba(165, 190, 140, 0.3);
+}
+.streak-text {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+.camp-deco {
+  font-size: 24rpx;
+  letter-spacing: 4rpx;
+}
+
+/* ===== 3. 宠物英雄区 ===== */
+.pet-hero-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  overflow: visible;
+}
+.pet-float-area {
+  position: relative;
+  margin-top: 12rpx;
+  margin-bottom: 14rpx;
+}
+/* 宠物背后的光晕环 */
+.pet-glow-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 180rpx;
+  height: 180rpx;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(124, 179, 66, 0.25) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+/* 宠物浮动包裹 */
+.pet-emoji-wrap {
+  animation: acPetFloat 3s ease-in-out infinite;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+.pet-emoji-wrap.happy {
+  animation: acPetFloat 2.5s ease-in-out infinite, acPetBounce 1.2s ease infinite;
+}
+.pet-emoji-wrap.normal {
+  animation: acPetFloat 3s ease-in-out infinite, acPetBreathe 4s ease-in-out infinite;
+}
+.pet-emoji-wrap.sad {
+  animation: acPetFloat 4s ease-in-out infinite, acPetPulse 3s ease-in-out infinite;
+}
+.pet-emoji-large {
+  font-size: 120rpx;
+  display: block;
+  line-height: 1.2;
+  filter: drop-shadow(0 6rpx 20rpx rgba(124, 179, 66, 0.35));
+}
+/* 宠物名字 */
+.pet-display-name {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--cream);
+  margin-bottom: 12rpx;
+  letter-spacing: 2rpx;
+}
+
+/* ===== 引用悬浮卡片（对话气泡） ===== */
+.quote-card {
+  background: linear-gradient(135deg, rgba(74, 115, 97, 0.8), rgba(61, 98, 84, 0.7));
+  border-left: 5rpx solid var(--leaf-green);
+  border-radius: 18rpx;
+  padding: 16rpx 22rpx;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12rpx;
+  max-width: 90%;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.15);
+  margin-bottom: 14rpx;
+}
+.quote-accent {
+  font-size: 28rpx;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+.quote-text {
+  font-size: 25rpx;
+  color: var(--cream-soft);
+  line-height: 1.55;
+  flex: 1;
+}
+
+/* 状态徽章 */
+.status-badge {
+  padding: 6rpx 22rpx;
+  border-radius: 999rpx;
+  font-size: 23rpx;
+  font-weight: 500;
+  backdrop-filter: blur(4rpx);
+}
+.status-happy {
+  background: rgba(124, 179, 66, 0.25);
+  color: var(--leaf-light);
+  border: 1rpx solid rgba(124, 179, 66, 0.45);
+}
+.status-normal {
+  background: rgba(174, 213, 129, 0.2);
+  color: var(--cream-soft);
+  border: 1rpx solid rgba(174, 213, 129, 0.35);
+}
+.status-sad {
+  background: rgba(255, 171, 64, 0.2);
+  color: var(--accent-orange);
+  border: 1rpx solid rgba(255, 171, 64, 0.35);
+}
+
+/* 宠物动画关键帧 */
+@keyframes acPetFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-18rpx); }
+}
+@keyframes acPetBounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-10rpx) rotate(4deg); }
+  75% { transform: translateY(-10rpx) rotate(-4deg); }
+}
+@keyframes acPetBreathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+@keyframes acPetPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.65; transform: scale(0.96); }
+}
+
+/* ===== 4. 等级 & XP 进度条 ===== */
+.level-section {
+  text-align: center;
+}
+/* 木框进度条 */
+.xp-bar-wood {
+  height: 22rpx;
+  background: rgba(139, 105, 20, 0.3);
+  border: 2rpx solid var(--wood-dark);
+  border-radius: 999rpx;
+  overflow: hidden;
+  margin-bottom: 12rpx;
+  box-shadow: inset 0 2rpx 4rpx rgba(0, 0, 0, 0.2);
+}
+.xp-fill-leaf {
+  height: 100%;
+  background: linear-gradient(90deg, var(--leaf-green), var(--leaf-light));
+  border-radius: 999rpx;
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+}
+/* 进度条光效 */
+.xp-fill-leaf::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.25) 50%, transparent 100%);
+  animation: woodBarShine 2.5s ease-in-out infinite;
+}
+@keyframes woodBarShine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.xp-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.xp-percent-text {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--leaf-light);
+}
+.xp-remain-text {
+  font-size: 22rpx;
+  color: var(--text-secondary);
+}
+
+/* ===== 5. 今日任务 ===== */
+.task-row-wood {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 1rpx dashed rgba(165, 190, 140, 0.25);
+  transition: all 0.25s ease;
+}
+.task-row-wood:last-child {
+  border-bottom: none;
+}
+.task-row-wood:active {
+  opacity: 0.7;
+}
+.task-row-wood.done {
+  opacity: 0.5;
+}
+/* 木纹圆形复选框 */
+.wood-checkbox {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  border: 3rpx solid var(--wood-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 18rpx;
+  flex-shrink: 0;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  background: rgba(139, 105, 20, 0.15);
+}
+.wood-checkbox.checked {
+  background: var(--leaf-green);
+  border-color: var(--leaf-green);
+  transform: scale(1.08);
+  box-shadow: 0 3rpx 12rpx rgba(124, 179, 66, 0.4);
+}
+.check-mark {
+  font-size: 22rpx;
+  color: #fff;
+  font-weight: 700;
+}
+/* 任务文字 */
+.task-label {
+  flex: 1;
+  font-size: 27rpx;
+  color: var(--cream);
+  font-weight: 500;
+  transition: all 0.25s ease;
+}
+.task-label.task-done {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+/* XP 标签 */
+.xp-chip {
+  background: rgba(218, 165, 32, 0.2);
+  border: 1rpx solid var(--wood-light);
+  padding: 5rpx 16rpx;
+  border-radius: 999rpx;
+  font-size: 21rpx;
+  color: var(--wood-light);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.xp-chip.chip-done {
+  background: rgba(139, 154, 125, 0.2);
+  border-color: var(--text-muted);
+  color: var(--text-muted);
+}
+.quest-footer {
+  margin-top: 14rpx;
+  padding-top: 14rpx;
+  border-top: 1rpx dashed rgba(165, 190, 140, 0.25);
+  text-align: center;
+}
+.quest-summary {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* ===== 6. 每日签到 ===== */
+.signin-section {
+  text-align: center;
+}
+.signin-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  margin-bottom: 16rpx;
+}
+.signin-fire {
+  font-size: 40rpx;
+}
+.signin-label {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--cream);
+}
+.signin-btn-wrap {
+  margin-bottom: 14rpx;
+}
+.signin-btn {
+  display: inline-block;
+  padding: 14rpx 48rpx;
+  font-size: 28rpx;
+}
+.signin-streak-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  padding-top: 12rpx;
+  border-top: 1rpx dashed rgba(218, 165, 32, 0.3);
+}
+.streak-flame {
+  font-size: 28rpx;
+}
+.streak-num {
+  font-size: 26rpx;
+  color: var(--accent-orange);
+  font-weight: 700;
+}
+
+/* ===== 7. 今日成长 ===== */
+.growth-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 10rpx 0;
+}
+.growth-stat-block {
+  text-align: center;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6rpx;
+}
+.growth-stat-val {
+  font-size: 48rpx;
+  font-weight: 800;
+  color: var(--leaf-light);
+  line-height: 1.1;
+}
+.growth-stat-lbl {
+  font-size: 23rpx;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.growth-divider-line {
+  width: 2rpx;
+  height: 64rpx;
+  background: linear-gradient(180deg, transparent, var(--leaf-green), transparent);
+}
+
+/* ===== 8. AI 鼓励引用卡片 ===== */
+.encouragement-quote {
+  background: linear-gradient(135deg, rgba(139, 105, 20, 0.3), rgba(184, 134, 11, 0.2));
+  border-left: 5rpx solid var(--wood-light);
+  margin-bottom: 22rpx;
+}
+.encourage-badge {
+  margin-top: 12rpx;
+  padding: 6rpx 18rpx;
+  background: rgba(124, 179, 66, 0.15);
+  border-radius: 999rpx;
+  display: inline-block;
+}
+.encourage-badge text {
+  font-size: 21rpx;
+  color: var(--leaf-light);
+  font-weight: 600;
+}
+
+/* ===== 9. 快速心情 ===== */
+.mood-grid {
+  display: flex;
+  justify-content: space-around;
+  padding: 8rpx 0;
+}
+.mood-chip {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44rpx;
+  background: rgba(61, 98, 84, 0.5);
+  border: 3rpx solid rgba(139, 105, 20, 0.3);
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.mood-chip:active {
+  transform: scale(0.88);
+}
+.mood-chip.mood-selected {
+  border-color: var(--leaf-green);
+  background: rgba(124, 179, 66, 0.25);
+  transform: scale(1.15);
+  box-shadow: 0 4rpx 16rpx rgba(124, 179, 66, 0.35);
+}
+.mood-done-tag {
+  font-size: 22rpx;
+  color: var(--leaf-light);
+  font-weight: 600;
+}
+
+/* ===== 木纹按钮 ===== */
+.btn-wood {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 72rpx;
+  padding: 0 36rpx;
+  background: linear-gradient(135deg, var(--wood-dark), var(--wood));
+  border-radius: 999rpx;
+  font-size: 27rpx;
+  font-weight: 600;
+  color: var(--cream);
+  border: none;
+  box-shadow: 0 4rpx 14rpx rgba(0, 0, 0, 0.25);
+  transition: all 0.2s ease;
+}
+.btn-wood:active {
+  transform: scale(0.95);
+  opacity: 0.85;
+}
+
+/* ===== 绿叶按钮 ===== */
+.btn-leaf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 72rpx;
+  padding: 0 36rpx;
+  background: linear-gradient(135deg, var(--leaf-green), #689F38);
+  border-radius: 999rpx;
+  font-size: 27rpx;
+  font-weight: 600;
+  color: #fff;
+  border: none;
+  box-shadow: 0 4rpx 14rpx rgba(124, 179, 66, 0.35);
+  transition: all 0.2s ease;
+}
+.btn-leaf:active {
+  transform: scale(0.95);
+  opacity: 0.85;
+}
+
+/* ===== 新手引导遮罩（木纹风格） ===== */
+.tutorial-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(45, 74, 62, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  backdrop-filter: blur(6rpx);
+}
+.tutorial-modal-wood {
+  background: linear-gradient(160deg, var(--bg-card), var(--bg-card-light));
+  border: 4rpx solid var(--wood);
+  border-radius: 40rpx;
+  padding: 56rpx 44rpx 44rpx;
+  width: 75%;
+  max-width: 600rpx;
+  text-align: center;
+  box-shadow: 0 20rpx 60rpx rgba(0, 0, 0, 0.4), inset 0 1rpx 2rpx rgba(255, 255, 255, 0.05);
+  animation: woodModalPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes woodModalPop {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.tutorial-icon {
+  font-size: 110rpx;
+  display: block;
+  margin-bottom: 22rpx;
+}
+.tutorial-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--cream);
+  display: block;
+  margin-bottom: 14rpx;
+  letter-spacing: 2rpx;
+}
+.tutorial-desc {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  display: block;
+  line-height: 1.65;
+  margin-bottom: 30rpx;
+}
+.tutorial-dots {
+  display: flex;
+  justify-content: center;
+  gap: 12rpx;
+  margin-bottom: 36rpx;
+}
+.tutorial-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  background: rgba(139, 105, 20, 0.3);
+  transition: all 0.3s ease;
+}
+.tutorial-dot.active {
+  width: 44rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, var(--leaf-green), var(--leaf-light));
+}
+.tutorial-actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+/* ===== 底部留白 ===== */
+.bottom-spacer {
+  height: 40rpx;
+}

@@ -1,0 +1,4 @@
+{
+  "desc": "AI 成长伙伴",
+  "rules": [{ "action": "allow", "page": "*" }]
+}

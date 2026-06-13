@@ -1,0 +1,249 @@
+/* ========== AI 配置页 - 动森森林主题样式 ========== */
+
+/* 页面容器 */
+.page-container {
+  min-height: 100vh;
+  background: #2D4A3E;
+  padding: 30rpx 24rpx;
+  box-sizing: border-box;
+}
+
+/* ---------- 木纹标题栏 ---------- */
+.wood-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 80rpx;
+  background: linear-gradient(135deg, #8B6914, #B8860B);
+  border-radius: 50rpx;
+  margin-bottom: 28rpx;
+  gap: 16rpx;
+}
+.title-icon {
+  font-size: 28rpx;
+}
+.title-text {
+  color: #F5E6C8;
+  font-size: 34rpx;
+  font-weight: bold;
+}
+
+/* ---------- 实边卡片 ---------- */
+.card-solid {
+  background: rgba(61,98,84,0.7);
+  border: 3rpx solid #8B6914;
+  border-radius: 28rpx;
+  padding: 26rpx;
+  margin-bottom: 22rpx;
+}
+.card {
+  background: rgba(61,98,84,0.6);
+  border: 2rpx dashed rgba(165,190,140,0.4);
+  border-radius: 28rpx;
+  padding: 26rpx;
+  margin-bottom: 22rpx;
+}
+
+/* ---------- 区块内联标题 ---------- */
+.section-title-inline {
+  font-size: 28rpx;
+  color: #F5E6C8;
+  font-weight: bold;
+  margin-bottom: 18rpx;
+}
+.section-title {
+  font-size: 28rpx;
+  color: #F5E6C8;
+  margin: 30rpx 0 16rpx;
+  padding-left: 10rpx;
+}
+
+/* ---------- 服务商网格 ---------- */
+.provider-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14rpx;
+  margin-bottom: 20rpx;
+}
+.provider-card {
+  background: rgba(74,115,97,0.35);
+  border: 2rpx solid transparent;
+  border-radius: 18rpx;
+  padding: 18rpx 8rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6rpx;
+  transition: all 0.2s;
+}
+.provider-active {
+  background: linear-gradient(135deg, rgba(139,105,20,0.25), rgba(184,134,11,0.15));
+  border-color: #DAA520;
+  transform: scale(1.04);
+}
+.p-icon {
+  font-size: 36rpx;
+}
+.p-name {
+  font-size: 23rpx;
+  color: #C4B89A;
+  font-weight: 500;
+}
+.provider-active .p-name {
+  color: #F5E6C8;
+  font-weight: bold;
+}
+
+/* 快捷模板行 */
+.template-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex-wrap: wrap;
+}
+.tmpl-label {
+  font-size: 24rpx;
+  color: #C4B89A;
+  white-space: nowrap;
+}
+.tmpl-chip {
+  padding: 6rpx 18rpx;
+  border-radius: 24rpx;
+  font-size: 23rpx;
+  color: #AED581;
+  background: rgba(124,179,66,0.15);
+  border: 1rpx solid rgba(124,179,66,0.25);
+}
+
+/* ---------- 表单 ---------- */
+.form-group {
+  margin-bottom: 20rpx;
+}
+.form-label-sm {
+  display: block;
+  font-size: 25rpx;
+  color: #F5E6C8;
+  font-weight: bold;
+  margin-bottom: 10rpx;
+}
+
+/* 输入框 */
+.wood-input {
+  width: 100%;
+  height: 84rpx;
+  background: rgba(45,74,62,0.5);
+  border: 2rpx solid rgba(139,105,20,0.3);
+  border-radius: 18rpx;
+  padding: 0 24rpx;
+  box-sizing: border-box;
+  font-size: 27rpx;
+  color: #F5E6C8;
+}
+.input-placeholder {
+  color: #8B9A7D;
+  font-size: 26rpx;
+}
+
+/* Key 输入框（带显示/隐藏按钮） */
+.key-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.key-input {
+  padding-right: 80rpx !important;
+}
+.toggle-key-btn {
+  position: absolute;
+  right: 16rpx;
+  font-size: 32rpx;
+  z-index: 1;
+}
+
+/* ---------- 按钮 ---------- */
+.btn-wood {
+  width: 100%;
+  height: 84rpx;
+  line-height: 84rpx;
+  text-align: center;
+  background: linear-gradient(135deg, #8B6914, #B8860B) !important;
+  color: #F5E6C8 !important;
+  border-radius: 42rpx;
+  font-size: 30rpx;
+  font-weight: bold;
+  border: none !important;
+  margin-top: 10rpx;
+}
+.test-btn.testing {
+  opacity: 0.65;
+}
+
+/* 测试结果 */
+.test-result {
+  margin-top: 16rpx;
+  padding: 16rpx 20rpx;
+  border-radius: 16rpx;
+  text-align: center;
+}
+.result-ok {
+  background: rgba(124,179,66,0.15);
+  border: 2rpx solid rgba(124,179,66,0.3);
+}
+.result-err {
+  background: rgba(255,107,107,0.12);
+  border: 2rpx solid rgba(255,107,107,0.25);
+}
+.tr-text {
+  font-size: 26rpx;
+  color: #AED581;
+  font-weight: bold;
+}
+.result-err .tr-text {
+  color: #FF6B6B;
+}
+
+/* 操作按钮区 */
+.action-buttons {
+  margin-bottom: 18rpx;
+}
+.save-btn {
+  margin-bottom: 14rpx !important;
+}
+.clear-config-btn {
+  width: 100% !important;
+  height: 72rpx !important;
+  line-height: 72rpx !important;
+  text-align: center;
+  background: transparent !important;
+  color: #8B9A7D !important;
+  border: 2rpx dashed rgba(139,154,125,0.35) !important;
+  border-radius: 36rpx !important;
+  font-size: 26rpx !important;
+}
+
+/* ---------- 已保存提示 ---------- */
+.quote-card {
+  position: relative;
+  background: rgba(74,115,97,0.5);
+  border-radius: 20rpx;
+  padding: 18rpx 18rpx 18rpx 28rpx;
+  overflow: hidden;
+}
+.quote-bar {
+  position: absolute;
+  left: 0;
+  top: 14rpx;
+  bottom: 14rpx;
+  width: 6rpx;
+  background: #7CB342;
+  border-radius: 0 4rpx 4rpx 0;
+}
+.quote-content {
+  position: relative;
+  z-index: 1;
+}
+.saved-msg {
+  font-size: 26rpx;
+  color: #AED581;
+  font-weight: bold;
+}

@@ -1,0 +1,138 @@
+/* ========== 启动页 - 动森营地森林风格 ========== */
+
+/* 全屏页面 */
+.splash-page {
+  width: 100vw;
+  height: 100vh;
+  background: #2D4A3E;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ---------- 背景层 ---------- */
+.splash-bg {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    radial-gradient(ellipse at 20% 80%, rgba(124,179,66,0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(139,105,20,0.1) 0%, transparent 50%),
+    linear-gradient(180deg, #2D4A3E 0%, #355447 50%, #2D4A3E 100%);
+}
+
+/* ---------- 森林装饰（静态，减少闪烁） ---------- */
+.forest-decor {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+}
+.f-tree { position: absolute; font-size: 120rpx; opacity: 0.06; }
+.tree-1 { bottom: 8%; left: -10rpx; font-size: 160rpx; }
+.tree-2 { bottom: 5%; right: -20rpx; font-size: 140rpx; }
+.tree-3 { top: 10%; left: 50%; transform: translateX(-50%); opacity: 0.04; font-size: 100rpx; }
+
+/* 叶子：保留轻柔浮动 */
+.f-leaf { position: absolute; font-size: 60rpx; opacity: 0.08; animation: leaf-float 6s ease-in-out infinite; }
+.leaf-1 { top: 18%; left: 12%; animation-delay: 0s; }
+.leaf-2 { top: 25%; right: 15%; animation-delay: 2s; }
+@keyframes leaf-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-16rpx) rotate(8deg); }
+}
+
+/* 星星：改为缓慢呼吸，不再闪烁 */
+.f-star { position: absolute; font-size: 40rpx; opacity: 0.06; animation: star-breathe 4s ease-in-out infinite; }
+.star-1 { top: 30%; left: 30%; animation-delay: 0.5s; }
+.star-2 { top: 22%; right: 28%; animation-delay: 2s; }
+@keyframes star-breathe {
+  0%, 100% { opacity: 0.04; }
+  50% { opacity: 0.12; }
+}
+
+/* ---------- 主内容 ---------- */
+.splash-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 1;
+}
+
+/* 营地Logo：轻微呼吸效果 */
+.camp-logo { position: relative; margin-bottom: 36rpx; }
+.logo-camp {
+  font-size: 140rpx;
+  z-index: 2;
+  position: relative;
+  animation: logo-breathe 3s ease-in-out infinite;
+}
+@keyframes logo-breathe {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.04); opacity: 0.92; }
+}
+
+/* 光环：去掉动态缩放，改为静态装饰 */
+.logo-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200rpx;
+  height: 200rpx;
+  border: 4rpx solid rgba(139,105,20,0.2);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* 标题 */
+.splash-title {
+  font-size: 48rpx;
+  color: #F5E6C8;
+  font-weight: bold;
+  letter-spacing: 8rpx;
+  margin-bottom: 8rpx;
+}
+.splash-subtitle {
+  font-size: 26rpx;
+  color: #C4B89A;
+  letter-spacing: 4px;
+  margin-bottom: 60rpx;
+}
+
+/* 加载区域 */
+.loading-area { text-align: center; margin-bottom: 60rpx; }
+.loading-dots {
+  font-size: 28rpx;
+  color: #C4B89A;
+  display: block;
+  margin-bottom: 20rpx;
+}
+
+/* 启动进度条：改为渐进填充，不再来回滑动 */
+.splash-progress {
+  width: 300rpx;
+  height: 8rpx;
+  background: rgba(45,74,62,0.55);
+  border-radius: 4rpx;
+  overflow: hidden;
+}
+.splash-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #7CB342, #AED581);
+  border-radius: 4rpx;
+  animation: bar-grow 1.5s ease-out forwards;
+}
+@keyframes bar-grow {
+  0% { width: 0%; }
+  70% { width: 75%; }
+  100% { width: 85%; }
+}
+
+/* 底部标语 */
+.splash-footer { position: absolute; bottom: 80rpx; }
+.footer-text {
+  font-size: 24rpx;
+  color: #8B9A7D;
+  letter-spacing: 2px;
+}

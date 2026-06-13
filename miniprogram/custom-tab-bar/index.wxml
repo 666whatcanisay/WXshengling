@@ -1,0 +1,62 @@
+<!-- ========================================== -->
+<!--  自定义 TabBar - 动物森友会森林治愈风格      -->
+<!--  5个Tab：首页 / 目标 / 营地(中心) / AI / 我的 -->
+<!-- ========================================== -->
+
+<view class="tab-bar">
+  <!-- 遍历所有Tab项 -->
+  <view
+    wx:for="{{list}}"
+    wx:key="index"
+    class="tab-item {{selected === index ? 'active' : ''}} {{item.isCenter ? 'center' : ''}}"
+    data-path="{{item.pagePath}}"
+    data-is-center="{{item.isCenter}}"
+    bindtap="{{item.isCenter ? 'goCenter' : 'switchTab'}}"
+  >
+    <!-- ====== 中间浮动营地按钮 ====== -->
+    <view wx:if="{{item.isCenter}}" class="center-btn">
+      <view class="center-btn-inner">
+        <!-- 🌿 营地/宠物中心图标 -->
+        <text class="center-icon">🌿</text>
+        <!-- 按钮下方文字 -->
+        <text class="center-text">营地</text>
+      </view>
+    </view>
+
+    <!-- ====== 普通Tab项 ====== -->
+    <view wx:else class="tab-content">
+      <!-- 图标区域 -->
+      <view class="icon-wrap">
+        <!-- 首页 🏕️ -->
+        <block wx:if="{{item.icon === 'home'}}">
+          <view class="tab-icon-text {{selected === index ? 'active' : ''}}">🏕️</view>
+          <view wx:if="{{selected === index}}" class="dot-indicator"></view>
+        </block>
+
+        <!-- 目标 🎯 -->
+        <block wx:elif="{{item.icon === 'target'}}">
+          <view class="tab-icon-text {{selected === index ? 'active' : ''}}">🎯</view>
+          <view wx:if="{{selected === index}}" class="dot-indicator"></view>
+        </block>
+
+        <!-- AI 🤖 -->
+        <block wx:elif="{{item.icon === 'robot'}}">
+          <view class="tab-icon-text {{selected === index ? 'active' : ''}}">🤖</view>
+          <view wx:if="{{selected === index}}" class="dot-indicator"></view>
+        </block>
+
+        <!-- 我的 👤 -->
+        <block wx:elif="{{item.icon === 'user'}}">
+          <view class="tab-icon-text {{selected === index ? 'active' : ''}}">👤</view>
+          <view wx:if="{{selected === index}}" class="dot-indicator"></view>
+        </block>
+      </view>
+
+      <!-- 文字标签 -->
+      <text class="tab-text">{{item.text}}</text>
+    </view>
+  </view>
+</view>
+
+<!-- 安全区域底部占位，防止内容被遮挡 -->
+<view class="safe-area-bottom"></view>

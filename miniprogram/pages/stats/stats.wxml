@@ -1,0 +1,103 @@
+<!-- 数据统计 - 动森森林风格 -->
+<view class="page">
+  <scroll-view scroll-y class="page-scroll" enhanced show-scrollbar="{{false}}">
+    <view class="page-inner">
+
+    <!-- 木纹标题栏 -->
+    <view class="wood-title">
+      <text class="title-icon">🌿</text>
+      <text class="title-text">📈 数据统计</text>
+      <text class="title-icon">🌿</text>
+    </view>
+
+  <!-- 用户等级卡片（木纹渐变） -->
+  <view class="level-card">
+    <view class="level-card-inner">
+      <view class="level-left">
+        <view class="level-badge">
+          <text class="level-num">Lv.{{userLevel}}</text>
+        </view>
+        <view class="level-info">
+          <text class="pet-name" wx:if="{{pet}}">{{pet.name}} 🐾</text>
+          <text class="xp-text">总经验 {{totalXp}} XP ✨</text>
+          <!-- 经验条 -->
+          <view class="xp-bar-wrap">
+            <view class="xp-bar-fill" style="width: {{(totalXp % 500) / 5}}%"></view>
+          </view>
+        </view>
+      </view>
+      <view class="level-right">
+        <text class="streak-fire">🔥 {{streakDays}}天</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 周打卡柱状图（7柱） -->
+  <view class="card week-chart-card">
+    <view class="section-title-inline">📊 本周打卡</view>
+    <view class="week-bar-chart">
+      <view
+        wx:for="{{weekCheckins}}"
+        wx:key="date"
+        class="bar-col"
+      >
+        <view class="bar-value">{{item.count}}</view>
+        <view class="bar-outer">
+          <view
+            class="bar-inner"
+            style="height: {{item.count > 0 ? item.count * 36 : 4}}rpx"
+          ></view>
+        </view>
+        <text class="bar-day-label">{{item.date.slice(5)}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 核心指标（4项） -->
+  <view class="core-metrics">
+    <view class="metric-item card-solid-sm">
+      <text class="metric-icon">✅</text>
+      <text class="metric-val">{{completedTasks}}</text>
+      <text class="metric-lbl">已完成任务</text>
+    </view>
+    <view class="metric-item card-solid-sm">
+      <text class="metric-icon">📋</text>
+      <text class="metric-val">{{totalTasks}}</text>
+      <text class="metric-lbl">总任务数</text>
+    </view>
+    <view class="metric-item card-solid-sm">
+      <text class="metric-icon">📊</text>
+      <text class="metric-val">{{completionRate}}%</text>
+      <text class="metric-lbl">完成率</text>
+    </view>
+    <view class="metric-item card-solid-sm">
+      <text class="metric-icon">🔔</text>
+      <text class="metric-val">{{totalCheckins}}</text>
+      <text class="metric-lbl">累计打卡</text>
+    </view>
+  </view>
+
+  <!-- 进行中的目标列表 -->
+  <view class="card goals-section">
+    <view class="section-title-inline">🎯 进行中目标</view>
+    <view
+      wx:for="{{goals}}"
+      wx:key="id"
+      class="goal-row"
+    >
+      <view class="goal-info">
+        <text class="goal-status-dot doing"></text>
+        <text class="goal-title-text">{{item.title}}</text>
+      </view>
+      <text class="goal-tag-doing">进行中</text>
+    </view>
+
+    <!-- 空状态 -->
+    <view wx:if="{{goals.length === 0}}" class="empty-mini">
+      <text>暂无进行中的目标 🌱</text>
+    </view>
+  </view>
+
+    </view>
+  </scroll-view>
+</view>

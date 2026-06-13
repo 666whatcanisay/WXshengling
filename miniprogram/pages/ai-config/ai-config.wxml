@@ -1,0 +1,114 @@
+<!-- AI 配置页面 - 动森森林风格 -->
+<view class="page">
+  <scroll-view scroll-y class="page-scroll" enhanced show-scrollbar="{{false}}">
+    <view class="page-inner">
+
+    <!-- 木纹标题栏 -->
+    <view class="wood-title">
+      <text class="title-icon">🤖</text>
+      <text class="title-text">AI 助手配置</text>
+      <text class="title-icon">🤖</text>
+    </view>
+
+  <!-- 服务商选择 -->
+  <view class="card-solid provider-section">
+    <view class="section-title-inline">🔌 选择服务商</view>
+    <view class="provider-grid">
+      <view
+        wx:for="{{providers}}"
+        wx:key="id"
+        class="provider-card {{provider === item.id ? 'provider-active' : ''}}"
+        bindtap="selectProvider"
+        data-provider="{{item.id}}"
+      >
+        <text class="p-icon">{{item.icon}}</text>
+        <text class="p-name">{{item.name}}</text>
+      </view>
+    </view>
+
+    <!-- 快捷模板 -->
+    <view class="template-row">
+      <text class="tmpl-label">⚡ 快捷模板：</text>
+      <view
+        wx:for="{{templates}}"
+        wx:key="id"
+        class="tmpl-chip"
+        bindtap="applyTemplate"
+        data-id="{{item.id}}"
+      >{{item.name}}</view>
+    </view>
+  </view>
+
+  <!-- API Key 配置 -->
+  <view class="card api-key-section">
+    <view class="section-title-inline">🔑 API Key 配置</view>
+
+    <view class="form-group">
+      <text class="form-label-sm">API Key</text>
+      <view class="key-input-wrap">
+        <input
+          class="wood-input key-input"
+          password="{{!showKey}}"
+          placeholder="请输入 API Key..."
+          placeholder-class="input-placeholder"
+          value="{{apiKey}}"
+          bindinput="onApiKey"
+        />
+        <text class="toggle-key-btn" bindtap="toggleKey">{{showKey ? '🙈' : '👁️'}}</text>
+      </view>
+    </view>
+
+    <!-- Base URL（自定义时显示） -->
+    <view wx:if="{{showBaseUrl}}" class="form-group">
+      <text class="form-label-sm">Base URL</text>
+      <input
+        class="wood-input"
+        placeholder="输入 API 地址..."
+        placeholder-class="input-placeholder"
+        value="{{baseUrl}}"
+        bindinput="onBaseUrl"
+      />
+    </view>
+
+    <!-- 模型名称 -->
+    <view class="form-group">
+      <text class="form-label-sm">模型名称</text>
+      <input
+        class="wood-input"
+        placeholder="{{modelPlaceholder}}"
+        placeholder-class="input-placeholder"
+        value="{{model}}"
+        bindinput="onModel"
+      />
+    </view>
+
+    <!-- 测试连接按钮 -->
+    <button
+      class="btn-wood test-btn {{testing ? 'testing' : ''}}"
+      bindtap="testConnection"
+      disabled="{{testing}}"
+    >{{testing ? '🔄 连接中...' : '🧪 测试连接'}}</button>
+
+    <!-- 测试结果 -->
+    <view wx:if="{{testResult}}" class="test-result {{testResult.success ? 'result-ok' : 'result-err'}}">
+      <text class="tr-text">{{testResult.message}}</text>
+    </view>
+  </view>
+
+  <!-- 操作按钮区 -->
+  <view class="action-buttons">
+    <button class="btn-wood save-btn" bindtap="saveConfig">💾 保存配置</button>
+    <button class="clear-config-btn" bindtap="clearConfig">🗑️ 清除配置</button>
+  </view>
+
+  <!-- 配置状态提示 -->
+  <view wx:if="{{configSaved}}" class="quote-card saved-tip">
+    <view class="quote-bar"></view>
+    <view class="quote-content">
+      <text class="saved-msg">✅ 配置已保存，AI 功能已就绪！</text>
+    </view>
+  </view>
+
+    </view>
+  </scroll-view>
+</view>

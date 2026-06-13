@@ -1,0 +1,415 @@
+<!-- 管理员控制台 - 营地管理中心 v2 -->
+<view class="page">
+  <scroll-view scroll-y class="admin-scroll" enhanced show-scrollbar="{{false}}">
+    <view class="admin-inner">
+
+      <!-- 无权限 -->
+      <view wx:if="{{!isAdmin && !loading}}" class="no-permission">
+        <text class="no-icon">🔒</text>
+        <text class="no-title">无管理员权限</text>
+        <text class="no-desc">仅管理员可访问此页面</text>
+        <button class="btn-back" bindtap="goBack">返回</button>
+      </view>
+
+      <!-- 加载中 -->
+      <view wx:if="{{loading}}" class="loading-wrap">
+        <text class="loading-text">正在加载营地数据...</text>
+      </view>
+
+      <!-- ===== 管理员主内容 ===== -->
+      <block wx:if="{{isAdmin && !loading}}">
+
+        <!-- 顶部标题栏 -->
+        <view class="admin-header">
+          <view class="header-top">
+            <text class="admin-title">🛡️ 营地管理中心</text>
+            <text class="header-badge">v2.0</text>
+          </view>
+          <text class="admin-subtitle">全平台数据 · 用户管理 · 内容审核 · 系统工具</text>
+        </view>
+
+        <!-- ========== 数据看板（6个统计卡片）========== -->
+        <view class="stats-grid">
+          <view class="stat-card stat-users">
+            <text class="stat-icon">👥</text>
+            <text class="stat-num">{{stats.totalUsers || 0}}</text>
+            <text class="stat-label">注册用户</text>
+          </view>
+          <view class="stat-card stat-goals">
+            <text class="stat-icon">🎯</text>
+            <text class="stat-num">{{stats.totalGoals || 0}}</text>
+            <text class="stat-label">活跃目标</text>
+          </view>
+          <view class="stat-card stat-pets">
+            <text class="stat-icon">🐾</text>
+            <text class="stat-num">{{stats.totalPets || 0}}</text>
+            <text class="stat-label">宠物伙伴</text>
+          </view>
+          <view class="stat-card stat-feedbacks">
+            <text class="stat-icon">💬</text>
+            <text class="stat-num">{{stats.totalFeedbacks || 0}}</text>
+            <text class="stat-label">用户反馈</text>
+          </view>
+          <view class="stat-card stat-signins">
+            <text class="stat-icon">✅</text>
+            <text class="stat-num">{{stats.todaySignins || 0}}</text>
+            <text class="stat-label">今日签到</text>
+          </view>
+          <view class="stat-card stat-tasks">
+            <text class="stat-icon">⚡</text>
+            <text class="stat-num">{{stats.activeToday || 0}}</text>
+            <text class="stat-label">今日任务完成</text>
+          </view>
+        </view>
+
+        <!-- 平台总XP -->
+        <view class="platform-xp-bar">
+          <text class="xp-label">🏆 平台累计经验值：</text>
+          <text class="xp-value">{{formatXp(stats.totalPlatformXp)}}</text>
+        </view>
+
+        <!-- ========== Tab 切换栏 ========== -->
+        <view class="section-tabs">
+          <view
+            wx:for="{{tabs}}"
+            wx:key="key"
+            class="tab-item {{activeTab === item.key ? 'tab-active' : ''}}"
+            data-key="{{item.key}}"
+            bindtap="switchTab"
+          >
+            <text>{{item.icon}} {{item.name}}</text>
+          </view>
+        </view>
+
+        <!-- ==================== Tab 1: 数据看板详情 ==================== -->
+        <view wx:if="{{activeTab === 'overview'}}" class="tab-content">
+
+          <!-- 最近注册用户 -->
+          <view class="section-title-row">
+            <text class="section-title">📋 最近注册用户</text>
+            <text class="section-count">{{recentUsers.length}} 人</text>
+          </view>
+          <view wx:if="{{recentUsers.length > 0}}" class="mini-user-list">
+            <view wx:for="{{recentUsers}}" wx:key="id" class="mini-user-item">
+              <image wx:if="{{item.avatar}}" class="mini-avatar" src="{{item.avatar}}" mode="aspectFill"></image>
+              <text wx:else class="mini-avatar-letter">{{item.nickname[0] || '?'}}</text>
+              <view class="mini-info">
+                <text class="mini-name">{{item.nickname || item.username}}</text>
+                <text class="mini-meta">Lv.{{item.level || 1}} · {{fmtTime(item.created_at)}}</text>
+              </view>
+              <view class="role-tag role-{{item.role}}">
+                <text>{{item.role === 'admin' ? '管理' : '用户'}}</text>
+              </view>
+            </view>
+          </view>
+          <view wx:else class="empty-state">
+            <text class="empty-text">暂无注册用户</text>
+          </view>
+
+          <!-- 快捷操作入口 -->
+          <view class="quick-actions">
+            <view class="quick-btn" bindtap="switchTab" data-key="users">
+              <text class="quick-icon">👥</text><text>用户管理</text>
+            </view>
+            <view class="quick-btn" bindtap="switchTab" data-key="pets">
+              <text class="quick-icon">🐾</text><text>宠物管理</text>
+            </view>
+            <view class="quick-btn" bindtap="switchTab" data-key="feedbacks">
+              <text class="quick-icon">💬</text><text>反馈审核</text>
+            </view>
+            <view class="quick-btn" bindtap="switchTab" data-key="tools">
+              <text class="quick-icon">🔧</text><text>系统工具</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- ==================== Tab 2: 用户管理 ==================== -->
+        <view wx:if="{{activeTab === 'users'}}" class="tab-content">
+
+          <!-- 搜索/筛选栏 -->
+          <view class="filter-bar">
+            <input
+              class="search-input"
+              placeholder="搜索用户名/昵称..."
+              value="{{userKeyword}}"
+              bindinput="onUserSearchInput"
+              confirm-type="search"
+              bindconfirm="doUserSearch"
+            />
+            <view class="filter-role-picker">
+              <picker mode="selector" range="{{roleOptions}}" value="{{selectedRoleIdx}}" bindchange="onRoleFilterChange">
+                <view class="role-filter-btn">{{roleOptions[selectedRoleIdx]}} ▾</view>
+              </picker>
+            </view>
+          </view>
+
+          <!-- 统计信息 + 分页 -->
+          <view class="list-info-bar">
+            <text class="list-info">共 {{userListTotal || 0}} 位用户</text>
+            <view wx:if="{{userListTotal > 0}}" class="page-nav">
+              <text class="page-btn {{userPage <= 1 ? 'disabled' : ''}}" bindtap="prevUserPage">◀</text>
+              <text class="page-info">第 {{userPage}} / {{totalUserPages || 1}} 页</text>
+              <text class="page-btn {{userPage >= totalUserPages ? 'disabled' : ''}}" bindtap="nextUserPage">▶</text>
+            </view>
+          </view>
+
+          <!-- 用户卡片列表 -->
+          <view wx:if="{{userList.length > 0}}" class="user-list">
+            <view wx:for="{{userList}}" wx:key="id" class="user-card {{item.status === 'banned' ? 'card-banned' : ''}}">
+              <view class="user-avatar-wrap" bindtap="showUserDetail" data-id="{{item.id}}">
+                <image wx:if="{{item.avatar}}" class="user-avatar-img" src="{{item.avatar}}" mode="aspectFill"></image>
+                <text wx:else class="user-avatar-letter">{{item.nickname[0] || '?'}}</text>
+              </view>
+              <view class="user-info" bindtap="showUserDetail" data-id="{{item.id}}">
+                <view class="user-name-row">
+                  <text class="user-nickname">{{item.nickname || item.username}}</text>
+                  <view class="role-tag role-{{item.role}}">
+                    <text>{{item.role === 'admin' ? '管理员' : '用户'}}</text>
+                  </view>
+                  <view wx:if="{{item.status === 'banned'}}" class="status-tag status-banned">
+                    <text>已封禁</text>
+                  </view>
+                </view>
+                <text class="user-meta">@{{item.username}} · Lv.{{item.level || 1}} · {{item.total_xp || 0}} XP · 连续{{item.streak_days || 0}}天</text>
+                <text class="user-time">注册于 {{fmtTime(item.created_at)}}</text>
+              </view>
+              <!-- 操作按钮组 -->
+              <view wx:if="{{item.id !== currentUserId}}" class="user-actions">
+                <view
+                  class="action-btn btn-role {{item.role === 'admin' ? 'btn-demote' : 'btn-promote'}}"
+                  data-user-id="{{item.id}}"
+                  data-role="{{item.role}}"
+                  catchtap="toggleUserRole"
+                >
+                  <text>{{item.role === 'admin' ? '降级' : '设管'}}</text>
+                </view>
+                <view
+                  class="action-btn btn-status {{item.status === 'banned' ? 'btn-unban' : 'btn-ban'}}"
+                  data-user-id="{{item.id}}"
+                  data-status="{{item.status}}"
+                  catchtap="toggleUserStatus"
+                >
+                  <text>{{item.status === 'banned' ? '解封' : '封禁'}}</text>
+                </view>
+                <view class="action-btn btn-pwd" data-user-id="{{item.id}}" catchtap="resetUserPassword">
+                  <text>重置密码</text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <view wx:else class="empty-state">
+            <text class="empty-icon">👥</text>
+            <text class="empty-text">暂无匹配的用户</text>
+          </view>
+        </view>
+
+        <!-- ==================== Tab 3: 宠物管理 ==================== -->
+        <view wx:if="{{activeTab === 'pets'}}" class="tab-content">
+          <view class="list-info-bar">
+            <text class="list-info">共 {{petListTotal || 0}} 只宠物</text>
+            <view wx:if="{{petListTotal > petPageSize}}" class="page-nav">
+              <text class="page-btn {{petPage <= 1 ? 'disabled' : ''}}" bindtap="prevPetPage">◀</text>
+              <text class="page-info">第 {{petPage}} 页</text>
+              <text class="page-btn" bindtap="nextPetPage">▶</text>
+            </view>
+          </view>
+
+          <view wx:if="{{petList.length > 0}}" class="pet-list">
+            <view wx:for="{{petList}}" wx:key="id" class="pet-card">
+              <view class="pet-emoji-wrap">
+                <text class="pet-emoji">{{getStageEmoji(item.stage)}}</text>
+                <text class="pet-lv">Lv.{{item.level || 1}}</text>
+              </view>
+              <view class="pet-info">
+                <text class="pet-name">{{item.name}}</text>
+                <text class="pet-owner">主人：{{item.ownerName || '未知'}}</text>
+                <view class="pet-tags">
+                  <text class="stage-tag stage-{{item.stage}}">{{getStageLabel(item.stage)}}</text>
+                  <text class="status-tag status-{{item.status}}">{{getStatusLabel(item.status)}}</text>
+                </view>
+                <text class="pet-exp">经验值: {{item.experience || 0}}</text>
+              </view>
+              <view class="pet-edit-btn" data-id="{{item.id}}" catchtap="editPetStage">
+                <text>编辑</text>
+              </view>
+            </view>
+          </view>
+          <view wx:else class="empty-state">
+            <text class="empty-icon">🐾</text>
+            <text class="empty-text">暂无宠物数据</text>
+          </view>
+        </view>
+
+        <!-- ==================== Tab 4: 反馈审核 ==================== -->
+        <view wx:if="{{activeTab === 'feedbacks'}}" class="tab-content">
+
+          <!-- 类型筛选 -->
+          <view class="fb-filter">
+            <view
+              wx:for="{{fbTypeFilters}}"
+              wx:key="value"
+              class="fb-filter-chip {{fbTypeFilter === item.value ? 'chip-active' : ''}}"
+              data-value="{{item.value}}"
+              bindtap="onFbTypeFilter"
+            >
+              <text>{{item.label}}</text>
+            </view>
+          </view>
+
+          <view wx:if="{{feedbackList.length > 0}}" class="feedback-list">
+            <view wx:for="{{feedbackList}}" wx:key="_id" class="feedback-card {{item.resolved ? 'fb-resolved' : ''}}">
+              <view class="fb-header">
+                <view class="fb-type-badge fb-{{item.type || 'other'}}">
+                  <text>{{item.type || '建议'}}</text>
+                </view>
+                <view wx:if="{{item.resolved}}" class="fb-resolved-tag">
+                  <text>✓ 已处理</text>
+                </view>
+                <text class="fb-time">{{fmtTime(item.created_at)}}</text>
+              </view>
+              <text class="fb-title">{{item.title}}</text>
+              <text class="fb-desc">{{item.description}}</text>
+              <view wx:if="{{item.contact}}" class="fb-contact">
+                <text>📧 {{item.contact}}</text>
+              </view>
+              <view wx:if="{{item.reply}}" class="fb-reply">
+                <text class="reply-label">回复：</text>
+                <text class="reply-text">{{item.reply}}</text>
+              </view>
+              <!-- 操作按钮 -->
+              <view wx:if="{{!item.resolved}}" class="fb-actions">
+                <view class="fb-action-btn fb-resolve" data-id="{{item._id}}" catchtap="resolveFeedback">
+                  <text>标记已处理</text>
+                </view>
+                <view class="fb-action-btn fb-delete" data-id="{{item._id}}" catchtap="deleteFeedback">
+                  <text>删除</text>
+                </view>
+              </view>
+              <view wx:else class="fb-actions">
+                <view class="fb-action-btn fb-delete" data-id="{{item._id}}" catchtap="deleteFeedback">
+                  <text>删除反馈</text>
+                </view>
+              </view>
+            </view>
+          </view>
+          <view wx:else class="empty-state">
+            <text class="empty-icon">💬</text>
+            <text class="empty-text">暂无反馈信息</text>
+          </view>
+        </view>
+
+        <!-- ==================== Tab 5: 系统工具 ==================== -->
+        <view wx:if="{{activeTab === 'tools'}}" class="tab-content">
+
+          <!-- 广播公告 -->
+          <view class="tool-section">
+            <text class="tool-title">📢 发布系统广播</text>
+            <input class="tool-input" placeholder="广播标题" value="{{bcTitle}}" bindinput="onBcTitleInput" />
+            <textarea class="tool-textarea" placeholder="广播内容..." value="{{bcContent}}" bindinput="onBcContentInput" auto-height maxlength="500"></textarea>
+            <view class="tool-btn-row">
+              <button class="tool-submit-btn" bindtap="sendBroadcast" loading="{{sendingBroadcast}}">发布广播</button>
+            </view>
+          </view>
+
+          <!-- 数据概览 -->
+          <view class="tool-section">
+            <text class="tool-title">📊 平台数据快照</text>
+            <view class="snapshot-grid">
+              <view class="snap-item"><text class="snap-label">用户总数</text><text class="snap-val">{{stats.totalUsers || 0}}</text></view>
+              <view class="snap-item"><text class="snap-label">目标数</text><text class="snap-val">{{stats.totalGoals || 0}}</text></view>
+              <view class="snap-item"><text class="snap-label">宠物数</text><text class="snap-val">{{stats.totalPets || 0}}</text></view>
+              <view class="snap-item"><text class="snap-label">反馈数</text><text class="snap-val">{{stats.totalFeedbacks || 0}}</text></view>
+              <view class="snap-item"><text class="snap-label">今日签到</text><text class="snap-val">{{stats.todaySignins || 0}}</text></view>
+              <view class="snap-item"><text class="snap-label">今日任务</text><text class="snap-val">{{stats.activeToday || 0}}</text></view>
+              <view class="snap-item snap-full"><text class="snap-label">平台总经验</text><text class="snap-val">{{formatXp(stats.totalPlatformXp)}}</text></view>
+            </view>
+            <view class="tool-btn-row">
+              <button class="tool-refresh-btn" size="mini" bindtap="refreshData">🔄 刷新数据</button>
+            </view>
+          </view>
+
+          <!-- 危险操作区 -->
+          <view class="tool-section danger-zone">
+            <text class="tool-title danger-title">⚠️ 危险操作</text>
+            <text class="danger-desc">以下操作会影响平台数据，请谨慎使用</text>
+            <button class="danger-btn" bindtap="goBack">返回营地</button>
+          </view>
+        </view>
+
+      </block>
+
+    </view>
+  </scroll-view>
+
+  <!-- ===== 用户详情弹窗 ===== -->
+  <view wx:if="{{showDetailModal}}" class="modal-mask" bindtap="closeDetailModal">
+    <view class="modal-content" catchtap="">
+      <view class="modal-header">
+        <text class="modal-title">👤 用户详情</text>
+        <text class="modal-close" bindtap="closeDetailModal">✕</text>
+      </view>
+      <scroll-view scroll-y class="modal-body" wx:if="{{detailUser.user}}">
+        <view class="detail-row"><text class="dl-label">昵称</text><text class="dl-value">{{detailUser.user.nickname}}</text></view>
+        <view class="detail-row"><text class="dl-label">用户名</text><text class="dl-value">{{detailUser.user.username}}</text></view>
+        <view class="detail-row"><text class="dl-label">等级</text><text class="dl-value">Lv.{{detailUser.user.level}}</text></view>
+        <view class="detail-row"><text class="dl-label">总经验</text><text class="dl-value">{{detailUser.user.total_xp}} XP</text></view>
+        <view class="detail-row"><text class="dl-label">连续签到</text><text class="dl-value">{{detailUser.user.streak_days}} 天</text></view>
+        <view class="detail-row"><text class="dl-label">角色</text><text class="dl-value role-txt role-{{detailUser.user.role}}">{{detailUser.user.role === 'admin' ? '管理员' : '普通用户'}}</text></view>
+        <view class="detail-row"><text class="dl-label">状态</text><text class="dl-value status-txt status-{{detailUser.user.status}}">{{detailUser.user.status === 'banned' ? '已封禁' : '正常'}}</text></view>
+        <view class="detail-row"><text class="dl-label">注册时间</text><text class="dl-value">{{fmtTime(detailUser.user.created_at)}}</text></view>
+        <view class="detail-divider"></view>
+        <view class="detail-stats">
+          <text class="ds-item">🎯 目标: {{detailUser.goalCount || 0}}</text>
+          <text class="ds-item">🐾 宠物: {{detailUser.petCount || 0}}</text>
+          <text class="ds-item">✅ 任务: {{detailUser.taskCount || 0}}</text>
+          <text class="ds-item">📝 日志: {{detailUser.logCount || 0}}</text>
+        </view>
+        <view wx:if="{{detailUser.recentLogs.length > 0}}" class="recent-logs">
+          <text class="rl-title">最近动态</text>
+          <view wx:for="{{detailUser.recentLogs}}" wx:key="_id" class="rl-item">
+            <text class="rl-reason">{{item.reason}}</text>
+            <text class="rl-xp">+{{item.xp_change}} XP</text>
+          </view>
+        </view>
+      </scroll-view>
+      <view wx:else class="modal-body modal-loading">
+        <text>加载中...</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- ===== 编辑宠物弹窗 ===== -->
+  <view wx:if="{{showPetEditModal}}" class="modal-mask" bindtap="closePetModal">
+    <view class="modal-content pet-modal" catchtap="">
+      <view class="modal-header">
+        <text class="modal-title">✏️ 编辑宠物</text>
+        <text class="modal-close" bindtap="closePetModal">✕</text>
+      </view>
+      <view class="modal-body">
+        <view class="edit-field">
+          <text class="edit-label">阶段</text>
+          <picker mode="selector" range="{{stageOptions}}" value="{{editPetStageIdx}}" bindchange="onPetStageChange">
+            <view class="edit-picker">{{stageOptions[editPetStageIdx]}} ▾</view>
+          </picker>
+        </view>
+        <view class="edit-field">
+          <text class="edit-label">等级 (1~99)</text>
+          <input class="edit-input-num" type="number" value="{{editPetLevel}}" bindinput="onPetLevelInput" min="1" max="99" />
+        </view>
+        <view class="edit-field">
+          <text class="edit-label">经验值</text>
+          <input class="edit-input-num" type="number" value="{{editPetExp}}" bindinput="onPetExpInput" min="0" />
+        </view>
+        <view class="edit-field">
+          <text class="edit-label">状态</text>
+          <picker mode="selector" range="{{statusOptions}}" value="{{editPetStatusIdx}}" bindchange="onPetStatusChange">
+            <view class="edit-picker">{{statusOptions[editPetStatusIdx]}} ▾</view>
+          </picker>
+        </view>
+        <button class="tool-submit-btn" style="margin-top:24rpx;" bindtap="savePetEdit" loading="{{savingPet}}">保存修改</button>
+      </view>
+    </view>
+  </view>
+
+</view>

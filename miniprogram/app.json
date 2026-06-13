@@ -1,0 +1,43 @@
+{
+  "pages": [
+    "pages/splash/splash",
+    "pages/home/home",
+    "pages/goals/goals",
+    "pages/goal-detail/goal-detail",
+    "pages/pets/pets",
+    "pages/growth/growth",
+    "pages/achievements/achievements",
+    "pages/ai/ai",
+    "pages/mine/mine",
+    "pages/login/login",
+    "pages/ai-config/ai-config",
+    "pages/growth-report/growth-report",
+    "pages/feedback/feedback",
+    "pages/emotion/emotion",
+    "pages/record/record",
+    "pages/stats/stats",
+    "pages/admin/admin"
+  ],
+  "window": {
+    "navigationBarTitleText": "AI 成长伙伴",
+    "navigationBarBackgroundColor": "#2D4A3E",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#2D4A3E"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#7A8A8A",
+    "selectedColor": "#7ED6A7",
+    "backgroundColor": "#FFFFFF",
+    "list": [
+      { "pagePath": "pages/home/home", "text": "首页" },
+      { "pagePath": "pages/goals/goals", "text": "目标" },
+      { "pagePath": "pages/pets/pets", "text": "宠物" },
+      { "pagePath": "pages/ai/ai", "text": "AI" },
+      { "pagePath": "pages/mine/mine", "text": "我的" }
+    ]
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents"
+}

@@ -1,0 +1,109 @@
+<!-- AI 成长报告 - 动森森林风格 -->
+<view class="page">
+  <scroll-view scroll-y class="page-scroll" enhanced show-scrollbar="{{false}}">
+    <view class="page-inner">
+
+    <!-- 木纹标题栏 -->
+    <view class="wood-title">
+      <text class="title-icon">🌿</text>
+      <text class="title-text">📋 AI 成长报告</text>
+      <text class="title-icon">🌿</text>
+    </view>
+
+  <!-- 周报周期标签 -->
+  <view class="week-label">
+    <text class="week-text">{{weeklyReport.weekLabel}}</text>
+    <button class="refresh-btn" bindtap="onRefresh">🔄 刷新</button>
+  </view>
+
+  <!-- 周报统计（4项木纹卡片） -->
+  <view class="weekly-stats-grid">
+    <view class="stat-card wood-border-sm">
+      <text class="sc-icon">✅</text>
+      <text class="sc-num">{{weeklyReport.completedTasks}}/{{weeklyReport.totalTasks}}</text>
+      <text class="sc-label">任务完成</text>
+      <view class="sc-bar-wrap">
+        <view class="sc-bar-fill" style="width: {{weeklyReport.completionRate}}%"></view>
+      </view>
+    </view>
+    <view class="stat-card wood-border-sm">
+      <text class="sc-icon">⭐</text>
+      <text class="sc-num">{{weeklyReport.xpEarned}}</text>
+      <text class="sc-label">获得经验</text>
+      <text class="sc-sub">本周累计 XP ✨</text>
+    </view>
+    <view class="stat-card wood-border-sm">
+      <text class="sc-icon">🔥</text>
+      <text class="sc-num">{{weeklyReport.streakDays}}</text>
+      <text class="sc-label">连续打卡</text>
+      <text class="sc-sub">天 🎯</text>
+    </view>
+    <view class="stat-card wood-border-sm">
+      <text class="sc-icon">📖</text>
+      <text class="sc-num">{{weeklyReport.topGoal.emoji}} {{weeklyReport.topGoal.title}}</text>
+      <text class="sc-label">最勤目标</text>
+      <text class="sc-sub">{{weeklyReport.topGoal.count}} 次完成</text>
+    </view>
+  </view>
+
+  <!-- 成长分析（图标+文字） -->
+  <view class="card analysis-section">
+    <view class="section-title-inline">🧠 AI 成长分析</view>
+    <view class="analysis-list">
+      <view class="analysis-item">
+        <text class="ai-icon">⏰</text>
+        <view class="ai-text-wrap">
+          <text class="ai-text-main">最佳时段：{{weeklyReport.bestTime}}</text>
+          <text class="ai-text-sub">在这个时间段你的效率最高哦～</text>
+        </view>
+      </view>
+      <view class="analysis-item">
+        <text class="ai-icon">🟢</text>
+        <view class="ai-text-wrap">
+          <text class="ai-text-main">擅长领域：{{weeklyReport.easyGoalType}}</text>
+          <text class="ai-text-sub">这类目标完成率最高，继续保持！</text>
+        </view>
+      </view>
+      <view class="analysis-item">
+        <text class="ai-icon">🔴</text>
+        <view class="ai-text-wrap">
+          <text class="ai-text-main">待提升：{{weeklyReport.hardGoalType}}</text>
+          <text class="ai-text-sub">可以尝试拆分成更小的子目标</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 建议 -->
+    <view class="suggestion-box quote-card">
+      <view class="quote-bar"></view>
+      <view class="quote-content">
+        <text class="suggestion-label">💡 智能建议</text>
+        <text class="suggestion-text">{{weeklyReport.suggestion}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 情绪趋势（7日块状图） -->
+  <view class="card emotion-trend-card">
+    <view class="section-title-inline">🌸 本周情绪趋势</view>
+    <view class="trend-chart">
+      <view
+        wx:for="{{emotionTrends.labels}}"
+        wx:key="*this"
+        class="trend-col"
+      >
+        <view class="trend-bar-wrap">
+          <view
+            class="trend-bar bar-{{emotionTrends.scores[index] >= 8 ? 'high' : (emotionTrends.scores[index] >= 5 ? 'mid' : 'low')}}"
+            style="height: {{emotionTrends.scores[index] * 8}}rpx"
+          ></view>
+        </view>
+        <text class="trend-day">{{item}}</text>
+        <text class="trend-score">{{emotionTrends.scores[index]}}</text>
+      </view>
+    </view>
+  </view>
+
+    </view>
+  </scroll-view>
+</view>

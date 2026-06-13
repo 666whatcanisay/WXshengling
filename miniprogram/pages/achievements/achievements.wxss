@@ -1,0 +1,350 @@
+/* ========== 成就殿堂 - 动森森林主题样式 ========== */
+
+/* 页面容器 */
+.page-container {
+  min-height: 100vh;
+  background: #2D4A3E;
+  padding: 30rpx 24rpx;
+  box-sizing: border-box;
+}
+
+/* ---------- 木纹标题栏 ---------- */
+.wood-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 80rpx;
+  background: linear-gradient(135deg, #8B6914, #B8860B);
+  border-radius: 50rpx;
+  margin-bottom: 30rpx;
+  gap: 16rpx;
+}
+.title-icon {
+  font-size: 28rpx;
+}
+.title-text {
+  color: #F5E6C8;
+  font-size: 34rpx;
+  font-weight: bold;
+}
+
+/* ---------- 实边卡片 ---------- */
+.card-solid {
+  background: rgba(61,98,84,0.7);
+  border: 3rpx solid #8B6914;
+  border-radius: 28rpx;
+  padding: 24rpx;
+  margin-bottom: 30rpx;
+}
+
+/* 统计概览 */
+.stats-overview .stats-grid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.stat-box {
+  flex: 1;
+  text-align: center;
+}
+.stat-number {
+  display: block;
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #F5E6C8;
+}
+.stat-number.highlight {
+  color: #FFAB40;
+}
+.stat-text {
+  display: block;
+  font-size: 22rpx;
+  color: #C4B89A;
+  margin-top: 6rpx;
+}
+.stat-divider {
+  width: 2rpx;
+  height: 60rpx;
+  background: rgba(165,190,140,0.3);
+}
+
+/* ---------- 区块标题 ---------- */
+.section-title {
+  font-size: 28rpx;
+  color: #F5E6C8;
+  margin: 30rpx 0 16rpx;
+  padding-left: 10rpx;
+}
+
+/* ---------- 木纹分类标签 ---------- */
+.category-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+}
+.chip-wood {
+  padding: 12rpx 28rpx;
+  border-radius: 40rpx;
+  font-size: 26rpx;
+  color: #C4B89A;
+  background: rgba(139,105,20,0.2);
+  border: 2rpx solid rgba(139,105,20,0.4);
+  transition: all 0.2s;
+}
+.chip-active {
+  background: linear-gradient(135deg, #8B6914, #B8860B);
+  color: #F5E6C8;
+  border-color: #DAA520;
+  font-weight: bold;
+}
+
+/* ---------- 稀有度筛选芯片 ---------- */
+.rarity-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-bottom: 30rpx;
+}
+.rarity-chip {
+  padding: 8rpx 22rpx;
+  border-radius: 30rpx;
+  font-size: 24rpx;
+  color: #C4B89A;
+  background: rgba(74,115,97,0.4);
+  border: 2rpx dashed rgba(165,190,140,0.3);
+}
+.rarity-chip.rarity-active {
+  color: #fff;
+  font-weight: bold;
+  transform: scale(1.05);
+}
+.rarity-bg-common { background: rgba(196,184,154,0.25); }
+.rarity-bg-common.rarity-active { background: #C4B89A; }
+.rarity-bg-rare { background: rgba(124,179,66,0.25); }
+.rarity-bg-rare.rarity-active { background: #7CB342; }
+.rarity-bg-epic { background: rgba(255,171,64,0.25); }
+.rarity-bg-epic.rarity-active { background: #FFAB40; }
+.rarity-bg-legendary { background: rgba(255,215,0,0.25); }
+.rarity-bg-legendary.rarity-active { background: #FFD700; color: #2D4A3E; }
+
+/* ---------- 成就网格 ---------- */
+.achievement-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20rpx;
+}
+
+/* 单个成就卡片 */
+.achieve-card {
+  background: rgba(61,98,84,0.55);
+  border: 2rpx solid #8B6914;
+  border-radius: 24rpx;
+  padding: 24rpx 18rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  transition: all 0.2s;
+}
+.achieve-new {
+  animation: glow-pulse 2s infinite;
+}
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 8rpx rgba(255,215,0,0.3); }
+  50% { box-shadow: 0 0 20rpx rgba(255,215,0,0.6); }
+}
+
+/* 锁定状态 - 灰度半透明 */
+.achieve-locked {
+  opacity: 0.5;
+  filter: grayscale(80%);
+}
+
+/* 图标包裹 */
+.achieve-icon-wrap {
+  width: 90rpx;
+  height: 90rpx;
+  border-radius: 50%;
+  background: rgba(74,115,97,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14rpx;
+  position: relative;
+}
+.achieve-icon {
+  font-size: 44rpx;
+}
+.locked-icon {
+  font-size: 36rpx;
+  opacity: 0.6;
+}
+.new-tag {
+  position: absolute;
+  top: -6rpx;
+  right: -6rpx;
+  background: linear-gradient(135deg, #FFD700, #FFAB40);
+  color: #2D4A3E;
+  font-size: 18rpx;
+  padding: 2rpx 10rpx;
+  border-radius: 20rpx;
+  font-weight: bold;
+}
+
+/* 名称 */
+.achieve-name {
+  font-size: 26rpx;
+  color: #F5E6C8;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 8rpx;
+}
+
+/* 稀有度标签 */
+.rarity-label {
+  font-size: 20rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+  margin-bottom: 10rpx;
+}
+.rarity-label-lg {
+  font-size: 24rpx;
+  padding: 6rpx 24rpx;
+  border-radius: 24rpx;
+  display: inline-block;
+  margin-top: 12rpx;
+}
+.rarity-color-common { color: #C4B89A; background: rgba(196,184,154,0.2); }
+.rarity-color-rare { color: #AED581; background: rgba(124,179,66,0.2); }
+.rarity-color-epic { color: #FFE082; background: rgba(255,171,64,0.2); }
+.rarity-color-legendary { color: #FFD700; background: rgba(255,215,0,0.15); }
+
+/* 底部信息 */
+.achieve-footer {
+  margin-top: auto;
+}
+.achieve-xp {
+  font-size: 22rpx;
+  color: #DAA520;
+  font-weight: bold;
+}
+.achieve-status {
+  font-size: 22rpx;
+  color: #8B9A7D;
+}
+
+/* ---------- 空状态 ---------- */
+.empty-tip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80rpx 0;
+}
+.empty-icon {
+  font-size: 80rpx;
+  margin-bottom: 20rpx;
+  opacity: 0.4;
+}
+.empty-text {
+  font-size: 28rpx;
+  color: #8B9A7D;
+}
+
+/* 加载中 */
+.loading-wrap {
+  text-align: center;
+  padding: 40rpx 0;
+}
+.loading-text {
+  color: #C4B89A;
+  font-size: 28rpx;
+}
+
+/* ---------- 详情弹窗 ---------- */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(45,74,62,0.85);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx;
+}
+.detail-popup {
+  width: 100%;
+  max-width: 600rpx;
+  background: #355447;
+  border: 4rpx solid #8B6914;
+  border-radius: 32rpx;
+  overflow: hidden;
+}
+.popup-header {
+  text-align: center;
+  padding: 36rpx 24rpx 20rpx;
+  background: linear-gradient(180deg, rgba(139,105,20,0.2), transparent);
+}
+.popup-icon {
+  font-size: 72rpx;
+  display: block;
+  margin-bottom: 12rpx;
+}
+.popup-name {
+  font-size: 36rpx;
+  color: #F5E6C8;
+  font-weight: bold;
+  display: block;
+}
+.popup-body {
+  padding: 24rpx 30rpx 30rpx;
+}
+.popup-desc {
+  font-size: 28rpx;
+  color: #E8D9BB;
+  line-height: 1.6;
+  display: block;
+  text-align: center;
+  margin-bottom: 28rpx;
+}
+.popup-meta {
+  background: rgba(74,115,97,0.3);
+  border-radius: 20rpx;
+  padding: 20rpx;
+}
+.meta-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12rpx 0;
+  border-bottom: 1rpx dashed rgba(165,190,140,0.2);
+}
+.meta-item:last-child {
+  border-bottom: none;
+}
+.meta-key {
+  font-size: 26rpx;
+  color: #C4B89A;
+}
+.meta-val {
+  font-size: 26rpx;
+  color: #F5E6C8;
+  font-weight: bold;
+}
+.val-locked {
+  color: #8B9A7D;
+}
+
+/* 关闭按钮 */
+.close-popup-btn {
+  margin: 20rpx 30rpx 30rpx;
+  height: 76rpx;
+  line-height: 76rpx;
+  border-radius: 38rpx;
+  font-size: 30rpx;
+  background: linear-gradient(135deg, #8B6914, #B8860B) !important;
+  color: #F5E6C8 !important;
+}

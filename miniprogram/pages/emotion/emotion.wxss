@@ -1,0 +1,348 @@
+/* ========== 情绪花园 - 动森森林主题样式 ========== */
+
+/* 页面容器 */
+.page-container {
+  min-height: 100vh;
+  background: #2D4A3E;
+  padding: 30rpx 24rpx;
+  box-sizing: border-box;
+}
+
+/* ---------- 木纹标题栏 ---------- */
+.wood-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 80rpx;
+  background: linear-gradient(135deg, #8B6914, #B8860B);
+  border-radius: 50rpx;
+  margin-bottom: 30rpx;
+  gap: 16rpx;
+}
+.title-icon {
+  font-size: 28rpx;
+}
+.title-text {
+  color: #F5E6C8;
+  font-size: 34rpx;
+  font-weight: bold;
+}
+
+/* ---------- 虚线边框卡片 ---------- */
+.card {
+  background: rgba(61,98,84,0.6);
+  border: 2rpx dashed rgba(165,190,140,0.4);
+  border-radius: 28rpx;
+  padding: 28rpx;
+  margin-bottom: 26rpx;
+}
+
+/* ---------- 实边卡片 ---------- */
+.card-solid {
+  background: rgba(61,98,84,0.7);
+  border: 3rpx solid #8B6914;
+  border-radius: 28rpx;
+  padding: 24rpx;
+  margin-bottom: 26rpx;
+}
+
+/* ---------- 区块内联标题 ---------- */
+.section-title-inline {
+  font-size: 28rpx;
+  color: #F5E6C8;
+  font-weight: bold;
+  margin-bottom: 20rpx;
+}
+.section-title {
+  font-size: 28rpx;
+  color: #F5E6C8;
+  margin: 30rpx 0 16rpx;
+  padding-left: 10rpx;
+}
+
+/* ---------- 心情选择网格 ---------- */
+.mood-grid {
+  display: flex;
+  justify-content: space-between;
+  gap: 12rpx;
+  margin-bottom: 24rpx;
+}
+.mood-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18rpx 0 14rpx;
+  border-radius: 20rpx;
+  background: rgba(74,115,97,0.3);
+  border: 2rpx solid transparent;
+  transition: all 0.25s;
+}
+.mood-selected {
+  background: rgba(124,179,66,0.3);
+  border-color: #7CB342;
+  transform: scale(1.06);
+}
+.mood-emoji {
+  font-size: 44rpx;
+  display: block;
+  margin-bottom: 8rpx;
+}
+.mood-label {
+  font-size: 22rpx;
+  color: #C4B89A;
+}
+.mood-selected .mood-label {
+  color: #AED581;
+  font-weight: bold;
+}
+
+/* ---------- 备注输入框 ---------- */
+.note-input-wrap {
+  margin-bottom: 22rpx;
+}
+.note-input {
+  width: 100%;
+  height: 80rpx;
+  background: rgba(45,74,62,0.5);
+  border: 2rpx solid rgba(139,105,20,0.3);
+  border-radius: 20rpx;
+  padding: 0 24rpx;
+  box-sizing: border-box;
+  font-size: 26rpx;
+  color: #F5E6C8;
+}
+.note-placeholder {
+  color: #8B9A7D;
+  font-size: 26rpx;
+}
+
+/* ---------- 绿叶按钮 ---------- */
+.btn-leaf {
+  width: 100%;
+  height: 80rpx;
+  line-height: 80rpx;
+  text-align: center;
+  background: #7CB342 !important;
+  color: #fff !important;
+  border-radius: 40rpx;
+  font-size: 30rpx;
+  font-weight: bold;
+  border: none !important;
+}
+.submit-mood-btn {
+  margin-top: 10rpx;
+}
+
+/* ---------- 情绪日历热力图 ---------- */
+.calendar-card {
+  overflow: hidden;
+}
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8rpx;
+  margin-bottom: 16rpx;
+}
+.cal-cell {
+  aspect-ratio: 1;
+  border-radius: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.cell-date {
+  font-size: 18rpx;
+  color: rgba(245,230,200,0.7);
+}
+
+/* 热力图颜色 - 开心/平静/低落 */
+.cal-cell.mood-happy { background: rgba(124,179,66,0.65); }
+.cal-cell.mood-neutral { background: rgba(218,165,32,0.55); }
+.cal-cell.mood-sad { background: rgba(255,107,107,0.5); }
+
+/* 图例 */
+.cal-legend {
+  padding-top: 12rpx;
+  border-top: 1rpx dashed rgba(165,190,140,0.2);
+}
+.legend-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24rpx;
+}
+.legend-dot {
+  width: 20rpx;
+  height: 20rpx;
+  border-radius: 6rpx;
+}
+.dot-happy { background: #7CB342; }
+.dot-neutral { background: #DAA520; }
+.dot-sad { background: #FF6B6B; }
+.legend-text {
+  font-size: 22rpx;
+  color: #C4B89A;
+  margin-right: 16rpx;
+}
+
+/* ---------- 引用悬浮卡（AI分析）---------- */
+.quote-card {
+  position: relative;
+  background: rgba(74,115,97,0.5);
+  border-radius: 24rpx;
+  padding: 24rpx 24rpx 24rpx 32rpx;
+  margin-bottom: 26rpx;
+  overflow: hidden;
+}
+.quote-bar {
+  position: absolute;
+  left: 0;
+  top: 20rpx;
+  bottom: 20rpx;
+  width: 6rpx;
+  background: #7CB342;
+  border-radius: 0 4rpx 4rpx 0;
+}
+.quote-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* AI分析头部 */
+.analysis-header {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  margin-bottom: 18rpx;
+}
+.analysis-icon {
+  font-size: 32rpx;
+}
+.analysis-title {
+  font-size: 26rpx;
+  color: #F5E6C8;
+  font-weight: bold;
+}
+
+/* 分析统计 */
+.analysis-stats {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 18rpx;
+}
+.analysis-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rpx;
+}
+.stat-emoji {
+  font-size: 32rpx;
+}
+.stat-num {
+  font-size: 32rpx;
+  color: #F5E6C8;
+  font-weight: bold;
+}
+.stat-label-sm {
+  font-size: 20rpx;
+  color: #C4B89A;
+}
+
+/* 主导情绪 */
+.dominant-mood {
+  display: flex;
+  align-items: center;
+  margin-bottom: 14rpx;
+  padding: 12rpx 16rpx;
+  background: rgba(45,74,62,0.4);
+  border-radius: 16rpx;
+}
+.dominant-label {
+  font-size: 24rpx;
+  color: #C4B89A;
+}
+.dominant-value {
+  font-size: 26rpx;
+  color: #AED581;
+  font-weight: bold;
+  margin-left: 8rpx;
+}
+.trend-up {
+  color: #7CB342;
+}
+
+/* 分析建议 */
+.analysis-tip {
+  display: block;
+  font-size: 24rpx;
+  color: #E8D9BB;
+  line-height: 1.6;
+  padding: 14rpx 16rpx;
+  background: rgba(218,165,32,0.08);
+  border-radius: 14rpx;
+  border-left: 4rpx solid #DAA520;
+}
+
+/* ---------- 宠物联动卡片 ---------- */
+.pet-link-header {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  margin-bottom: 18rpx;
+}
+.pet-link-icon {
+  font-size: 32rpx;
+}
+.pet-link-title {
+  font-size: 28rpx;
+  color: #F5E6C8;
+  font-weight: bold;
+}
+.pet-link-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14rpx;
+}
+.pet-avatar-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6rpx;
+  background: rgba(74,115,97,0.35);
+  padding: 16rpx 36rpx;
+  border-radius: 24rpx;
+}
+.pet-avatar-text {
+  font-size: 28rpx;
+  color: #F5E6C8;
+  font-weight: bold;
+}
+.pet-mood-face {
+  font-size: 48rpx;
+}
+.pet-msg {
+  font-size: 26rpx;
+  color: #E8D9BB;
+  text-align: center;
+}
+.mood-effect-tag {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 10rpx 24rpx;
+  background: linear-gradient(135deg, rgba(255,171,64,0.2), rgba(218,165,32,0.15));
+  border: 2rpx solid rgba(255,171,64,0.4);
+  border-radius: 30rpx;
+}
+.effect-icon {
+  font-size: 24rpx;
+}
+.effect-text {
+  font-size: 24rpx;
+  color: #FFAB40;
+  font-weight: bold;
+}
