@@ -1,4 +1,16 @@
 {
+  "name": "ai-self-discipline-forest",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "check:node": "node -e \"if(process.versions.node.split('.')[0] !== '24'){console.error('Use Node.js 24.x; current: '+process.version);process.exit(1)}console.log(process.version)\"",
+    "test": "node tests/single-goal-regression.cjs",
+    "prepare:node24": "node tools/prepare-node24.cjs",
+    "verify": "npm run check:node && npm test"
+  },
   "devDependencies": {
     "pngjs": "^7.0.0"
   }

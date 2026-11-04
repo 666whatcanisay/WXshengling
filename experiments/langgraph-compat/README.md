@@ -2,7 +2,7 @@
 
 仅用于技术选型，不是小程序正式依赖、Agent 服务或真实业务实现。
 
-已在 Windows / Node.js 22.16.0 验证。依赖版本固定在本目录 package.json / package-lock.json，不改根目录及云函数的依赖。
+已在 Windows / Node.js 22.16.0 和24.22.2验证，现按项目约定声明使用24.x。依赖版本固定在本目录 package.json / package-lock.json，不改根目录及云函数的依赖。
 
 ```powershell
 cd experiments/langgraph-compat

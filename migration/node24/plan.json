@@ -1,0 +1,31 @@
+{
+  "envId": "cloud1-d5gz9j6zh654f4b36",
+  "runtime": "Nodejs24.11",
+  "source": "downloaded-production-baseline-20261104",
+  "functions": [
+    {
+      "sourceName": "app",
+      "targetName": "app-node24",
+      "sourceIndexSha256": "d485b3cdae824b1e3b07e595ce35908ffb4c45b2ae79a21514af001f0cc231d0",
+      "timeout": 30,
+      "memorySize": 256,
+      "handler": "index.main"
+    },
+    {
+      "sourceName": "login",
+      "targetName": "login-node24",
+      "sourceIndexSha256": "174c0ae2a706435d6f4d35c914caa43b48500cb48d780c6f38490d0d0eb7bf8e",
+      "timeout": 3,
+      "memorySize": 256,
+      "handler": "index.main"
+    },
+    {
+      "sourceName": "init",
+      "targetName": "init-node24",
+      "sourceIndexSha256": "d1b73148a8717a632896d4bae10d636e15bdaa7d2435b7cac50bcb4f6a4cd248",
+      "timeout": 3,
+      "memorySize": 256,
+      "handler": "index.main"
+    }
+  ]
+}

@@ -5,6 +5,7 @@
 
 ## 状态说明
 
+- 2026-11-04 Node24配置与迁移准备：.nvmrc=24.22.2，根包/三函数/LangGraph实验/素材工具声明24.x，六份锁文件根元数据同步、依赖图未变。新增本地构建器，只接受入口哈希匹配的线上基线，生成12份新后缀函数材料，业务index字节不变；复用材料、拒绝本地未上线源码/篡改材料/Node22、官方CloudBase Schema验证通过，41项业务回归通过。私有GitHub已关联，升级前源码标签backup/pre-node24-20261104。个人配置留在磁盘并从当前追踪移除；凭证/缓存/依赖/生成材料排除提交。系统默认仍22、云端仍16，未部署或改UI；证据 `audit/node24-preparation-20261104.json`，步骤见 `NODE24_MIGRATION.md`。
 - 2026-11-04 Node24补充核查：临时下载官方Windows x64 Node24.22.2并校验SHA256，41项隔离业务回归、35个生产JS语法检查、TypeScript构建及15项LangGraph检查均通过；真实wx-server-sdk可加载app/login/init入口，未调用handler。只读重查线上三函数仍Nodejs16.13。官方运行时总表列24.11，CLI配置页仍标公测；API明确已有runtime不可修改。系统Node22、包配置及云部署未改；Windows24.22.2不替代云端Linux24.11验收。证据为 `audit/node24-compat-20261104.json`、`audit/langgraph-compat-node24-20261104.json`。统一24后的独立Agent部署不再由版本差异强制，最新建议见D017。
 - 2026-11-04 技术实验：`experiments/langgraph-compat` 独立安装 LangGraph1.6.1/core1.3.4/腾讯适配器0.0.24，Node22.16.0 下 TypeScript 编译及15项流程检查通过。官方 CloudBaseSaver 配合本地 JSON 数据库替身可跨进程恢复；非真实数据库、身份或模型验证。现有云 Node16 不满足本次 core>=20 要求；建议独立 Node22 Agent模块。完整适配器传递依赖有版本警告，正式引入未确定；无新增业务/UI改动或部署。详见 `LANGGRAPH_EVALUATION.md` 及 `audit/langgraph-compat-20261104.json`。
 - 2026-11-04 第一批实现：本地新增周期/日期规范与草案排程工具，修正周期传递、AI 发布的固定 30 天/全当天/阶段时长丢失、额外同名任务、目标详情日期筛选和当日计天。41 项隔离回归通过；35 个生产 JS 语法检查、三份改动 WXML 编译通过。未部署，当前本地 app 与下述云端核查基线不再相同。真正 UI 操作、真实模型结果与云数据库并发语义尚未验收。

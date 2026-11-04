@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-04",
+  "runtime": "v24.22.2",
+  "scope": "Local configuration and migration preparation only; no deploy or cloud business writes",
+  "businessChecksPassed": 41,
+  "artifactFiles": 12,
+  "artifactChecks": [
+    "production SHA256 preserved",
+    "valid artifact repeat reuse",
+    "local unpublished code rejected",
+    "tampered artifact refused without overwrite",
+    "Node22 rejected",
+    "six manifest/lock engine pairs aligned",
+    "all six transitive lock package maps unchanged"
+  ],
+  "cloudMetadata": {
+    "runtime": "Nodejs16.13",
+    "allFunctions": {
+      "environmentVariableCount": 0,
+      "layerCount": 0,
+      "triggerCount": 0,
+      "hasVpc": false,
+      "hasRole": true,
+      "publicNetStatus": "ENABLE"
+    },
+    "timeouts": {
+      "app": 30,
+      "login": 3,
+      "init": 3
+    },
+    "memoryMb": 256
+  },
+  "deployed": false,
+  "officialCloudBaseSchemaValidation": "passed"
+}

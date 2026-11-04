@@ -4,6 +4,8 @@
 
 ## 最新补充：统一Node24的可行性
 
+后续状态（D018）：版本声明、私有仓库关联与本地迁移材料已落实，见 `NODE24_MIGRATION.md`；下文“尚未正式升级”指系统运行时和云端尚未切换，不能理解为仍未修改版本声明。
+
 用户随后询问整个项目统一Node24。最新建议以**自管的开发/后端/Agent统一24**为目标，替代下文初次调查的“业务16 + 独立Agent22”优先方案；小程序页面使用微信JS环境，开发者工具内置Node也不能靠项目配置直接替换。尚未执行正式升级。
 
 - CloudBase [运行时总表](https://docs.cloudbase.net/cloud-function/runtime-support)列24.11且推荐，CLI[配置页](https://docs.cloudbase.net/cli-v1/functions/configs)仍写公测，文档口径有差异；本环境新建24函数可用性仍未实测。
