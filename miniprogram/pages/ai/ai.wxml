@@ -1,158 +1,184 @@
 <view class="page">
-  <scroll-view scroll-y class="page-scroll" enhanced show-scrollbar="{{false}}">
+  <scroll-view scroll-y class="page-scroll" enhanced show-scrollbar="{{false}}" scroll-into-view="{{scrollIntoView}}">
     <view class="page-inner">
 
-  <!-- 返回按钮 -->
-  <view wx:if="{{mode !== 'menu'}}" class="back-bar" bindtap="switchMode" data-mode="menu">
-    <text class="back-icon">🔙</text>
-    <text class="back-text">返回 AI 小屋</text>
+  <!-- 返回按钮 + 生成计划（规划师模式专用） -->
+  <view wx:if="{{mode !== 'menu'}}" class="top-bar-row">
+    <view class="back-bar" bindtap="switchMode" data-mode="menu">
+      <text class="back-icon">🔙</text>
+      <text class="back-text">返回工具箱</text>
+    </view>
+    <view wx:if="{{mode === 'plan'}}" class="plan-gen-top-btn" bindtap="generatePlanTasks">
+      <text class="plan-gen-top-icon">🎯</text>
+      <text class="plan-gen-top-text">生成计划</text>
+    </view>
   </view>
 
-  <!-- ==================== 菜单模式 ==================== -->
+  <!-- ==================== 菜单模式（森林工具箱）==================== -->
   <view wx:if="{{mode === 'menu'}}" class="menu-container">
     <!-- 木纹标题栏 -->
     <view class="wood-title">
-      <text class="wood-title-leaf">🌿</text>
-      <text class="wood-title-text">🤖 AI 伙伴小屋</text>
-      <text class="wood-title-leaf">🌿</text>
+      <text class="wood-title-leaf">🌲</text>
+      <text class="wood-title-text">🤖 AI 成长伙伴</text>
+      <text class="wood-title-leaf">🌲</text>
     </view>
 
-    <!-- ===== 实用工具区 ===== -->
-    <view class="section-label">🛠️ 成长工具</view>
+    <!-- 黄色标题条 -->
+    <view class="toolbox-header">
+      <text class="toolbox-title">🌲 AI 自律森林工具箱 🌲</text>
+    </view>
 
-    <!-- AI规划师 -->
-    <view class="card-solid menu-entry-card" bindtap="switchMode" data-mode="plan">
-      <view class="card-wood-stripe"></view>
-      <view class="card-solid-inner">
-        <view class="card-icon-wrap"><text class="card-large-icon">📋</text></view>
-        <view class="card-body"><text class="card-title">AI 规划师</text><text class="card-desc">输入目标，自动生成每日行动计划</text></view>
-        <text class="card-arrow">›</text>
+    <!-- ===== 成长工具 ===== -->
+    <view class="section-label">🌱 成长工具</view>
+    <view class="ai-grid">
+      <view class="ai-grid-item" bindtap="switchMode" data-mode="plan">
+        <text class="ai-grid-icon">📋</text>
+        <text class="ai-grid-name">AI 规划师</text>
+      </view>
+      <view class="ai-grid-item" bindtap="switchMode" data-mode="coach">
+        <text class="ai-grid-icon">🏆</text>
+        <text class="ai-grid-name">AI 教练</text>
+      </view>
+      <view class="ai-grid-item" bindtap="switchMode" data-mode="goalname">
+        <text class="ai-grid-icon">🎯</text>
+        <text class="ai-grid-name">目标命名器</text>
+      </view>
+      <view class="ai-grid-item" bindtap="switchMode" data-mode="translate">
+        <text class="ai-grid-icon">🌐</text>
+        <text class="ai-grid-name">成长翻译</text>
       </view>
     </view>
 
-    <!-- AI教练 -->
-    <view class="card-solid menu-entry-card" bindtap="switchMode" data-mode="coach">
-      <view class="card-wood-stripe"></view>
-      <view class="card-solid-inner">
-        <view class="card-icon-wrap"><text class="card-large-icon">🏆</text></view>
-        <view class="card-body"><text class="card-title">AI 教练</text><text class="card-desc">分析成长数据，获取专业改进建议</text></view>
-        <text class="card-arrow">›</text>
+    <!-- ===== 自律工具 ===== -->
+    <view class="section-label">💪 自律工具</view>
+    <view class="ai-grid">
+      <view class="ai-grid-item" bindtap="openTool" data-tool="pomodoro">
+        <text class="ai-grid-icon">🍅</text>
+        <text class="ai-grid-name">番茄钟</text>
+      </view>
+      <view class="ai-grid-item" bindtap="openTool" data-tool="todoDraw">
+        <text class="ai-grid-icon">🎲</text>
+        <text class="ai-grid-name">今日待办抽签</text>
+      </view>
+      <view class="ai-grid-item" bindtap="openTool" data-tool="focusOath">
+        <text class="ai-grid-icon">📜</text>
+        <text class="ai-grid-name">专注宣言</text>
+      </view>
+      <view class="ai-grid-item" bindtap="openTool" data-tool="delayHelp">
+        <text class="ai-grid-icon">🚑</text>
+        <text class="ai-grid-name">拖延急救</text>
       </view>
     </view>
 
-    <!-- 目标命名器 -->
-    <view class="card-solid menu-entry-card" bindtap="switchMode" data-mode="goalname">
-      <view class="card-wood-stripe stripe-gold"></view>
-      <view class="card-solid-inner">
-        <view class="card-icon-wrap"><text class="card-large-icon">🎯</text></view>
-        <view class="card-body"><text class="card-title">目标命名器</text><text class="card-desc">把无聊的目标名变成超酷的代号</text></view>
-        <text class="card-arrow">›</text>
-      </view>
-    </view>
-
-    <!-- 随机挑战 -->
-    <view class="card-solid menu-entry-card" bindtap="switchMode" data-mode="challenge">
-      <view class="card-wood-stripe stripe-orange"></view>
-      <view class="card-solid-inner">
-        <view class="card-icon-wrap"><text class="card-large-icon">🎲</text></view>
-        <view class="card-body"><text class="card-title">随机挑战</text><text class="card-desc">抽取今日小任务，完成获得 XP</text></view>
-        <text class="card-arrow">›</text>
-      </view>
-    </view>
-
-    <!-- ===== 趣味互动区 ===== -->
+    <!-- ===== 趣味互动 ===== -->
     <view class="section-label">✨ 趣味互动</view>
-
-    <!-- 答案之书 -->
-    <view class="card-solid menu-entry-card" bindtap="switchMode" data-mode="oracle">
-      <view class="card-wood-stripe stripe-purple"></view>
-      <view class="card-solid-inner">
-        <view class="card-icon-wrap"><text class="card-large-icon">📖</text></view>
-        <view class="card-body"><text class="card-title">答案之书</text><text class="card-desc">内心纠结？让 AI 给你一个答案</text></view>
-        <text class="card-arrow">›</text>
+    <view class="ai-grid">
+      <view class="ai-grid-item" bindtap="switchMode" data-mode="oracle">
+        <text class="ai-grid-icon">📖</text>
+        <text class="ai-grid-name">答案之书</text>
+      </view>
+      <view class="ai-grid-item" bindtap="switchMode" data-mode="fortune">
+        <text class="ai-grid-icon">🔮</text>
+        <text class="ai-grid-name">今日运势</text>
+      </view>
+      <view class="ai-grid-item" bindtap="openTool" data-tool="personality">
+        <text class="ai-grid-icon">🧠</text>
+        <text class="ai-grid-name">人格测试</text>
+      </view>
+      <view class="ai-grid-item" bindtap="openTool" data-tool="disciplineCard">
+        <text class="ai-grid-icon">🪪</text>
+        <text class="ai-grid-name">自律人格卡</text>
+      </view>
+      <view class="ai-grid-item" bindtap="openTool" data-tool="energyCheck">
+        <text class="ai-grid-icon">🔋</text>
+        <text class="ai-grid-name">情绪能量检测</text>
       </view>
     </view>
 
-    <!-- 今日运势 -->
-    <view class="card-solid menu-entry-card" bindtap="switchMode" data-mode="fortune">
-      <view class="card-wood-stripe stripe-blue"></view>
-      <view class="card-solid-inner">
-        <view class="card-icon-wrap"><text class="card-large-icon">🔮</text></view>
-        <view class="card-body"><text class="card-title">今日运势</text><text class="card-desc">不是玄学，是成长版运势分析</text></view>
-        <text class="card-arrow">›</text>
-      </view>
-    </view>
-
-    <!-- 未来来信 -->
-    <view class="card-solid menu-entry-card" bindtap="switchMode" data-mode="future">
-      <view class="card-wood-stripe stripe-pink"></view>
-      <view class="card-solid-inner">
-        <view class="card-icon-wrap"><text class="card-large-icon">📨</text></view>
-        <view class="card-body"><text class="card-title">未来来信</text><text class="card-desc">收到来自三年后自己的一封信</text></view>
-        <text class="card-arrow">›</text>
-      </view>
-    </view>
-
-    <!-- 时间胶囊 -->
-    <view class="card-solid menu-entry-card" bindtap="switchMode" data-mode="capsule">
-      <view class="card-wood-stripe stripe-teal"></view>
-      <view class="card-solid-inner">
-        <view class="card-icon-wrap"><text class="card-large-icon">⏳</text></view>
-        <view class="card-body"><text class="card-title">时间胶囊</text><text class="card-desc">给 30 天后的自己留一段话</text></view>
-        <text class="card-arrow">›</text>
-      </view>
-    </view>
-
-    <!-- ===== 创意工具区 ===== -->
+    <!-- ===== 创意工坊 ===== -->
     <view class="section-label">🎨 创意工坊</view>
-
-    <!-- 成长翻译 -->
-    <view class="card-solid menu-entry-card" bindtap="switchMode" data-mode="translate">
-      <view class="card-wood-stripe stripe-green"></view>
-      <view class="card-solid-inner">
-        <view class="card-icon-wrap"><text class="card-large-icon">🌐</text></view>
-        <view class="card-body"><text class="card-title">成长翻译</text><text class="card-desc">不只是翻译，还有 AI 温暖鼓励</text></view>
-        <text class="card-arrow">›</text>
+    <view class="ai-grid">
+      <view class="ai-grid-item" bindtap="switchMode" data-mode="future">
+        <text class="ai-grid-icon">📨</text>
+        <text class="ai-grid-name">未来来信</text>
       </view>
-    </view>
-
-    <!-- 昵称生成器 -->
-    <view class="card-solid menu-entry-card" bindtap="switchMode" data-mode="nickname">
-      <view class="card-wood-stripe stripe-cyan"></view>
-      <view class="card-solid-inner">
-        <view class="card-icon-wrap"><text class="card-large-icon">✨</text></view>
-        <view class="card-body"><text class="card-title">昵称生成器</text><text class="card-desc">输入关键词，生成专属酷炫称号</text></view>
-        <text class="card-arrow">›</text>
+      <view class="ai-grid-item" bindtap="switchMode" data-mode="capsule">
+        <text class="ai-grid-icon">⏳</text>
+        <text class="ai-grid-name">时间胶囊</text>
       </view>
-    </view>
-
-    <!-- 宠物聊天 -->
-    <view class="card-solid menu-entry-card" bindtap="switchMode" data-mode="chat">
-      <view class="card-wood-stripe"></view>
-      <view class="card-solid-inner">
-        <view class="card-icon-wrap"><text class="card-large-icon">🐾</text></view>
-        <view class="card-body"><text class="card-title">宠物聊天</text><text class="card-desc">和 {{petName}} 聊天，获得陪伴与鼓励</text></view>
-        <text class="card-arrow">›</text>
+      <view class="ai-grid-item" bindtap="switchMode" data-mode="nickname">
+        <text class="ai-grid-icon">✨</text>
+        <text class="ai-grid-name">昵称生成器</text>
+      </view>
+      <view class="ai-grid-item" bindtap="switchMode" data-mode="chat">
+        <text class="ai-grid-icon">🐾</text>
+        <text class="ai-grid-name">宠物聊天</text>
+      </view>
+      <view class="ai-grid-item" bindtap="switchMode" data-mode="challenge">
+        <text class="ai-grid-icon">🎲</text>
+        <text class="ai-grid-name">随机挑战</text>
       </view>
     </view>
   </view>
 
-  <!-- ==================== 规划师模式 ==================== -->
-  <view wx:elif="{{mode === 'plan'}}" class="mode-container">
+  <!-- ==================== 规划师模式（对话式 Agent） ==================== -->
+  <view wx:elif="{{mode === 'plan'}}" class="mode-container plan-chat-mode">
     <view class="wood-title">
       <text class="wood-title-leaf">🌿</text><text class="wood-title-text">📋 AI 规划师</text><text class="wood-title-leaf">🌿</text>
-    </view>
-    <view class="card-solid plan-card">
-      <view class="section-title">🍃 目标名称</view>
-      <input class="wood-input" placeholder="例：30天养成晨跑习惯" value="{{planTitle}}" bindinput="onPlanTitle" />
-      <view class="section-title">⏱️ 计划天数</view>
-      <view class="days-chips">
-        <view wx:for="{{[7, 30, 90]}}" wx:key="*this"
-              class="wood-chip {{planDays === item ? 'chip-active' : ''}}"
-              data-days="{{item}}" bindtap="selectPlanDays">{{item}}天</view>
+      <view wx:if="{{planMessages.length > 0}}" class="plan-reset-btn" bindtap="resetPlanChat">
+        <text class="plan-reset-icon">🔄</text>
+        <text class="plan-reset-text">重新开始</text>
       </view>
-      <button class="btn-leaf" bindtap="generatePlan">🌱 生成计划</button>
-      <view wx:if="{{planResult}}" class="quote-card"><text class="quote-card-text">{{planResult}}</text></view>
+    </view>
+
+    <!-- 规划信息卡片 -->
+    <view wx:if="{{mode === 'plan' && plannerState.goalContext.what}}" class="plan-info-card">
+      <view class="plan-info-row">
+        <text wx:if="{{plannerState.goalContext.what}}" class="plan-info-item">🎯 {{plannerState.goalContext.what}}</text>
+        <text wx:if="{{plannerState.goalContext.deadline}}" class="plan-info-item">📅 {{plannerState.goalContext.deadline}}</text>
+        <text wx:if="{{plannerState.goalContext.dailyTime}}" class="plan-info-item">⏱️ {{plannerState.goalContext.dailyTime}}</text>
+        <text wx:if="{{plannerState.goalContext.level}}" class="plan-info-item">📊 {{plannerState.goalContext.level}}</text>
+      </view>
+      <view wx:if="{{plannerState.missingFields.length > 0}}" class="plan-info-missing">
+        <text class="plan-missing-label">⚠️ 待补充：</text>
+        <text class="plan-missing-fields">{{plannerState.missingFields.join('、')}}</text>
+      </view>
+      <view wx:if="{{plannerState.errorMessage}}" class="plan-info-error">{{plannerState.errorMessage}}</view>
+    </view>
+
+    <!-- 未生成任务时：对话界面 -->
+    <view wx:if="{{!plannerState.generatedTasks || plannerState.generatedTasks.length === 0}}" class="card-solid plan-chat-card">
+
+      <!-- 对话消息区 -->
+      <scroll-view scroll-y class="plan-chat-messages" enhanced show-scrollbar="{{false}}" scroll-top="{{planScrollTop}}">
+        <view wx:for="{{planMessages}}" wx:key="index" class="plan-msg {{item.role === 'user' ? 'plan-msg-user' : 'plan-msg-ai'}}">
+          <view wx:if="{{item.role === 'ai'}}" class="plan-msg-avatar">📋</view>
+          <view class="plan-msg-bubble {{item.role === 'user' ? 'plan-bubble-user' : 'plan-bubble-ai'}}">
+            <text>{{item.content}}</text>
+            <text wx:if="{{item.streaming}}" class="typing-cursor">|</text>
+          </view>
+        </view>
+        <!-- AI 正在思考 -->
+        <view wx:if="{{plannerState.loading}}" class="plan-msg plan-msg-ai">
+          <view class="plan-msg-avatar">📋</view>
+          <view class="plan-msg-bubble plan-bubble-ai plan-thinking">思考中...</view>
+        </view>
+      </scroll-view>
+
+      <!-- 输入区 -->
+      <view class="plan-chat-input-row">
+        <input class="wood-chat-input" placeholder="说说你的目标..." value="{{planInput}}" bindinput="onPlanChatInput" confirm-type="send" bindconfirm="sendPlanMessage" disabled="{{plannerState.loading}}" />
+        <button class="plan-send-btn" bindtap="sendPlanMessage" disabled="{{plannerState.loading || !planInput}}">发送</button>
+      </view>
+
+      <!-- 生成任务按钮（规划阶段显示） -->
+      <view wx:if="{{plannerState.readyToGenerate && plannerState.phase !== 'publishing' && !plannerState.generatedTasks}}" class="plan-generate-area">
+        <text wx:if="{{planStatus}}" class="plan-generate-status">{{planStatus}}</text>
+        <text class="plan-generate-hint">💡 方案确认后，点击下方按钮让 AI 为你生成每日任务！</text>
+        <button class="btn-wood plan-generate-btn" bindtap="generatePlanTasks" disabled="{{plannerState.loading}}">
+          🎯 生成任务
+        </button>
+      </view>
     </view>
   </view>
 
@@ -162,6 +188,7 @@
       <text class="wood-title-leaf">🌿</text><text class="wood-title-text">🏆 AI 教练分析</text><text class="wood-title-leaf">🌿</text>
     </view>
     <view class="card-solid coach-card">
+      <text class="mode-desc">AI 教练根据你的成长记录，分析你的学习节奏和习惯，给出专业的改进建议。</text>
       <view wx:if="{{coachStats}}" class="stats-row">
         <view class="stat-item wood-frame"><text class="stat-num">{{coachStats.goalCount || 0}}</text><text class="stat-label">进行中目标</text></view>
         <view class="stat-item wood-frame"><text class="stat-num">{{coachStats.totalCheckins || 0}}</text><text class="stat-label">累计打卡</text></view>
@@ -180,6 +207,7 @@
       <text class="wood-title-leaf">📖</text>
     </view>
     <view class="card-solid oracle-card">
+      <text class="mode-desc">内心纠结不知道怎么办？在心里默念你的问题，然后翻开答案之书，让 AI 给你一个温暖的指引。</text>
       <view class="oracle-question-area">
         <text class="oracle-hint">在心中默念你的问题...</text>
         <input class="wood-input oracle-input" placeholder="输入你的问题，例如：我要不要报名这个比赛？" value="{{oracleQuestion}}" bindinput="onOracleInput" />
@@ -214,41 +242,43 @@
       <text class="wood-title-leaf">🔮</text><text class="wood-title-text">今日成长运势</text>
       <text class="wood-title-leaf">🔮</text>
     </view>
+    <view class="card-solid fortune-card">
+      <text class="mode-desc">不是玄学，是成长版运势分析！查看今日学习、专注、社交三个维度的运势评分和行动建议。</text>
+      <button wx:if="{{!fortuneData}}" class="btn-wood btn-fortune-btn" bindtap="getFortune">🔮 查看今日运势</button>
 
-    <button wx:if="{{!fortuneData}}" class="btn-wood btn-fortune-btn" bindtap="getFortune">🔮 查看今日运势</button>
+      <view wx:if="{{fortuneData}}" class="fortune-result">
+        <text class="fortune-date">{{fortuneData.date}} · 今日成长运势</text>
 
-    <view wx:if="{{fortuneData}}" class="card-solid fortune-card">
-      <text class="fortune-date">{{fortuneData.date}} · 今日成长运势</text>
-
-      <!-- 星级展示 -->
-      <view class="fortune-stars-row">
-        <view class="fortune-star-item">
-          <text class="star-label">学习</text>
-          <text class="star-value">{{fortuneData.learningStars}}</text>
+        <!-- 星级展示 -->
+        <view class="fortune-stars-row">
+          <view class="fortune-star-item">
+            <text class="star-label">学习</text>
+            <text class="star-value">{{fortuneData.learningStars}}</text>
+          </view>
+          <view class="fortune-star-item">
+            <text class="star-label">专注</text>
+            <text class="star-value">{{fortuneData.focusStars}}</text>
+          </view>
+          <view class="fortune-star-item">
+            <text class="star-label">社交</text>
+            <text class="star-value">{{fortuneData.socialStars}}</text>
+          </view>
         </view>
-        <view class="fortune-star-item">
-          <text class="star-label">专注</text>
-          <text class="star-value">{{fortuneData.focusStars}}</text>
+
+        <!-- 行动建议 -->
+        <view class="fortune-advice">
+          <text class="advice-label">🍃 行动建议</text>
+          <text class="advice-text">{{fortuneData.advice}}</text>
         </view>
-        <view class="fortune-star-item">
-          <text class="star-label">社交</text>
-          <text class="star-value">{{fortuneData.socialStars}}</text>
+
+        <!-- 幸运事项 -->
+        <view class="fortune-lucky">
+          <text class="lucky-label">🎯 今日幸运行动</text>
+          <text class="lucky-text">{{fortuneData.luckyThing}}</text>
         </view>
-      </view>
 
-      <!-- 行动建议 -->
-      <view class="fortune-advice">
-        <text class="advice-label">🍃 行动建议</text>
-        <text class="advice-text">{{fortuneData.advice}}</text>
+        <button class="btn-wood" bindtap="getFortune" style="margin-top:16rpx;">🔄 换一卦</button>
       </view>
-
-      <!-- 幸运事项 -->
-      <view class="fortune-lucky">
-        <text class="lucky-label">🎯 今日幸运行动</text>
-        <text class="lucky-text">{{fortuneData.luckyThing}}</text>
-      </view>
-
-      <button class="btn-wood" bindtap="getFortune" style="margin-top:16rpx;">🔄 换一卦</button>
     </view>
   </view>
 
@@ -259,6 +289,7 @@
       <text class="wood-title-leaf">🌐</text>
     </view>
     <view class="card-solid translate-card">
+      <text class="mode-desc">不只是翻译，还有 AI 温暖的鼓励。输入你想说的话，支持中英文，会得到翻译结果和一句加油打气的话。</text>
       <input class="wood-input" placeholder="输入你想说的话（支持中英文）..." value="{{translateInput}}" bindinput="onTranslateInput" confirm-type="go" bindconfirm="doTranslate" />
       <button class="btn-leaf" bindtap="doTranslate">🌱 翻译 + 鼓励</button>
 
@@ -286,6 +317,7 @@
       <text class="wood-title-leaf">✨</text>
     </view>
     <view class="card-solid nickname-card">
+      <text class="mode-desc">输入你的关键词（如技能、爱好、性格特点），AI 为你生成独一无二的酷炫昵称。</text>
       <text class="nick-hint">输入关键词，用空格或逗号分隔多个词</text>
       <input class="wood-input" placeholder="如：程序员 英语 AI 运动" value="{{nicknameInput}}" bindinput="onNicknameInput" />
       <button class="btn-leaf" bindtap="generateNickname">✨ 生成昵称</button>
@@ -307,6 +339,7 @@
       <text class="wood-title-leaf">🎯</text>
     </view>
     <view class="card-solid goalname-card">
+      <text class="mode-desc">把"考四级""减肥"这种平淡无奇的目标名，一键改成充满仪式感的酷炫代号，让目标更有动力去完成！</text>
       <text class="gn-hint">输入平淡无奇的目标名，AI 帮你改得有仪式感</text>
       <input class="wood-input" placeholder="如：考四六级 / 减肥 / 早起 / 学编程" value="{{goalNameInput}}" bindinput="onGoalNameInput" />
       <button class="btn-leaf" bindtap="generateGoalName">🎯 一键改名</button>
@@ -328,7 +361,7 @@
       <text class="wood-title-leaf">📨</text>
     </view>
     <view class="card-solid future-card">
-      <text class="future-hint">写下你的愿望或目标，收到来自未来的回信</text>
+      <text class="mode-desc">写下你的愿望或目标，AI 会模仿来自三年后成功的你，给你写一封温暖的鼓励信。</text>
       <textarea class="wood-textarea" placeholder="我希望成为..." value="{{futureInput}}" bindinput="onFutureInput" auto-height maxlength="100" />
       <button class="btn-leaf" bindtap="generateFutureLetter">📨 接收来信</button>
 
@@ -347,13 +380,12 @@
   <!-- ==================== 时间胶囊 ==================== -->
   <view wx:elif="{{mode === 'capsule'}}" class="mode-container">
     <view class="wood-title">
-      <text class="wood-title-leaf">⏳</text>
-      <text class="wood-title-text">时间胶囊</text>
+      <text class="wood-title-leaf">⏳</text><text class="wood-title-text">时间胶囊</text>
       <text class="wood-title-leaf">⏳</text>
     </view>
     <view class="card-solid capsule-card">
+      <text class="mode-desc">给 30 天后的自己写一封信。把目标、心情或秘密封存起来，30 天后自动解锁，看看自己成长了多少。</text>
       <view wx:if="{{!capsuleSaved}}">
-        <text class="capsule-hint">给 30 天后的自己写一段话</text>
         <textarea class="wood-textarea" placeholder="2026年的我，要坚持学AI..." value="{{capsuleText}}" bindinput="onCapsuleInput" auto-height maxlength="200" />
         <button class="btn-leaf" bindtap="saveCapsule">⏳ 封存胶囊</button>
       </view>
@@ -365,11 +397,17 @@
           <text class="sealed-date">封存日期：{{capsuleDate}}</text>
           <text class="sealed-open">自动开启：{{capsuleOpenDate}}</text>
         </view>
-        <view class="capsule-content-preview card">
-          <text class="preview-label">你写的内容：</text>
-          <text class="preview-text">「{{capsuleText}}」</text>
+        <view wx:if="{{myCapsules.length > 0}}" class="capsule-list">
+          <text class="capsule-list-title">📜 你的时间胶囊</text>
+          <view wx:for="{{myCapsules}}" wx:key="_id" class="capsule-list-item card">
+            <text class="capsule-item-icon">📦</text>
+            <view class="capsule-item-body">
+              <text class="capsule-item-text">{{item.text}}</text>
+              <text class="capsule-item-date">封存：{{item.created_date}}</text>
+            </view>
+            <text wx:if="{{item.can_open}}" class="capsule-item-open" catchtap="openCapsule" data-id="{{item._id}}">打开</text>
+          </view>
         </view>
-        <button class="btn-wood" disabled="{{true}}" style="opacity:0.5;">🔒 30天后自动解锁</button>
       </view>
     </view>
   </view>
@@ -381,27 +419,29 @@
       <text class="wood-title-text">随机挑战</text>
       <text class="wood-title-leaf">🎲</text>
     </view>
+    <view class="card-solid challenge-card">
+      <text class="mode-desc">抽取今日冷门小任务！完成即可获得 XP 奖励。不用多想，抽到什么就做什么，给生活加点随机性。</text>
+      <button wx:if="{{!challenge}}" class="btn-wood challenge-draw-btn" bindtap="getChallenge">🎲 抽取今日挑战</button>
 
-    <button wx:if="{{!challenge}}" class="btn-wood challenge-draw-btn" bindtap="getChallenge">🎲 抽取今日挑战</button>
-
-    <view wx:if="{{challenge}}" class="card-solid challenge-card">
-      <!-- 未完成状态 -->
-      <view wx:if="{{!challengeDone}}" class="challenge-active">
-        <text class="challenge-icon-lg">{{challenge.icon}}</text>
-        <text class="challenge-task">{{challenge.text}}</text>
-        <view class="challenge-reward">
-          <text class="reward-label">完成奖励</text>
-          <text class="reward-xp">+{{challenge.xp}} XP ⭐</text>
+      <view wx:if="{{challenge}}" class="challenge-result">
+        <!-- 未完成状态 -->
+        <view wx:if="{{!challengeDone}}" class="challenge-active">
+          <text class="challenge-icon-lg">{{challenge.icon}}</text>
+          <text class="challenge-task">{{challenge.text}}</text>
+          <view class="challenge-reward">
+            <text class="reward-label">完成奖励</text>
+            <text class="reward-xp">+{{challenge.xp}} XP ⭐</text>
+          </view>
+          <button class="btn-leaf challenge-done-btn" bindtap="completeChallenge">✅ 我完成了！</button>
         </view>
-        <button class="btn-leaf challenge-done-btn" bindtap="completeChallenge">✅ 我完成了！</button>
-      </view>
 
-      <!-- 已完成状态 -->
-      <view wx:if="{{challengeDone}}" class="challenge-completed">
-        <text class="completed-badge">🎉 挑战完成！</text>
-        <text class="completed-task">{{challenge.icon}} {{challenge.text}}</text>
-        <text class="completed-xp">+{{challenge.xp}} XP 已入账</text>
-        <button class="btn-wood" bindtap="getChallenge" style="margin-top:20rpx;">🎲 再来一题</button>
+        <!-- 已完成状态 -->
+        <view wx:if="{{challengeDone}}" class="challenge-completed">
+          <text class="completed-badge">🎉 挑战完成！</text>
+          <text class="completed-task">{{challenge.icon}} {{challenge.text}}</text>
+          <text class="completed-xp">+{{challenge.xp}} XP 已入账</text>
+          <button class="btn-wood" bindtap="getChallenge" style="margin-top:20rpx;">🎲 再来一题</button>
+        </view>
       </view>
     </view>
   </view>
@@ -412,25 +452,308 @@
       <text class="wood-title-leaf">🌿</text><text class="wood-title-text">🐾 和 {{petName}} 聊天</text>
       <text class="wood-title-leaf">🌿</text>
     </view>
-    <view class="chat-area card-solid">
-      <scroll-view scroll-y class="chat-messages" enhanced show-scrollbar="{{false}}" scroll-top="{{scrollTop}}">
-        <view wx:for="{{messages}}" wx:key="index"
-              class="msg {{item.role === 'user' ? 'msg-user' : 'msg-ai'}}">
-          <view wx:if="{{item.role === 'ai'}}" class="msg-avatar">{{petEmoji}}</view>
-          <view class="msg-bubble {{item.role === 'user' ? 'bubble-wood' : 'bubble-leaf'}}">{{item.content}}</view>
+    <view class="card-solid chat-card">
+      <text class="mode-desc">和你的宠物伙伴 {{petName}} 聊天吧！虽然只是简单的互动，但每一次对话都会增加你们的亲密度。</text>
+      <view class="chat-area">
+        <scroll-view scroll-y class="chat-messages" enhanced show-scrollbar="{{false}}" scroll-top="{{scrollTop}}">
+          <view wx:for="{{messages}}" wx:key="index"
+                class="msg {{item.role === 'user' ? 'msg-user' : 'msg-ai'}}">
+            <view wx:if="{{item.role === 'ai'}}" class="msg-avatar">{{petEmoji}}</view>
+            <view class="msg-bubble {{item.role === 'user' ? 'bubble-wood' : 'bubble-leaf'}}">{{item.content}}</view>
+          </view>
+          <view wx:if="{{messages.length === 0}}" class="chat-empty">
+            <text class="chat-empty-icon">{{petEmoji}}</text>
+            <text class="chat-empty-text">和 {{petName}} 打个招呼吧 🌸</text>
+          </view>
+        </scroll-view>
+        <view class="chat-input-row">
+          <input class="wood-chat-input" placeholder="输入你想说的话..." value="{{chatInput}}" bindinput="onChatInput" confirm-type="send" bindconfirm="sendChat" />
+          <button class="btn-leaf send-btn-mini" bindtap="sendChat">发送</button>
         </view>
-        <view wx:if="{{messages.length === 0}}" class="chat-empty">
-          <text class="chat-empty-icon">{{petEmoji}}</text>
-          <text class="chat-empty-text">和 {{petName}} 打个招呼吧 🌸</text>
-        </view>
-      </scroll-view>
-      <view class="chat-input-row">
-        <input class="wood-chat-input" placeholder="输入你想说的话..." value="{{chatInput}}" bindinput="onChatInput" confirm-type="send" bindconfirm="sendChat" />
-        <button class="btn-leaf send-btn-mini" bindtap="sendChat">发送</button>
       </view>
     </view>
   </view>
 
+  <!-- 底部锚点 -->
+  <view id="page-bottom-anchor" style="height:1px;"></view>
     </view>
   </scroll-view>
+
+  <!-- ==================== AI规划师任务发布弹窗 ==================== -->
+  <view wx:if="{{showPlanModal}}" class="plan-sheet-mask" catchtouchmove>
+    <view class="plan-sheet-backdrop"></view>
+    <view class="plan-sheet">
+      <view class="plan-sheet-header">
+        <view class="plan-sheet-dragbar"></view>
+        <view class="plan-sheet-title-row">
+          <text class="plan-sheet-title">AI 已生成成长计划</text>
+          <text class="plan-sheet-close" bindtap="closePlanModal">×</text>
+        </view>
+        <text class="plan-sheet-subtitle">确认后会创建目标和今日任务</text>
+      </view>
+      <view class="plan-sheet-body">
+        <scroll-view scroll-y class="plan-sheet-scroll">
+          <view class="bs-card bs-card-analysis">
+            <view class="bs-card-title">📊 AI 分析总结</view>
+            <view wx:if="{{plannerState.goalContext.why || plannerState.localAssess}}" class="bs-card-row">
+              <text class="bs-card-label">分析</text>
+              <text class="bs-card-text">{{plannerState.goalContext.why || plannerState.localAssess}}</text>
+            </view>
+            <view wx:if="{{plannerState.goalContext.level}}" class="bs-card-row">
+              <text class="bs-card-label">难度</text>
+              <text class="bs-card-text">{{plannerState.goalContext.level}}</text>
+            </view>
+            <view wx:if="{{plannerState.localAssess}}" class="bs-card-row">
+              <text class="bs-card-label">建议</text>
+              <text class="bs-card-text">{{plannerState.localAssess}}</text>
+            </view>
+          </view>
+          <view class="bs-card bs-card-goal">
+            <view class="bs-card-title">🎯 目标草稿</view>
+            <view class="bs-goal-title-row">
+              <text class="bs-goal-title-label">目标名称</text>
+              <input class="bs-input" value="{{plannerState.generatedGoal.title}}" bindinput="onPlanGoalTitle" placeholder="输入目标名称" />
+            </view>
+            <view wx:if="{{plannerState.goalContext.why}}" class="bs-card-row">
+              <text class="bs-card-label">描述</text>
+              <text class="bs-card-text">{{plannerState.goalContext.why}}</text>
+            </view>
+            <view class="bs-card-row">
+              <text class="bs-card-label">周期</text>
+              <input class="bs-schedule-number" type="number" value="{{planDays}}" bindinput="onPlanDays" />
+              <text class="bs-card-text">天</text>
+            </view>
+            <view class="bs-card-row">
+              <text class="bs-card-label">开始</text>
+              <picker mode="date" value="{{planStartDate}}" bindchange="onPlanStartDate">
+                <text class="bs-schedule-picker">{{planStartDate}}　选择日期</text>
+              </picker>
+            </view>
+            <view wx:if="{{plannerState.generatedGoal.stages && plannerState.generatedGoal.stages.length > 0}}" class="bs-card-row">
+              <text class="bs-card-label">阶段</text>
+              <view class="bs-stages">
+                <view wx:for="{{plannerState.generatedGoal.stages}}" wx:key="index" class="bs-stage-tag">
+                  <text class="bs-stage-name">{{item.name}}</text>
+                  <text class="bs-stage-dur">{{item.duration}}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+          <view class="bs-card bs-card-tasks">
+            <view class="bs-card-title">📝 计划任务（{{editableTasks.length || 0}}）</view>
+            <text class="bs-schedule-hint">请确认每项任务的日期和时长。未指定日期的草案按顺序安排。</text>
+            <view wx:if="{{editableTasks && editableTasks.length > 0}}">
+              <view wx:for="{{editableTasks}}" wx:key="index" class="bs-task-item">
+                <view class="bs-task-row">
+                  <view class="bs-task-info">
+                    <input class="bs-task-input" value="{{item.title}}" data-index="{{index}}" bindinput="editPlanTaskTitle" placeholder="输入任务描述" />
+                    <view class="bs-task-schedule">
+                      <picker mode="date" value="{{item.date}}" start="{{planStartDate}}" end="{{planEndDate}}" data-index="{{index}}" bindchange="editPlanTaskDate">
+                        <text class="bs-schedule-picker">{{item.date}}</text>
+                      </picker>
+                      <input class="bs-schedule-number" type="number" value="{{item.estimated_minutes}}" data-index="{{index}}" bindinput="editPlanTaskMinutes" />
+                      <text>分钟 · 阶段{{item.stage || 1}}</text>
+                    </view>
+                    <view class="bs-xp-row">
+                      <text class="bs-xp-label">经验</text>
+                      <view wx:for="{{[10, 20, 30]}}" wx:key="*this" wx:for-item="xp"
+                            class="bs-xp-chip {{item.xp_reward === xp ? 'bs-xp-active' : ''}}"
+                            data-index="{{index}}" data-xp="{{xp}}" bindtap="setPlanTaskXp">{{xp}}</view>
+                    </view>
+                  </view>
+                  <view class="bs-task-delete" data-index="{{index}}" bindtap="deletePlanTask">
+                    <text>✕</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+            <view wx:else class="bs-task-empty">
+              <text>暂无任务，点击下方按钮新增</text>
+            </view>
+            <view class="bs-add-task-btn" bindtap="addPlanTask">
+              <text>＋ 新增任务</text>
+            </view>
+          </view>
+          <view style="height:20rpx;"></view>
+        </scroll-view>
+      </view>
+      <view class="plan-sheet-footer">
+        <button class="plan-sheet-btn plan-sheet-btn-cancel" bindtap="closePlanModal">取消</button>
+        <button class="plan-sheet-btn plan-sheet-btn-publish" bindtap="publishPlanTasks" disabled="{{plannerState.phase === 'publishing'}}">
+          {{plannerState.phase === 'publishing' ? '发布中...' : '确认发布'}}
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <!-- ==================== 工具弹窗 Bottom Sheet ==================== -->
+  <view wx:if="{{showToolSheet}}" class="tool-sheet-mask" catchtouchmove>
+    <view class="tool-sheet-backdrop" bindtap="closeToolSheet"></view>
+    <view class="tool-sheet">
+      <view class="tool-sheet-header">
+        <view class="tool-sheet-dragbar"></view>
+        <view class="tool-sheet-title-row">
+          <text class="tool-sheet-title">{{toolSheetTitle}}</text>
+          <text class="tool-sheet-close" bindtap="closeToolSheet">×</text>
+        </view>
+      </view>
+      <scroll-view scroll-y class="tool-sheet-body">
+
+        <!-- ===== 番茄钟 ===== -->
+        <view wx:if="{{activeTool === 'pomodoro'}}" class="tool-content">
+          <view class="pomodoro-mode-row">
+            <view class="pomodoro-mode-btn {{pomodoroMode === 'focus25' ? 'pomodoro-active' : ''}}" bindtap="setPomodoroMode" data-mode="focus25">
+              <text class="pomodoro-mode-icon">🍅</text>
+              <text class="pomodoro-mode-name">25分钟</text>
+              <text class="pomodoro-mode-desc">深度专注</text>
+            </view>
+            <view class="pomodoro-mode-btn {{pomodoroMode === 'focus15' ? 'pomodoro-active' : ''}}" bindtap="setPomodoroMode" data-mode="focus15">
+              <text class="pomodoro-mode-icon">🌿</text>
+              <text class="pomodoro-mode-name">15分钟</text>
+              <text class="pomodoro-mode-desc">轻专注</text>
+            </view>
+            <view class="pomodoro-mode-btn {{pomodoroMode === 'break5' ? 'pomodoro-active' : ''}}" bindtap="setPomodoroMode" data-mode="break5">
+              <text class="pomodoro-mode-icon">☕</text>
+              <text class="pomodoro-mode-name">5分钟</text>
+              <text class="pomodoro-mode-desc">休息</text>
+            </view>
+          </view>
+          <view class="pomodoro-timer">
+            <text class="pomodoro-time">{{pomodoroFormattedTime}}</text>
+            <text class="pomodoro-status">{{pomodoroStatus}}</text>
+          </view>
+          <view class="pomodoro-controls">
+            <button wx:if="{{!pomodoroRunning}}" class="btn-leaf" bindtap="startPomodoro">开始专注</button>
+            <button wx:else class="btn-wood" bindtap="pausePomodoro">暂停</button>
+            <button class="btn-wood" bindtap="resetPomodoro">重置</button>
+          </view>
+        </view>
+
+        <!-- ===== 今日待办抽签 ===== -->
+        <view wx:if="{{activeTool === 'todoDraw'}}" class="tool-content">
+          <view wx:if="{{!drawnTodo}}" class="todo-draw-area">
+            <text class="todo-hint">点击下方按钮，抽取今日待办</text>
+            <button class="btn-leaf todo-draw-btn" bindtap="drawTodo">🎲 抽取任务</button>
+          </view>
+          <view wx:if="{{drawnTodo}}" class="todo-result">
+            <text class="todo-icon">{{drawnTodo.icon}}</text>
+            <text class="todo-task">{{drawnTodo.text}}</text>
+            <view class="todo-meta">
+              <text class="todo-difficulty">{{drawnTodo.difficulty}}</text>
+              <text class="todo-time">{{drawnTodo.time}}</text>
+            </view>
+            <view class="todo-actions">
+              <button class="btn-wood" bindtap="drawTodo">换一个</button>
+              <button class="btn-leaf" bindtap="acceptTodo">收下这个</button>
+            </view>
+          </view>
+        </view>
+
+        <!-- ===== 专注宣言 ===== -->
+        <view wx:if="{{activeTool === 'focusOath'}}" class="tool-content">
+          <text class="tool-hint">输入今天要专注的事</text>
+          <input class="wood-input" placeholder="例如：我要复习英语四级" value="{{focusInput}}" bindinput="onFocusInput" />
+          <button class="btn-leaf" bindtap="generateFocusOath">📜 生成宣言</button>
+          <view wx:if="{{focusOath}}" class="oath-result">
+            <text class="oath-text">{{focusOath}}</text>
+            <view class="oath-actions">
+              <button class="btn-wood" bindtap="copyFocusOath">复制</button>
+              <button class="btn-leaf" bindtap="saveFocusOath">保存到历史</button>
+            </view>
+          </view>
+          <view wx:if="{{focusHistory && focusHistory.length > 0}}" class="oath-history">
+            <text class="oath-history-title">历史宣言</text>
+            <view wx:for="{{focusHistory}}" wx:key="index" class="oath-history-item">
+              <text class="oath-history-text">{{item.content}}</text>
+              <text class="oath-history-date">{{item.date}}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- ===== 拖延急救 ===== -->
+        <view wx:if="{{activeTool === 'delayHelp'}}" class="tool-content">
+          <text class="tool-hint">选择你当前的状态</text>
+          <view class="delay-options">
+            <view wx:for="{{delayOptions}}" wx:key="value" class="delay-option {{delaySelected === item.value ? 'delay-selected' : ''}}" bindtap="selectDelay" data-value="{{item.value}}">
+              <text class="delay-icon">{{item.icon}}</text>
+              <text class="delay-label">{{item.label}}</text>
+            </view>
+          </view>
+          <view wx:if="{{delayResult}}" class="delay-result">
+            <text class="delay-advice">{{delayResult.advice}}</text>
+            <text class="delay-action">{{delayResult.action}}</text>
+            <text class="delay-encourage">{{delayResult.encourage}}</text>
+          </view>
+        </view>
+
+        <!-- ===== 人格测试 ===== -->
+        <view wx:if="{{activeTool === 'personality'}}" class="tool-content">
+          <text class="personality-disclaimer">娱乐测试，仅供参考</text>
+          <view wx:if="{{!personalityResult}}" class="personality-quiz">
+            <text class="quiz-question">{{currentPersonalityQuestion.text}}</text>
+            <view class="quiz-options">
+              <view wx:for="{{currentPersonalityQuestion.options}}" wx:key="index" class="quiz-option" bindtap="answerPersonalityQuestion" data-type="{{item.type}}">
+                <text class="quiz-option-icon">{{item.icon}}</text>
+                <text class="quiz-option-text">{{item.text}}</text>
+              </view>
+            </view>
+            <text class="quiz-progress">第 {{personalityStep + 1}} / {{personalityQuestions.length}} 题</text>
+          </view>
+          <view wx:if="{{personalityResult}}" class="personality-result">
+            <text class="personality-type-icon">{{personalityResult.icon}}</text>
+            <text class="personality-type-name">{{personalityResult.name}}</text>
+            <text class="personality-keywords">{{personalityResult.keywords}}</text>
+            <text class="personality-method">{{personalityResult.method}}</text>
+            <text class="personality-today">{{personalityResult.today}}</text>
+            <text class="personality-tools">{{personalityResult.tools}}</text>
+            <button class="btn-leaf" bindtap="resetPersonalityTest">再测一次</button>
+          </view>
+        </view>
+
+        <!-- ===== 自律人格卡 ===== -->
+        <view wx:if="{{activeTool === 'disciplineCard'}}" class="tool-content">
+          <text class="tool-hint">选择你的自律关键词</text>
+          <view class="discipline-tags">
+            <view wx:for="{{disciplineTags}}" wx:key="value" class="discipline-tag {{disciplineSelected === item.value ? 'discipline-selected' : ''}}" bindtap="selectDiscipline" data-value="{{item.value}}">
+              <text>{{item.label}}</text>
+            </view>
+          </view>
+          <view wx:if="{{disciplineCard}}" class="discipline-card-result">
+            <text class="card-title">{{disciplineCard.title}}</text>
+            <text class="card-keyword">{{disciplineCard.keyword}}</text>
+            <text class="card-advantage">{{disciplineCard.advantage}}</text>
+            <text class="card-challenge">{{disciplineCard.challenge}}</text>
+            <text class="card-action">{{disciplineCard.action}}</text>
+          </view>
+        </view>
+
+        <!-- ===== 情绪能量检测 ===== -->
+        <view wx:if="{{activeTool === 'energyCheck'}}" class="tool-content">
+          <text class="tool-hint">选择当前能量值</text>
+          <view class="energy-levels">
+            <view wx:for="{{[1,2,3,4,5]}}" wx:key="*this" class="energy-level {{energyLevel === item ? 'energy-selected' : ''}}" bindtap="setEnergyLevel" data-level="{{item}}">
+              <text class="energy-num">{{item}}</text>
+              <text class="energy-label">{{energyLabels[item-1]}}</text>
+            </view>
+          </view>
+          <text class="tool-hint" style="margin-top:20rpx;">选择当前情绪</text>
+          <view class="emotion-options">
+            <view wx:for="{{emotionOptions}}" wx:key="value" class="emotion-option {{emotionSelected === item.value ? 'emotion-selected' : ''}}" bindtap="selectEmotion" data-value="{{item.value}}">
+              <text class="emotion-icon">{{item.icon}}</text>
+              <text class="emotion-label">{{item.label}}</text>
+            </view>
+          </view>
+          <view wx:if="{{energyResult}}" class="energy-result">
+            <text class="energy-status">{{energyResult.status}}</text>
+            <text class="energy-do">{{energyResult.do}}</text>
+            <text class="energy-not-do">{{energyResult.notDo}}</text>
+          </view>
+        </view>
+
+      </scroll-view>
+      <view class="tool-sheet-footer">
+        <button class="tool-sheet-btn" bindtap="closeToolSheet">关闭</button>
+      </view>
+    </view>
+  </view>
 </view>

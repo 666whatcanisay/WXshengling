@@ -1,0 +1,145 @@
+{
+  "adminFallback": {
+    "unrelatedCaller": "audit",
+    "accepted": true
+  },
+  "concurrentTaskReward": {
+    "userXp": 20,
+    "growthPool": 20,
+    "logs": 2
+  },
+  "repairWithoutTasks": {
+    "completedDays": 1
+  },
+  "goalCompletionWithFutureTasks": {
+    "todayTaskCompleted": true,
+    "futureTaskCompleted": false,
+    "expectedCompletedDays": 1,
+    "actualCompletedDays": 0
+  },
+  "hatching": {
+    "samplesPerEgg": 10000,
+    "observedSpecies": {
+      "forest_egg": {
+        "snow_leopard": 2530,
+        "lynx": 4889,
+        "black_cat": 2581
+      },
+      "home_egg": {
+        "wolf": 2493,
+        "golden_retriever": 2469,
+        "shiba": 5038
+      },
+      "wild_egg": {
+        "hamster": 4965,
+        "capybara": 2463,
+        "fox": 2572
+      }
+    }
+  },
+  "buffRewards": {
+    "orange_cat": {
+      "xp": 10,
+      "userXp": 10
+    },
+    "golden_retriever": {
+      "xp": 10,
+      "userXp": 10
+    }
+  },
+  "eggOvershoot": {
+    "allocated": 800,
+    "poolRemaining": 0,
+    "finalPetGrowth": 100,
+    "finalStage": "BABY"
+  },
+  "stageConflict": {
+    "databaseStage": "ADULT",
+    "growth": 100,
+    "experience": 305,
+    "displayedStage": "BABY",
+    "stageChanged": true
+  },
+  "talentGrowth": {
+    "1": {
+      "bonus": {
+        "vitality": 0,
+        "wisdom": 2,
+        "luck": 0,
+        "resonance": 0
+      },
+      "finalAttributes": {
+        "vitality": 2,
+        "wisdom": 4,
+        "luck": 2,
+        "resonance": 2
+      }
+    },
+    "100": {
+      "bonus": {
+        "vitality": 0,
+        "wisdom": 2,
+        "luck": 0,
+        "resonance": 0
+      },
+      "finalAttributes": {
+        "vitality": 2,
+        "wisdom": 4,
+        "luck": 2,
+        "resonance": 2
+      }
+    }
+  },
+  "attributeCap": {
+    "vitality": 10,
+    "wisdom": 12,
+    "luck": 10,
+    "resonance": 10
+  },
+  "achievementCollection": {
+    "actualUserStreak": 30,
+    "unlockedNames": [
+      "初次打卡"
+    ]
+  },
+  "goalDuration": {
+    "selectedDays": 7,
+    "submittedTarget": null
+  },
+  "aiPublishing": {
+    "goal": [
+      {
+        "title": "7天阅读",
+        "emoji": "🎯",
+        "target_value": 30
+      }
+    ],
+    "tasks": [
+      {
+        "goal_id": "testgoal",
+        "title": "第一天阅读",
+        "xp_reward": 10,
+        "date": "2026-11-04"
+      },
+      {
+        "goal_id": "testgoal",
+        "title": "第七天总结",
+        "xp_reward": 20,
+        "date": "2026-11-04"
+      }
+    ]
+  },
+  "itemRollback": {
+    "cloudDeductionCalls": 2,
+    "localCountAfterRollback": 3
+  },
+  "syntax": {
+    "checkedFiles": 33,
+    "failures": []
+  },
+  "resources": {
+    "localImages": 0,
+    "thumbnailImages": 0,
+    "totalImageBytes": 0
+  }
+}

@@ -2,15 +2,15 @@
   <scroll-view scroll-y class="page-scroll" enhanced show-scrollbar="{{false}}">
     <view class="page-inner">
 
-  <!-- 木纹标题栏 + 新建按钮 -->
-  <view class="header-row">
-    <view class="wood-title wood-title-inline">
-      <text class="wood-title-leaf">🌿</text>
-      <text class="wood-title-text">🎯 目标看板</text>
-      <text class="wood-title-leaf">🌿</text>
-    </view>
-    <button class="btn-leaf btn-add-goal" bindtap="showCreateForm">+ 新建目标</button>
+  <!-- 标题栏 -->
+  <view class="wood-title">
+    <text class="wood-title-leaf">🌿</text>
+    <text class="wood-title-text">🎯 目标看板</text>
+    <text class="wood-title-leaf">🌿</text>
   </view>
+
+  <!-- 新建按钮 -->
+  <button class="btn-leaf btn-add-goal" bindtap="showCreateForm">+ 新建目标</button>
 
   <!-- 空状态提示 -->
   <view wx:if="{{goals.length === 0 && !showForm}}" class="empty-state">
@@ -63,7 +63,7 @@
           <view class="task-round-box {{task.done ? 'box-checked' : ''}}">
             <text wx:if="{{task.done}}" class="task-check-mark">✓</text>
           </view>
-          <text class="task-text {{task.done ? 'text-done' : ''}}">{{task.text}}</text>
+          <text class="task-text {{task.done ? 'text-done' : ''}}">{{task.title}}</text>
         </view>
       </view>
     </view>

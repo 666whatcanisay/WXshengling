@@ -19,6 +19,28 @@
 .back-icon { font-size: 30rpx; }
 .back-text { font-size: 25rpx; color: #F5E6C8; font-weight: 600; }
 
+/* 顶部操作行：返回按钮 + 生成计划按钮 */
+.top-bar-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16rpx;
+  gap: 16rpx;
+}
+
+/* 生成计划按钮（顶部右侧） */
+.plan-gen-top-btn {
+  display: flex; align-items: center; gap: 6rpx;
+  padding: 14rpx 24rpx;
+  background: linear-gradient(135deg, #7CB342, #558B2F);
+  border-radius: 999rpx;
+  box-shadow: 0 4rpx 14rpx rgba(124,179,66,0.35);
+  flex-shrink: 0;
+}
+.plan-gen-top-btn:active { transform: scale(0.94); opacity: 0.85; }
+.plan-gen-top-icon { font-size: 26rpx; }
+.plan-gen-top-text { font-size: 24rpx; color: #fff; font-weight: 700; }
+
+/* 测试按钮组 */
+
 /* ===== 分区标签 ===== */
 .section-label {
   font-size: 24rpx; color: #AED581; letter-spacing: 4px;
@@ -26,34 +48,45 @@
   text-shadow: 0 1rpx 4rpx rgba(0,0,0,0.3);
 }
 
-/* ===== 菜单卡片 ===== */
-.menu-entry-card { margin-bottom: 18rpx; overflow: hidden; position: relative; transition: transform 0.15s; }
-.menu-entry-card:active { transform: scale(0.98); }
-
-.card-wood-stripe {
-  position: absolute; left: 0; top: 0; bottom: 0; width: 7rpx;
-  background: linear-gradient(180deg, #DAA520, #8B6914);
-  border-radius: 28rpx 0 0 28rpx;
+/* ===== AI 网格布局（紧凑排列：每行 3 个） ===== */
+.ai-grid {
+  display: flex; flex-wrap: wrap; gap: 14rpx;
+  padding: 0 4rpx;
 }
-.stripe-gold { background: linear-gradient(180deg, #FFD700, #DAA520); }
-.stripe-orange { background: linear-gradient(180deg, #FFAB40, #FF8F00); }
-.stripe-purple { background: linear-gradient(180deg, #CE93D8, #9C27B0); }
-.stripe-blue { background: linear-gradient(180deg, #64B5F6, #1976D2); }
-.stripe-pink { background: linear-gradient(180deg, #F48FB1, #E91E63); }
-.stripe-teal { background: linear-gradient(180deg, #80CBC4, #009688); }
-.stripe-green { background: linear-gradient(180deg, #AED581, #689F38); }
-.stripe-cyan { background: linear-gradient(180deg, #80DEEA, #00BCD4); }
-
-.card-solid-inner { display: flex; align-items: center; gap: 18rpx; padding: 10rpx 20rpx 10rpx 26rpx; }
-.card-icon-wrap {
-  width: 72rpx; height: 72rpx; display: flex; align-items: center; justify-content: center;
-  background: rgba(124,179,66,0.13); border-radius: 50%; flex-shrink: 0;
+.ai-grid-item {
+  width: calc((100% - 28rpx) / 3);  /* 3列均分 */
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 22rpx 8rpx 18rpx;
+  background: linear-gradient(145deg, rgba(74,115,97,0.55), rgba(61,98,84,0.45));
+  border: 2rpx solid rgba(139,105,20,0.3);
+  border-radius: 22rpx;
+  box-sizing: border-box;
+  transition: transform 0.15s, box-shadow 0.15s;
 }
-.card-large-icon { font-size: 36rpx; }
-.card-body { flex: 1; min-width: 0; }
-.card-title { display: block; font-size: 29rpx; font-weight: 700; color: #F5E6C8; margin-bottom: 3rpx; }
-.card-desc { display: block; font-size: 22rpx; color: #A89978; line-height: 1.4; }
-.card-arrow { font-size: 34rpx; color: #6B7D6E; flex-shrink: 0; }
+.ai-grid-item:active {
+  transform: scale(0.94);
+  box-shadow: 0 0 20rpx rgba(124,179,66,0.25);
+}
+.ai-grid-icon {
+  font-size: 44rpx;
+  margin-bottom: 10rpx;
+}
+.ai-grid-name {
+  font-size: 22rpx; font-weight: 600;
+  color: #F5E6C8;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ===== 模式描述文字（详情页内显示） ===== */
+.mode-desc {
+  display: block; font-size: 23rpx; color: #A89978;
+  line-height: 1.6; margin-bottom: 22rpx;
+  padding: 16rpx 20rpx;
+  background: rgba(45,74,62,0.35);
+  border-radius: 16rpx;
+  border-left: 4rpx solid rgba(124,179,66,0.4);
+}
 
 /* ===== 木纹标题栏 ===== */
 .wood-title {
@@ -119,18 +152,429 @@
   font-size: 26rpx; color: #F5E6C8; line-height: 1.6; box-sizing: border-box;
 }
 
-/* ===== 规划师模式 ===== */
-.plan-card { text-align: left; }
-.days-chips { display: flex; gap: 16rpx; margin: 16rpx 0 24rpx; }
-.wood-chip {
-  padding: 12rpx 28rpx; border-radius: 999rpx;
-  border: 2rpx solid rgba(139,105,20,0.4);
-  font-size: 25rpx; color: #C4B89A; background: transparent;
+/* ===== AI规划师 · 对话式 Agent（V9.0）===== */
+
+/* 对话模式容器 */
+.plan-chat-mode { padding-bottom: 80rpx; }
+.plan-chat-card { display: flex; flex-direction: column; height: 65vh; }
+
+/* 对话消息区 */
+.plan-chat-messages { flex: 1; padding: 16rpx; min-height: 0; }
+
+.plan-msg { display: flex; gap: 12rpx; margin-bottom: 20rpx; align-items: flex-start; }
+.plan-msg-user { flex-direction: row-reverse; }
+.plan-msg-avatar {
+  width: 52rpx; height: 52rpx; border-radius: 50%;
+  background: rgba(124,179,66,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26rpx; flex-shrink: 0;
 }
-.wood-chip.chip-active {
+
+.plan-msg-bubble {
+  max-width: 75%; padding: 16rpx 22rpx;
+  border-radius: 20rpx; font-size: 26rpx;
+  line-height: 1.8; white-space: pre-wrap; word-break: break-all;
+}
+.plan-bubble-ai {
+  background: linear-gradient(135deg, rgba(61,98,84,0.85), rgba(74,115,97,0.85));
+  color: #E8D9BB; border-bottom-left-radius: 6rpx;
+  border: 1rpx solid rgba(139,105,20,0.25);
+}
+.plan-bubble-user {
+  background: linear-gradient(135deg, #8B6914, #B8860B);
+  color: #F5E6C8; border-bottom-right-radius: 6rpx;
+}
+.plan-thinking { opacity: 0.6; font-style: italic; }
+
+/* 打字机闪烁光标 */
+.typing-cursor {
+  display: inline;
+  animation: cursor-blink 0.8s steps(1) infinite;
+  color: #AED581;
+  font-weight: bold;
+  font-size: inherit;
+  margin-left: 2rpx;
+}
+@keyframes cursor-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* 对话输入区 */
+.plan-chat-input-row {
+  display: flex; gap: 8rpx; padding: 12rpx 14rpx; align-items: center;
+  border-top: 1rpx dashed rgba(165,190,140,0.25);
+}
+
+/* 规划师标题栏内的重置按钮 */
+.plan-reset-btn {
+  display: flex; align-items: center; gap: 4rpx;
+  margin-left: auto;
+  padding: 4rpx 14rpx;
+  background: rgba(139,105,20,0.25);
+  border-radius: 20rpx;
+}
+.plan-reset-icon { font-size: 22rpx; }
+.plan-reset-text { font-size: 22rpx; color: #C5A572; }
+
+/* 规划信息卡片（V11.0 新增） */
+.plan-info-card {
+  background: linear-gradient(135deg, rgba(139,105,20,0.35), rgba(184,134,11,0.2));
+  border: 2rpx solid rgba(139,105,20,0.4);
+  border-radius: 18rpx;
+  padding: 18rpx 22rpx;
+  margin-bottom: 18rpx;
+}
+.plan-info-row {
+  display: flex; flex-wrap: wrap; gap: 10rpx;
+}
+.plan-info-item {
+  font-size: 23rpx; color: #F5E6C8;
+  background: rgba(61,98,84,0.5);
+  border: 1rpx solid rgba(139,105,20,0.25);
+  border-radius: 999rpx;
+  padding: 6rpx 18rpx;
+}
+.plan-info-missing {
+  margin-top: 12rpx; padding: 10rpx 14rpx;
+  background: rgba(244,143,177,0.08);
+  border-radius: 12rpx;
+  display: flex; align-items: center; gap: 6rpx;
+}
+.plan-missing-label {
+  font-size: 22rpx; color: #F48FB1; font-weight: 600; flex-shrink: 0;
+}
+.plan-missing-fields {
+  font-size: 22rpx; color: #F5E6C8;
+}
+.plan-info-error {
+  margin-top: 10rpx; padding: 8rpx 14rpx;
+  background: rgba(255,107,107,0.1);
+  border-radius: 10rpx;
+  font-size: 22rpx; color: #FF6B6B;
+}
+
+/* 生成任务按钮区 */
+.plan-generate-area {
+  padding: 16rpx; text-align: center;
+  border-top: 1rpx dashed rgba(165,190,140,0.25);
+}
+.plan-generate-status {
+  display: block; font-size: 24rpx; color: #AED581;
+  margin-bottom: 8rpx; animation: pulse 1.5s ease-in-out infinite;
+}
+.plan-generate-hint {
+  display: block; font-size: 23rpx; color: #AED581;
+  margin-bottom: 12rpx;
+}
+.plan-generate-btn {
+  height: 80rpx !important; font-size: 30rpx !important;
+}
+
+/* ═══════════ 底部抽屉弹窗 V2（三段式 Bottom Sheet）═══════════ */
+
+/* 遮罩全屏 */
+.plan-sheet-mask {
+  position: fixed; left: 0; right: 0; top: 0; bottom: 0;
+  z-index: 9999;
+}
+.plan-sheet-backdrop {
+  position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+  background: rgba(0,0,0,0.55);
+}
+
+/* 底部弹出容器 */
+.plan-sheet {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 86vh;
+  max-height: 86vh;
+  background: linear-gradient(180deg, #355447, #2D4A3E);
+  border-radius: 32rpx 32rpx 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: sheet-slide-up 0.35s ease-out;
+}
+@keyframes sheet-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* 拖拽横条 */
+.plan-sheet-dragbar {
+  width: 72rpx;
+  height: 6rpx;
+  background: rgba(255,255,255,0.2);
+  border-radius: 3rpx;
+  margin: 16rpx auto 8rpx;
+  flex-shrink: 0;
+}
+
+/* 头部 */
+.plan-sheet-header {
+  padding: 0 28rpx 18rpx;
+  flex-shrink: 0;
+}
+.plan-sheet-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.plan-sheet-title {
+  font-size: 34rpx;
+  font-weight: 800;
+  color: #F5E6C8;
+  letter-spacing: 1px;
+}
+.plan-sheet-close {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38rpx;
+  font-weight: 300;
+  color: #C4B89A;
+  background: rgba(139,105,20,0.2);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.plan-sheet-close:active {
+  background: rgba(139,105,20,0.35);
+}
+.plan-sheet-subtitle {
+  font-size: 24rpx;
+  color: #A89978;
+  display: block;
+  margin-top: 8rpx;
+}
+
+/* 可滚动 body——view 占 flex 空间，内部 scroll-view 填满 */
+.plan-sheet-body {
+  flex: 1;
+  min-height: 0;
+  max-height: 58vh;
+  overflow: hidden;
+}
+.plan-sheet-scroll {
+  width: 100%;
+  height: 100%;
+  padding: 0 28rpx;
+  box-sizing: border-box;
+}
+
+/* ===== 卡片通用 ===== */
+.bs-card {
+  background: rgba(61,98,84,0.55);
+  border: 2rpx solid rgba(139,105,20,0.2);
+  border-radius: 20rpx;
+  padding: 24rpx 22rpx;
+  margin-bottom: 18rpx;
+}
+.bs-card-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #F5E6C8;
+  margin-bottom: 16rpx;
+}
+.bs-card-row {
+  margin-bottom: 12rpx;
+}
+.bs-card-row:last-child {
+  margin-bottom: 0;
+}
+.bs-card-label {
+  font-size: 22rpx;
+  color: #AED581;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 4rpx;
+}
+.bs-card-text {
+  font-size: 25rpx;
+  color: #E8D9BB;
+  line-height: 1.6;
+  display: block;
+}
+
+/* ===== B. 目标草稿 ===== */
+.bs-goal-title-row {
+  margin-bottom: 12rpx;
+}
+.bs-goal-title-label {
+  font-size: 22rpx;
+  color: #AED581;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 6rpx;
+}
+.bs-input {
+  width: 100%;
+  height: 72rpx;
+  background: rgba(45,74,62,0.5);
+  border: 2rpx solid rgba(139,105,20,0.35);
+  border-radius: 14rpx;
+  padding: 0 20rpx;
+  font-size: 26rpx;
+  color: #F5E6C8;
+  box-sizing: border-box;
+}
+
+/* 阶段标签 */
+.bs-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+}
+.bs-stage-tag {
+  background: rgba(45,74,62,0.5);
+  border: 1rpx solid rgba(139,105,20,0.3);
+  border-radius: 12rpx;
+  padding: 8rpx 16rpx;
+}
+.bs-stage-name {
+  display: block;
+  font-size: 24rpx;
+  color: #F5E6C8;
+  font-weight: 600;
+}
+.bs-stage-dur {
+  display: block;
+  font-size: 20rpx;
+  color: #8B9A7D;
+  margin-top: 2rpx;
+}
+
+/* ===== C. 任务编辑区 ===== */
+.bs-task-item {
+  background: rgba(45,74,62,0.4);
+  border: 2rpx solid rgba(139,105,20,0.15);
+  border-radius: 16rpx;
+  padding: 16rpx 18rpx;
+  margin-bottom: 12rpx;
+}
+.bs-task-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+}
+.bs-task-info {
+  flex: 1;
+  min-width: 0;
+}
+.bs-task-input {
+  width: 100%;
+  height: 72rpx;
+  background: rgba(45,74,62,0.5);
+  border: 2rpx solid rgba(139,105,20,0.3);
+  border-radius: 12rpx;
+  padding: 0 16rpx;
+  font-size: 26rpx;
+  color: #F5E6C8;
+  box-sizing: border-box;
+  margin-bottom: 10rpx;
+}
+.bs-xp-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+.bs-xp-label {
+  font-size: 22rpx;
+  color: #A89978;
+  flex-shrink: 0;
+}
+.bs-xp-chip {
+  padding: 6rpx 22rpx;
+  border-radius: 999rpx;
+  border: 2rpx solid rgba(139,105,20,0.3);
+  font-size: 22rpx;
+  color: #C4B89A;
+  background: transparent;
+}
+.bs-xp-active {
   background: linear-gradient(135deg, #7CB342, #689F38);
-  color: #fff; border-color: #7CB342;
-  box-shadow: 0 4rpx 12rpx rgba(124,179,66,0.3);
+  color: #fff;
+  border-color: #7CB342;
+}
+.bs-task-delete {
+  width: 52rpx;
+  height: 52rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 4rpx;
+  background: rgba(255,107,107,0.12);
+  border-radius: 50%;
+  font-size: 28rpx;
+  color: #FF6B6B;
+}
+.bs-task-delete:active {
+  background: rgba(255,107,107,0.25);
+}
+.bs-task-empty {
+  text-align: center;
+  padding: 36rpx 0;
+  font-size: 24rpx;
+  color: #8B9A7D;
+}
+
+/* 新增任务按钮 */
+.bs-add-task-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 76rpx;
+  margin-top: 4rpx;
+  border: 2rpx dashed rgba(124,179,66,0.35);
+  border-radius: 16rpx;
+  font-size: 26rpx;
+  color: #7CB342;
+  font-weight: 600;
+}
+.bs-add-task-btn:active {
+  background: rgba(124,179,66,0.1);
+}
+
+/* ===== 固定底部操作栏（在 scroll-view 外部，永远可见） ===== */
+.plan-sheet-footer {
+  flex-shrink: 0;
+  display: flex;
+  gap: 20rpx;
+  padding: 20rpx 28rpx calc(24rpx + env(safe-area-inset-bottom));
+  background: linear-gradient(0deg, #2D4A3E, rgba(45,74,62,0.98));
+  border-top: 1rpx solid rgba(139,105,20,0.15);
+  z-index: 2;
+}
+.plan-sheet-btn {
+  flex: 1;
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  text-align: center;
+  border: none;
+  padding: 0;
+}
+.plan-sheet-btn-cancel {
+  background: rgba(139,105,20,0.25);
+  color: #C4B89A;
+}
+.plan-sheet-btn-cancel:active {
+  background: rgba(139,105,20,0.35);
+}
+.plan-sheet-btn-publish {
+  background: linear-gradient(135deg, #7CB342, #558B2F);
+  color: #fff;
+  box-shadow: 0 4rpx 16rpx rgba(124,179,66,0.3);
+}
+.plan-sheet-btn-publish:active {
+  opacity: 0.88;
+}
+.plan-sheet-btn-publish[disabled] {
+  opacity: 0.45;
 }
 
 /* ===== 教练模式 ===== */
@@ -371,13 +815,476 @@
   border-top: 1rpx dashed rgba(165,190,140,0.25);
 }
 .wood-chat-input {
-  flex: 1; height: 72rpx;
+  flex: 1 1 0%; min-width: 0; height: 72rpx;
   background: rgba(45,74,62,0.5);
   border: 2rpx solid rgba(139,105,20,0.4);
-  border-radius: 36rpx; padding: 0 28rpx;
-  font-size: 25rpx; color: #F5E6C8;
+  border-radius: 36rpx; padding: 0 24rpx;
+  font-size: 26rpx; color: #F5E6C8;
 }
-.send-btn-mini { height: 72rpx !important; padding: 0 28rpx !important; font-size: 25rpx !important; }
+/* 规划师发送按钮 — 紧凑小按钮 */
+.plan-send-btn {
+  flex-shrink: 0;
+  height: 64rpx !important; line-height: 64rpx !important;
+  padding: 0 20rpx !important; font-size: 24rpx !important;
+  min-width: 96rpx !important; border-radius: 32rpx !important;
+  background: linear-gradient(135deg, #8B6914, #A67C00) !important;
+  color: #FFF8E1 !important; margin: 0 !important;
+}
+/* 聊天发送按钮 — 同样紧凑 */
+.chat-input-row .btn-leaf.send-btn-mini,
+.chat-input-row .send-btn-mini {
+  flex-shrink: 0;
+  height: 64rpx !important; line-height: 64rpx !important;
+  padding: 0 20rpx !important; font-size: 24rpx !important;
+  min-width: 96rpx !important; border-radius: 32rpx !important;
+  margin: 0 !important;
+}
+
+/* ===== 工具弹窗 Bottom Sheet ===== */
+.tool-sheet-mask {
+  position: fixed; left: 0; right: 0; top: 0; bottom: 0;
+  z-index: 9999;
+}
+.tool-sheet-backdrop {
+  position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+  background: rgba(0,0,0,0.55);
+}
+.tool-sheet {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 86vh;
+  max-height: 86vh;
+  background: linear-gradient(180deg, #355447, #2D4A3E);
+  border-radius: 32rpx 32rpx 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: sheet-slide-up 0.35s ease-out;
+}
+.tool-sheet-dragbar {
+  width: 72rpx;
+  height: 6rpx;
+  background: rgba(255,255,255,0.2);
+  border-radius: 3rpx;
+  margin: 16rpx auto 8rpx;
+  flex-shrink: 0;
+}
+.tool-sheet-header {
+  padding: 0 28rpx 18rpx;
+  flex-shrink: 0;
+}
+.tool-sheet-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.tool-sheet-title {
+  font-size: 34rpx;
+  font-weight: 800;
+  color: #F5E6C8;
+  letter-spacing: 1px;
+}
+.tool-sheet-close {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38rpx;
+  font-weight: 300;
+  color: #C4B89A;
+  background: rgba(139,105,20,0.2);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.tool-sheet-close:active {
+  background: rgba(139,105,20,0.35);
+}
+.tool-sheet-body {
+  flex: 1;
+  min-height: 0;
+  padding: 0 28rpx;
+}
+.tool-sheet-footer {
+  flex-shrink: 0;
+  padding: 20rpx 28rpx calc(24rpx + env(safe-area-inset-bottom));
+  background: linear-gradient(0deg, #2D4A3E, rgba(45,74,62,0.98));
+  border-top: 1rpx solid rgba(139,105,20,0.15);
+}
+.tool-sheet-btn {
+  width: 100%;
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  text-align: center;
+  border: none;
+  padding: 0;
+  background: rgba(139,105,20,0.25);
+  color: #C4B89A;
+}
+.tool-sheet-btn:active {
+  background: rgba(139,105,20,0.35);
+}
+
+/* ===== 工具内容通用 ===== */
+.tool-content {
+  padding: 10rpx 0 40rpx;
+}
+.tool-hint {
+  display: block; font-size: 24rpx; color: #A89978;
+  margin-bottom: 20rpx; text-align: center;
+}
+
+/* ===== 番茄钟 ===== */
+.pomodoro-mode-row {
+  display: flex; gap: 16rpx; margin-bottom: 32rpx;
+}
+.pomodoro-mode-btn {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 20rpx 12rpx;
+  background: rgba(61,98,84,0.5);
+  border: 2rpx solid rgba(139,105,20,0.25);
+  border-radius: 20rpx;
+  transition: all 0.2s;
+}
+.pomodoro-mode-btn:active {
+  transform: scale(0.96);
+}
+.pomodoro-active {
+  background: linear-gradient(135deg, rgba(124,179,66,0.3), rgba(104,159,56,0.2));
+  border-color: #7CB342;
+  box-shadow: 0 0 20rpx rgba(124,179,66,0.2);
+}
+.pomodoro-mode-icon { font-size: 40rpx; margin-bottom: 8rpx; }
+.pomodoro-mode-name { font-size: 26rpx; font-weight: 700; color: #F5E6C8; }
+.pomodoro-mode-desc { font-size: 20rpx; color: #A89978; margin-top: 4rpx; }
+
+.pomodoro-timer {
+  text-align: center; padding: 40rpx 0;
+}
+.pomodoro-time {
+  display: block; font-size: 96rpx; font-weight: 900;
+  color: #F5E6C8; font-family: 'Courier New', monospace;
+  text-shadow: 0 4rpx 20rpx rgba(0,0,0,0.4);
+  margin-bottom: 12rpx;
+}
+.pomodoro-status {
+  font-size: 26rpx; color: #AED581;
+}
+
+.pomodoro-controls {
+  display: flex; gap: 16rpx; justify-content: center;
+}
+.pomodoro-controls .btn-leaf,
+.pomodoro-controls .btn-wood {
+  min-width: 180rpx;
+}
+
+/* ===== 今日待办抽签 ===== */
+.todo-draw-area {
+  text-align: center; padding: 40rpx 0;
+}
+.todo-hint {
+  font-size: 26rpx; color: #C4B89A;
+}
+.todo-draw-btn {
+  width: 100%; margin-top: 24rpx; height: 96rpx; font-size: 32rpx;
+}
+
+.todo-result {
+  text-align: center; padding: 30rpx 0;
+}
+.todo-icon { font-size: 80rpx; display: block; margin-bottom: 16rpx; }
+.todo-task {
+  display: block; font-size: 32rpx; font-weight: 800; color: #F5E6C8;
+  margin-bottom: 20rpx; line-height: 1.5;
+}
+.todo-meta {
+  display: flex; justify-content: center; gap: 24rpx; margin-bottom: 28rpx;
+}
+.todo-difficulty, .todo-time {
+  font-size: 24rpx; color: #A89978;
+  background: rgba(45,74,62,0.5);
+  padding: 8rpx 20rpx; border-radius: 999rpx;
+}
+.todo-actions {
+  display: flex; gap: 20rpx; padding: 0 20rpx;
+}
+.todo-actions .btn-wood,
+.todo-actions .btn-leaf {
+  flex: 1;
+}
+
+/* ===== 专注宣言 ===== */
+.oath-result {
+  margin-top: 24rpx;
+  background: rgba(124,179,66,0.08);
+  border-left: 5rpx solid #7CB342;
+  border-radius: 18rpx;
+  padding: 20rpx 24rpx;
+}
+.oath-text {
+  display: block; font-size: 26rpx; color: #E8D9BB;
+  line-height: 1.8; font-weight: 600;
+}
+.oath-actions {
+  display: flex; gap: 16rpx; margin-top: 20rpx;
+}
+.oath-actions .btn-wood,
+.oath-actions .btn-leaf {
+  flex: 1;
+}
+
+.oath-history {
+  margin-top: 28rpx;
+}
+.oath-history-title {
+  display: block; font-size: 26rpx; font-weight: 700; color: #F5E6C8;
+  margin-bottom: 16rpx;
+}
+.oath-history-item {
+  background: rgba(61,98,84,0.4);
+  border-radius: 16rpx;
+  padding: 16rpx 20rpx;
+  margin-bottom: 12rpx;
+}
+.oath-history-text {
+  display: block; font-size: 25rpx; color: #E8D9BB;
+  line-height: 1.5;
+}
+.oath-history-date {
+  display: block; font-size: 20rpx; color: #8B9A7D;
+  margin-top: 8rpx;
+}
+
+/* ===== 拖延急救 ===== */
+.delay-options {
+  display: flex; flex-wrap: wrap; gap: 14rpx;
+}
+.delay-option {
+  width: calc((100% - 14rpx) / 2);
+  display: flex; align-items: center; gap: 12rpx;
+  padding: 20rpx 16rpx;
+  background: rgba(61,98,84,0.4);
+  border: 2rpx solid rgba(139,105,20,0.2);
+  border-radius: 18rpx;
+  transition: all 0.2s;
+}
+.delay-option:active {
+  transform: scale(0.98);
+}
+.delay-selected {
+  background: linear-gradient(135deg, rgba(255,152,0,0.15), rgba(255,152,0,0.05));
+  border-color: #FF9800;
+}
+.delay-icon { font-size: 32rpx; }
+.delay-label { font-size: 24rpx; color: #F5E6C8; font-weight: 600; }
+
+.delay-result {
+  margin-top: 28rpx;
+  background: rgba(255,152,0,0.06);
+  border: 2rpx solid rgba(255,152,0,0.2);
+  border-radius: 20rpx;
+  padding: 24rpx;
+}
+.delay-advice {
+  display: block; font-size: 28rpx; font-weight: 700; color: #FFD54F;
+  margin-bottom: 16rpx; line-height: 1.5;
+}
+.delay-action {
+  display: block; font-size: 25rpx; color: #E8D9BB;
+  margin-bottom: 12rpx; padding-left: 20rpx;
+  border-left: 4rpx solid #7CB342;
+}
+.delay-encourage {
+  display: block; font-size: 24rpx; color: #AED581;
+  font-style: italic;
+}
+
+/* ===== 人格测试 ===== */
+.personality-disclaimer {
+  display: block; font-size: 22rpx; color: #8B9A7D;
+  text-align: center; margin-bottom: 20rpx;
+}
+.personality-quiz {
+  padding: 10rpx 0;
+}
+.quiz-question {
+  display: block; font-size: 30rpx; font-weight: 700; color: #F5E6C8;
+  line-height: 1.6; margin-bottom: 24rpx;
+}
+.quiz-options {
+  display: flex; flex-direction: column; gap: 14rpx;
+}
+.quiz-option {
+  display: flex; align-items: center; gap: 16rpx;
+  padding: 22rpx 24rpx;
+  background: rgba(61,98,84,0.4);
+  border: 2rpx solid rgba(139,105,20,0.2);
+  border-radius: 18rpx;
+  transition: all 0.2s;
+}
+.quiz-option:active {
+  transform: scale(0.98);
+  background: rgba(124,179,66,0.15);
+  border-color: #7CB342;
+}
+.quiz-option-icon { font-size: 36rpx; }
+.quiz-option-text { font-size: 26rpx; color: #E8D9BB; flex: 1; }
+.quiz-progress {
+  display: block; font-size: 24rpx; color: #A89978;
+  text-align: center; margin-top: 28rpx;
+}
+
+.personality-result {
+  text-align: center; padding: 20rpx 0;
+}
+.personality-type-icon { font-size: 100rpx; display: block; margin-bottom: 16rpx; }
+.personality-type-name {
+  display: block; font-size: 36rpx; font-weight: 900; color: #F5E6C8;
+  margin-bottom: 16rpx;
+}
+.personality-keywords {
+  display: block; font-size: 25rpx; color: #AED581;
+  margin-bottom: 20rpx;
+}
+.personality-method, .personality-today, .personality-tools {
+  display: block; font-size: 25rpx; color: #E8D9BB;
+  line-height: 1.6; margin-bottom: 16rpx;
+}
+
+/* ===== 自律人格卡 ===== */
+.discipline-tags {
+  display: flex; flex-wrap: wrap; gap: 12rpx; margin-bottom: 28rpx;
+}
+.discipline-tag {
+  padding: 14rpx 24rpx;
+  background: rgba(61,98,84,0.4);
+  border: 2rpx solid rgba(139,105,20,0.2);
+  border-radius: 999rpx;
+  font-size: 24rpx; color: #C4B89A;
+  transition: all 0.2s;
+}
+.discipline-tag:active {
+  transform: scale(0.96);
+}
+.discipline-selected {
+  background: linear-gradient(135deg, rgba(124,179,66,0.3), rgba(104,159,56,0.2));
+  border-color: #7CB342;
+  color: #F5E6C8;
+}
+
+.discipline-card-result {
+  background: linear-gradient(135deg, rgba(74,115,97,0.7), rgba(61,98,84,0.6));
+  border: 2rpx solid rgba(139,105,20,0.3);
+  border-radius: 24rpx;
+  padding: 28rpx;
+}
+.card-title {
+  display: block; font-size: 32rpx; font-weight: 900; color: #F5E6C8;
+  text-align: center; margin-bottom: 16rpx;
+}
+.card-keyword {
+  display: block; font-size: 24rpx; color: #AED581;
+  text-align: center; margin-bottom: 20rpx;
+}
+.card-advantage, .card-challenge, .card-action {
+  display: block; font-size: 25rpx; color: #E8D9BB;
+  line-height: 1.6; margin-bottom: 14rpx;
+  padding-left: 16rpx;
+  border-left: 4rpx solid rgba(124,179,66,0.5);
+}
+
+/* ===== 情绪能量检测 ===== */
+.energy-levels {
+  display: flex; justify-content: center; gap: 12rpx; margin-bottom: 28rpx;
+}
+.energy-level {
+  width: 80rpx;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 16rpx 8rpx;
+  background: rgba(61,98,84,0.4);
+  border: 2rpx solid rgba(139,105,20,0.2);
+  border-radius: 16rpx;
+  transition: all 0.2s;
+}
+.energy-level:active {
+  transform: scale(0.96);
+}
+.energy-selected {
+  background: linear-gradient(135deg, rgba(124,179,66,0.3), rgba(104,159,56,0.2));
+  border-color: #7CB342;
+}
+.energy-num {
+  font-size: 32rpx; font-weight: 800; color: #F5E6C8;
+}
+.energy-label {
+  font-size: 18rpx; color: #A89978; margin-top: 4rpx;
+}
+
+.emotion-options {
+  display: flex; flex-wrap: wrap; gap: 12rpx; margin-bottom: 28rpx;
+}
+.emotion-option {
+  width: calc((100% - 48rpx) / 5);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 16rpx 8rpx;
+  background: rgba(61,98,84,0.4);
+  border: 2rpx solid rgba(139,105,20,0.2);
+  border-radius: 16rpx;
+  transition: all 0.2s;
+}
+.emotion-option:active {
+  transform: scale(0.96);
+}
+.emotion-selected {
+  background: linear-gradient(135deg, rgba(124,179,66,0.3), rgba(104,159,56,0.2));
+  border-color: #7CB342;
+}
+.emotion-icon { font-size: 36rpx; }
+.emotion-label {
+  font-size: 20rpx; color: #C4B89A; margin-top: 6rpx;
+}
+
+.energy-result {
+  background: rgba(139,195,74,0.06);
+  border: 2rpx solid rgba(139,195,74,0.2);
+  border-radius: 20rpx;
+  padding: 24rpx;
+}
+.energy-status {
+  display: block; font-size: 28rpx; font-weight: 700; color: #F5E6C8;
+  margin-bottom: 16rpx;
+}
+.energy-do {
+  display: block; font-size: 25rpx; color: #AED581;
+  line-height: 1.6; margin-bottom: 12rpx;
+}
+.energy-not-do {
+  display: block; font-size: 25rpx; color: #FF6B6B;
+  line-height: 1.6;
+}
+
+/* ===== 工具盒头部 ===== */
+.toolbox-header {
+  background: linear-gradient(135deg, #FFD54F, #FFB300);
+  border-radius: 20rpx;
+  padding: 20rpx;
+  margin-bottom: 24rpx;
+  text-align: center;
+  box-shadow: 0 6rpx 24rpx rgba(255,193,7,0.3);
+}
+.toolbox-title {
+  font-size: 28rpx; font-weight: 800;
+  color: #5D4037;
+  letter-spacing: 3px;
+}
 
 /* ===== 动画 ===== */
 @keyframes sway { 0%,100%{transform:rotate(0deg)} 25%{transform:rotate(3deg)} 75%{transform:rotate(-3deg)} }
+.bs-task-schedule { display: flex; flex-wrap: wrap; gap: 12rpx; align-items: center; color: #C4B89A; font-size: 22rpx; margin: 12rpx 0; }
+.bs-schedule-picker { color: #F5E6C8; border-bottom: 2rpx solid #B8860B; padding: 8rpx 0; }
+.bs-schedule-number { width: 100rpx; color: #F5E6C8; background: rgba(45,74,62,0.5); border: 1rpx solid #B8860B; border-radius: 8rpx; padding: 8rpx 12rpx; font-size: 24rpx; }
+.bs-schedule-hint { display: block; color: #C4B89A; font-size: 23rpx; line-height: 1.6; margin-bottom: 16rpx; }

@@ -24,7 +24,7 @@
       <!-- 1. 木纹标题栏 -->
       <view class="wood-title">
         <text class="leaf-icon-left">🌿</text>
-        <text class="wood-title-text">成长营地</text>
+        <text class="wood-title-text">AI自律森林</text>
         <text class="leaf-icon-right">🌿</text>
       </view>
 
@@ -36,12 +36,79 @@
         </view>
         <view class="greeting-streak">
           <text class="streak-text">今天是你坚持成长的第 {{todayGrowth.streakDays}} 天</text>
-          <text class="camp-deco">🏕️ ⛺ 🌲</text>
+          <text class="camp-deco">🌲 🌿 ✨</text>
         </view>
       </view>
 
-      <!-- 3. 宠物英雄区（居中实边卡片） -->
-      <view wx:if="{{activePet}}" class="card-solid pet-hero-card" bindtap="goPets">
+      <!-- 3. 宠物轮播区（原生swiper，支持手滑） -->
+      <view wx:if="{{displayPets.length > 0}}" class="pet-carousel">
+        <!-- 轮播指示点 -->
+        <view class="carousel-dots" wx:if="{{displayPets.length > 1}}">
+          <view
+            wx:for="{{displayPets}}"
+            wx:key="_id"
+            class="carousel-dot {{homeSwiperIndex === index ? 'dot-active' : ''}}"
+            data-index="{{index}}"
+            bindtap="switchHomePet"
+          ></view>
+        </view>
+
+        <!-- 原生swiper轮播（支持左右滑动） -->
+        <swiper
+          class="pet-swiper"
+          current="{{homeSwiperIndex}}"
+          bindchange="onHomeSwiperChange"
+          circular="{{true}}"
+          duration="{{300}}"
+          previous-margin="20rpx"
+          next-margin="20rpx"
+        >
+          <swiper-item wx:for="{{displayPets}}" wx:key="_id" wx:for-item="dp">
+            <view class="card-solid pet-hero-card" bindtap="goPets">
+
+              <!-- 宠物浮动区域 -->
+              <view class="pet-float-area">
+                <view class="pet-glow-ring" style="border: 4rpx solid {{dp.rarityColor}};"></view>
+                <view class="pet-emoji-wrap {{petStatusClass}}">
+                  <text class="pet-emoji-large">{{dp.emoji}}</text>
+                </view>
+              </view>
+              <!-- 宠物名字 + 稀有度标签 -->
+              <view class="pet-name-row">
+                <text class="pet-display-name">{{dp.name}}</text>
+                <view wx:if="{{dp.rarityName}}" class="rarity-tag" style="background:{{dp.rarityColor}};">
+                  <text>{{dp.rarityName}}</text>
+                </view>
+              </view>
+              <!-- 对话气泡 -->
+              <view class="quote-card pet-speech">
+                <text class="quote-accent">💬</text>
+                <text class="quote-text">{{dp.talk}}</text>
+              </view>
+              <!-- 状态/蛋阶段徽章 -->
+              <view wx:if="{{dp.isEgg}}" class="status-badge status-normal">
+                <text>🥚 孵化中 · {{dp.growthPercent}}%</text>
+              </view>
+              <view wx:else class="status-badge status-normal">
+                <text>{{dp.statusText}}</text>
+              </view>
+
+              <!-- 已孵化：成长阶段进度 -->
+              <view wx:if="{{!dp.isEgg && dp.stageProgress}}" class="xp-bar-wood" style="margin-top:12rpx;">
+                <view class="xp-fill-leaf" style="width:{{dp.stageProgress.percent}}%"></view>
+              </view>
+              <view wx:if="{{!dp.isEgg && dp.stageProgress}}" class="xp-info-row" style="justify-content:center;">
+                <text class="xp-percent-text">{{dp.stageProgress.currentStage}} {{dp.stageProgress.percent}}%</text>
+                <text wx:if="{{dp.stageProgress.nextStage}}" class="xp-remain-text">→ {{dp.stageProgress.nextStage}}</text>
+              </view>
+
+            </view>
+          </swiper-item>
+        </swiper>
+      </view>
+
+      <!-- 无宠物时有 activePet 但 displayPets 未加载完成 → 保留旧版兜底 -->
+      <view wx:elif="{{activePet && displayPets.length === 0}}" class="card-solid pet-hero-card" bindtap="goPets">
         <!-- 宠物浮动区域 -->
         <view class="pet-float-area">
           <view class="pet-glow-ring"></view>
@@ -56,23 +123,27 @@
           <text class="quote-accent">💬</text>
           <text class="quote-text">{{petTalk}}</text>
         </view>
-        <!-- 状态徽章 -->
-        <view class="status-badge status-{{activePet.status}}">
+        <!-- 状态/蛋阶段徽章 -->
+        <view wx:if="{{isEgg}}" class="status-badge status-normal">
+          <text>🥚 孵化中 · {{activePet.growth_value >= 100 ? 100 : activePet.growth_value}}%</text>
+        </view>
+        <view wx:else class="status-badge status-{{activePet.status}}">
           <text>{{petStatusText}} {{activePet.status === 'happy' ? '😊' : activePet.status === 'normal' ? '😐' : '😢'}}</text>
         </view>
       </view>
 
-      <!-- 4. 等级 & XP 进度 -->
+      <!-- 4. 成长进度（真实经验条：基于 growth_value） -->
       <view wx:if="{{activePet}}" class="card level-section">
         <view class="wood-title-mini">
-          <text>🌳 Lv.{{activePet.level}} 等级</text>
+          <text wx:if="{{activePet.stageProgress.nextStage}}">🌳 {{activePet.stageProgress.currentStage}} → {{activePet.stageProgress.nextStage}}</text>
+          <text wx:else>🌳 {{activePet.stageProgress.currentStage}}</text>
         </view>
         <view class="xp-bar-wood">
-          <view class="xp-fill-leaf" style="width:{{todayGrowth.completionRate}}%"></view>
+          <view class="xp-fill-leaf" style="width:{{activePet.stageProgress.percent}}%"></view>
         </view>
         <view class="xp-info-row">
-          <text class="xp-percent-text">{{todayGrowth.completionRate}}%</text>
-          <text class="xp-remain-text">距离升级还差 {{todayGrowth.xp}}XP</text>
+          <text class="xp-percent-text">{{activePet.stageProgress.percent}}%</text>
+          <text class="xp-remain-text">总成长值 {{activePet.stageProgress.growthValue}} · 还需{{activePet.stageProgress.growthNeeded}}</text>
         </view>
       </view>
 
@@ -161,4 +232,9 @@
 
     </view>
   </scroll-view>
+
+  <!-- 右下角悬浮客服按钮（始终可见） -->
+  <button class="cs-float-btn" open-type="contact" session-from="home_float" hover-class="cs-float-hover">
+    <text class="cs-float-icon">💬</text>
+  </button>
 </view>

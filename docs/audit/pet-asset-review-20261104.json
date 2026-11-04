@@ -1,0 +1,1470 @@
+{
+  "scope": "Downloaded original files, no rarity/color filters; no business flow validation",
+  "expected": 60,
+  "decoded": 60,
+  "missing": [],
+  "duplicate_pixel_groups": [
+    [
+      "pets/calico_cat/adult_thumb.png",
+      "pets/hamster/adult_thumb.png",
+      "pets/wolf/adult_thumb.png"
+    ],
+    [
+      "pets/calico_cat/baby_thumb.png",
+      "pets/fox/baby_thumb.png",
+      "pets/wolf/baby_thumb.png"
+    ],
+    [
+      "pets/calico_cat/perfect_thumb.png",
+      "pets/hamster/perfect_thumb.png",
+      "pets/wolf/perfect_thumb.png"
+    ],
+    [
+      "pets/calico_cat/youth_thumb.png",
+      "pets/hamster/youth_thumb.png",
+      "pets/wolf/youth_thumb.png"
+    ]
+  ],
+  "files": [
+    {
+      "key": "pets/black_cat/adult_thumb.png",
+      "expected_bytes": 19038,
+      "status": "decoded",
+      "bytes": 19038,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "8b73c6d019586a30506f4f07890bad0598af07404566006d4fa2c892cb7ec921",
+      "pixel_sha256": "433bd69f93e9d8056bae30bbaf0d6b3cb0ea8194bf81fca190f7eda86528f39c",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        13,
+        11,
+        115,
+        117
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/black_cat/baby_thumb.png",
+      "expected_bytes": 13468,
+      "status": "decoded",
+      "bytes": 13468,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "1eb51ff22b740ec2c9669cc395fa446875834a69332c2734a8b97793ff744862",
+      "pixel_sha256": "07cc848ace740a530a5c6d5d1a38ae859a57cd96961a30264935e03a0c2e3b3e",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        19,
+        13,
+        109,
+        115
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/black_cat/perfect_thumb.png",
+      "expected_bytes": 40525,
+      "status": "decoded",
+      "bytes": 40525,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "b2cc67fdaa22ce6e09f96301292387ee9683117afcf35761cfadd0c739d1f3b9",
+      "pixel_sha256": "2289295648132febf38d74679102baaf2dc54c09c2fec8db0325688a821cfafa",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/black_cat/youth_thumb.png",
+      "expected_bytes": 15696,
+      "status": "decoded",
+      "bytes": 15696,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "384c04a35d3ccc8693f1f22afd95af86d863974da7b6b3c39c40045536937c75",
+      "pixel_sha256": "59a5c9317cd1cce6371aae26e4792856fb14b1fd0681b930dae1fc34227d86b2",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        15,
+        11,
+        115,
+        117
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/calico_cat/adult_thumb.png",
+      "expected_bytes": 25805,
+      "status": "decoded",
+      "bytes": 25805,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGB",
+      "sha256": "6d2cc18b5a0d32d6524ede80fddc94670b71a2083126857689955cbe1c3b1fbe",
+      "pixel_sha256": "5ef3684a77769bb0b9d532dce86bec55821c411754255033a0423b6346ccb905",
+      "alpha_range": [
+        255,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/calico_cat/baby_thumb.png",
+      "expected_bytes": 25178,
+      "status": "decoded",
+      "bytes": 25178,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGB",
+      "sha256": "f4de0b4c4be3ffb2865379dc29424d319eb14c730cd1ffa84aa937cc17a9b315",
+      "pixel_sha256": "8bedd4d6e39fea3497acb91b15fbac4119c18b1c3ee368916b430ca891cc01b1",
+      "alpha_range": [
+        255,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/calico_cat/perfect_thumb.png",
+      "expected_bytes": 28482,
+      "status": "decoded",
+      "bytes": 28482,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGB",
+      "sha256": "7d388737b51da70c0f67423ddaeaf106ef1ba6f16638b325f8443142744f50b8",
+      "pixel_sha256": "a69b2243b243736b040b1f8b9f2e06deeb55eadc2c983a2a30660fd3bc45f06a",
+      "alpha_range": [
+        255,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/calico_cat/youth_thumb.png",
+      "expected_bytes": 23418,
+      "status": "decoded",
+      "bytes": 23418,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGB",
+      "sha256": "f4cc49967c1998d9b147eb6795e78baf7b0e1200b0e77f97e4d0147549191fe2",
+      "pixel_sha256": "d97f9357f07c8ac2f1613746afd82ab28792512f5c98fc65245e934e25373e12",
+      "alpha_range": [
+        255,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/capybara/adult_thumb.png",
+      "expected_bytes": 17163,
+      "status": "decoded",
+      "bytes": 17163,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "277a761054421520090bcbcc7aeed0e68cef59890d301a8f0dc1e8da04621b1f",
+      "pixel_sha256": "d588dc2530859d2985ad38c70018c6fc0bcc6e7fa6f1a034f40c906c546d51ac",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        10,
+        9,
+        117,
+        121
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/capybara/baby_thumb.png",
+      "expected_bytes": 15300,
+      "status": "decoded",
+      "bytes": 15300,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "d3b37bd1916e997daf9296fda59317511b040c454a57735d9268792cb41928e8",
+      "pixel_sha256": "619d17fb7c3b7f5ab99ba484d0b1b028d0ffba012770f55560d6bd34accc9309",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        22,
+        8,
+        106,
+        120
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/capybara/perfect_thumb.png",
+      "expected_bytes": 57545,
+      "status": "decoded",
+      "bytes": 57545,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "77335e0b77d5eaedd515d94ed0aaaff4383ac9524645925586b1517302a73e54",
+      "pixel_sha256": "0f05f9702bb9ffe2ed6554376646b9525c1bac34d1d7c1bc2676b43d2c02ad49",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/capybara/youth_thumb.png",
+      "expected_bytes": 16493,
+      "status": "decoded",
+      "bytes": 16493,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "4338d69bed9cafbb24ef9ce0b0884e3ba4eb09e2a99f47f36ab359a8e42bfb9f",
+      "pixel_sha256": "6b6831b5222fbb235515186ce74e88e46874c4dc1cbaa7607bf32ab7578aed60",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        21,
+        8,
+        107,
+        120
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/chinchilla/adult_thumb.png",
+      "expected_bytes": 19601,
+      "status": "decoded",
+      "bytes": 19601,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "bc417fcaa3d600f72839eb97f51f9ea7aecbc2c1ad256c65a1dc3fafd1dcde61",
+      "pixel_sha256": "d8f40b74e9a721a3cde222b69b50cc58787f21732b70b27aaa77c12bc8b9cd3e",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        21,
+        8,
+        108,
+        120
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/chinchilla/baby_thumb.png",
+      "expected_bytes": 14721,
+      "status": "decoded",
+      "bytes": 14721,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "dee60d72b4bbf12bb9b787805b5ef19b3afcded4453a211fd662212e36509936",
+      "pixel_sha256": "c99e13b64d9959b2c8e5ec27a9b3149ab256c2484427da230b9587d8c5b6a6e3",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        22,
+        7,
+        106,
+        121
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/chinchilla/perfect_thumb.png",
+      "expected_bytes": 56152,
+      "status": "decoded",
+      "bytes": 56152,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "f9ec51e2c06d0e744425cbe06d1abe0d77b85375ce25e15ad9fa7a5375b2c242",
+      "pixel_sha256": "45e28ad0b9eac8e05a6cc5dba1e5bf407ac77a8ae70289beed9bba5761bc9047",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/chinchilla/youth_thumb.png",
+      "expected_bytes": 17577,
+      "status": "decoded",
+      "bytes": 17577,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "57996b9e9f57fe0d3b44c641acd8340bad9563bfe5086e888510002109c20007",
+      "pixel_sha256": "19d8d20f11352d3520cdcbbd923cba05fbc61a61ddda5087923d6130d1d7feee",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        21,
+        8,
+        108,
+        120
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/corgi/adult_thumb.png",
+      "expected_bytes": 22207,
+      "status": "decoded",
+      "bytes": 22207,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "6c0d4d9153481e3fb2873f20e7d1ab8072bd2c73b704d34668ed15c43191cd8d",
+      "pixel_sha256": "2c94a4387a187826a52019393e50173de0ef4e2a33a171b7803ca30ac103f6a9",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        18,
+        10,
+        110,
+        118
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/corgi/baby_thumb.png",
+      "expected_bytes": 18066,
+      "status": "decoded",
+      "bytes": 18066,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "313cf4ba4c7caed2ec1acd9a2950ce26a9b6896cc7d882767efe30e5aee7d5a5",
+      "pixel_sha256": "4cbdcc4ae6797c0cf8a400d29b3a522fc9345db67efaa09362be0d3743ca7b18",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        19,
+        10,
+        109,
+        118
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/corgi/perfect_thumb.png",
+      "expected_bytes": 45584,
+      "status": "decoded",
+      "bytes": 45584,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "2b2b2ef6799afe0b02207f814bee7fc9b6bafc2803cafe3396628f9b8fe9ffd1",
+      "pixel_sha256": "4686702b17ab8ea2eb2eee90e47f1ddbdaa1ca8689d42f0b76efe6ba2f950974",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/corgi/youth_thumb.png",
+      "expected_bytes": 21500,
+      "status": "decoded",
+      "bytes": 21500,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "484072aebe144910361f098f686becd2a592c2c355e894d38d808a6b477f93d3",
+      "pixel_sha256": "031b95fafc5b1c3491fe108812103d2aec0b814e4a8b052028dc13c201f05b8f",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        18,
+        10,
+        110,
+        118
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/fox/adult_thumb.png",
+      "expected_bytes": 24055,
+      "status": "decoded",
+      "bytes": 24055,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "dbadab72839e9eafaf96740b913837f886c2247e22970358f5670b1786af5337",
+      "pixel_sha256": "0edf65ebdda9a7e9845c8428a6978bcd88817c405a1fb01bbf1dfb83a9eb0fbb",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/fox/baby_thumb.png",
+      "expected_bytes": 25178,
+      "status": "decoded",
+      "bytes": 25178,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGB",
+      "sha256": "f4de0b4c4be3ffb2865379dc29424d319eb14c730cd1ffa84aa937cc17a9b315",
+      "pixel_sha256": "8bedd4d6e39fea3497acb91b15fbac4119c18b1c3ee368916b430ca891cc01b1",
+      "alpha_range": [
+        255,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/fox/perfect_thumb.png",
+      "expected_bytes": 59870,
+      "status": "decoded",
+      "bytes": 59870,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "242fdcd38e3884f625032676b409ae9a35182988581a869c95976ff5595d56a8",
+      "pixel_sha256": "3a9f02ffbbaadbdeae9a68b9e3350967032831ad5dfe8cf541a432d219bf4107",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/fox/youth_thumb.png",
+      "expected_bytes": 21132,
+      "status": "decoded",
+      "bytes": 21132,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "f623f7350ba943b87828ada79dda6b4882b099c5c2094a9d81d342fba19016fa",
+      "pixel_sha256": "8eba0b6e0e116a057da6f53fd85e4daf378eca376f1deaad8601d089be69e781",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        20,
+        12,
+        108,
+        116
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/golden_retriever/adult_thumb.png",
+      "expected_bytes": 25252,
+      "status": "decoded",
+      "bytes": 25252,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "73fa34b5985741ff13d5a133d8b763c6a6563977fa10d5575c4c833f1ff8f9bb",
+      "pixel_sha256": "ff4c924736a2ef01f853fd5d71d498d7839ab116c8cc9b5d205ed448fd3e18fc",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        18,
+        3,
+        110,
+        125
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/golden_retriever/baby_thumb.png",
+      "expected_bytes": 20357,
+      "status": "decoded",
+      "bytes": 20357,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "f33f194a66f19ba2267dd14db2975de7aab16c8149ee3ba437ac938ea20c95b1",
+      "pixel_sha256": "292ddc8b5618f0d4ca0b2ecfcf85d6d68bab39010e0475eb86132aac3f790a94",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        18,
+        4,
+        110,
+        124
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/golden_retriever/perfect_thumb.png",
+      "expected_bytes": 59137,
+      "status": "decoded",
+      "bytes": 59137,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "52d15e96e1bd0f732961e5be713b0a0a982e5a2c34373dbc75726b44d9b0ff80",
+      "pixel_sha256": "8dd429ac93d02871fface3c616a6e23d144fa37ba91031955b8bac223f6efe68",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/golden_retriever/youth_thumb.png",
+      "expected_bytes": 24094,
+      "status": "decoded",
+      "bytes": 24094,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "d8f50036b942cd64e71eb4fd9bbcb6cd3c7ca547ad7d543fc917e05d9a8e5c4c",
+      "pixel_sha256": "d54f31da2b6b94b542bba1cab825f0a8180ee48c8f915d8268234b3aa4acdd36",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        18,
+        3,
+        110,
+        125
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/hamster/adult_thumb.png",
+      "expected_bytes": 25805,
+      "status": "decoded",
+      "bytes": 25805,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGB",
+      "sha256": "6d2cc18b5a0d32d6524ede80fddc94670b71a2083126857689955cbe1c3b1fbe",
+      "pixel_sha256": "5ef3684a77769bb0b9d532dce86bec55821c411754255033a0423b6346ccb905",
+      "alpha_range": [
+        255,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/hamster/baby_thumb.png",
+      "expected_bytes": 13008,
+      "status": "decoded",
+      "bytes": 13008,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "93e593c3479febcc005eb1da83e1b7d0d460a4b071a63221193cd0dbba7088c3",
+      "pixel_sha256": "29a7ef7896500a8bedbbe240091fa8948a8abe2f27d8800a5e991da11101022d",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        26,
+        19,
+        102,
+        109
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/hamster/perfect_thumb.png",
+      "expected_bytes": 28482,
+      "status": "decoded",
+      "bytes": 28482,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGB",
+      "sha256": "7d388737b51da70c0f67423ddaeaf106ef1ba6f16638b325f8443142744f50b8",
+      "pixel_sha256": "a69b2243b243736b040b1f8b9f2e06deeb55eadc2c983a2a30660fd3bc45f06a",
+      "alpha_range": [
+        255,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/hamster/youth_thumb.png",
+      "expected_bytes": 23418,
+      "status": "decoded",
+      "bytes": 23418,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGB",
+      "sha256": "f4cc49967c1998d9b147eb6795e78baf7b0e1200b0e77f97e4d0147549191fe2",
+      "pixel_sha256": "d97f9357f07c8ac2f1613746afd82ab28792512f5c98fc65245e934e25373e12",
+      "alpha_range": [
+        255,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/husky/adult_thumb.png",
+      "expected_bytes": 22696,
+      "status": "decoded",
+      "bytes": 22696,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "1510da847e7e438149100c50ede8b02501a41a36d39e013155260c07656f7c21",
+      "pixel_sha256": "508b2de4c7dd357bafc1b7db12924b9066d08e52188a078883cd6b43b19bc482",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        16,
+        2,
+        112,
+        126
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/husky/baby_thumb.png",
+      "expected_bytes": 16165,
+      "status": "decoded",
+      "bytes": 16165,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "7be5ac966b3e1f5528254d221b4ff2a26d6d808c9f01d772dfe653a6b78afac2",
+      "pixel_sha256": "a39683ae895db1681118e1d1eadffc8d3561c2ce53e651851244478e99c58934",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        17,
+        5,
+        111,
+        123
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/husky/perfect_thumb.png",
+      "expected_bytes": 58613,
+      "status": "decoded",
+      "bytes": 58613,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "d91e347ce3bad1ae7dfe35c42ba32875d5c5b0fb5021adf8d3711d0e4cd619b1",
+      "pixel_sha256": "ff502724fe933ebfc2674ca7ca67f8d24ce8a45f1085ff992333f1766c9de710",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/husky/youth_thumb.png",
+      "expected_bytes": 20482,
+      "status": "decoded",
+      "bytes": 20482,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "b22ef548367f20f1593c73bda0cc73d3c4b9572af9a6658f630d1be7d7b926c8",
+      "pixel_sha256": "cad874793693b738fcd6221ceae33e39610efe82597960161d117157a6cd87b3",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        16,
+        2,
+        112,
+        126
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/lynx/adult_thumb.png",
+      "expected_bytes": 17294,
+      "status": "decoded",
+      "bytes": 17294,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "c7f89de0aab6963d9b8c5e7fa1503766e7fef03260804c207ade08383aaa6279",
+      "pixel_sha256": "db39d3c54fa721b99cb00506def2876664d3774e20437381bfa03d739fef97ff",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        27,
+        7,
+        100,
+        121
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/lynx/baby_thumb.png",
+      "expected_bytes": 16215,
+      "status": "decoded",
+      "bytes": 16215,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "5f71359b1690774e3709609556c1d456e31cafb207a12fd58553b32c5a9f0260",
+      "pixel_sha256": "2477f673c0bc662180093dd015c8fa3acbc75f5ab5502f71ca7feed8603e5852",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        19,
+        11,
+        109,
+        117
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/lynx/perfect_thumb.png",
+      "expected_bytes": 40794,
+      "status": "decoded",
+      "bytes": 40794,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "fcf3bcf214947d224390de94b60b43d41a333ca91962184a436de78280488d0c",
+      "pixel_sha256": "8fee97f0331c4466647880ef61217b7fa9d8d828f5c676340195ceb8539ac56d",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/lynx/youth_thumb.png",
+      "expected_bytes": 16747,
+      "status": "decoded",
+      "bytes": 16747,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "86999b9f925532d350b587c1360df8cf11964b380e3b2efac7eab16c80a45c21",
+      "pixel_sha256": "6036ad4b097f54c3859e58a8aa2b4d8cb32e51bd75d09b2131069c3737d90d29",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        28,
+        7,
+        101,
+        121
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/orange_cat/adult_thumb.png",
+      "expected_bytes": 25624,
+      "status": "decoded",
+      "bytes": 25624,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "32d9604cf8123853fc8fe0a037b2f9a11d06f629b317cccea6376cc6cf5adfc7",
+      "pixel_sha256": "b97877038f1fa5c9d46996346cb6609c78a284e3045ad55340b0387df44873f3",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        14,
+        9,
+        114,
+        119
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/orange_cat/baby_thumb.png",
+      "expected_bytes": 14006,
+      "status": "decoded",
+      "bytes": 14006,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "6d8a4314653435ad7ae176ca3228e57b03d45d08b6fb46aee810cca2452b7ee9",
+      "pixel_sha256": "70acdf9a78078174c13e5de146cd57bd7b94c975404f8c81cebfa35135cbf98e",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        18,
+        9,
+        110,
+        119
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/orange_cat/perfect_thumb.png",
+      "expected_bytes": 61135,
+      "status": "decoded",
+      "bytes": 61135,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "dcd5a55bd1b6ce221e1402d4c61b063adf9b47d7139a70066701edacea9e99dd",
+      "pixel_sha256": "e72179f9f540eeaf1e6831fc94c7a47f253bb263429d58cf15944636f758458a",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/orange_cat/youth_thumb.png",
+      "expected_bytes": 24846,
+      "status": "decoded",
+      "bytes": 24846,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "c334f1f45725522151348731622d47548c974f7ae60902ae7b1e390b43315607",
+      "pixel_sha256": "75dbc7d7afd236c987fba9c842ff0bc34787dd0f0250f62d07194ec12f60ef0c",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        14,
+        9,
+        114,
+        119
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/raccoon/adult_thumb.png",
+      "expected_bytes": 19866,
+      "status": "decoded",
+      "bytes": 19866,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "d22a00bbd902c4ba470be2d44cb0ccf97d1e5474b9e3c131f3d5d1ebdf05ea7d",
+      "pixel_sha256": "724ed9ecd64580fd6b6a136eb1045631d4824958baf600bc700c97d3833412e7",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        10,
+        11,
+        118,
+        117
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/raccoon/baby_thumb.png",
+      "expected_bytes": 17935,
+      "status": "decoded",
+      "bytes": 17935,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "808b429e008fa3090f332a74d9e98476218e64a605869f02a878681f34269142",
+      "pixel_sha256": "107d1e7060e4ace7190c81c12a64d6c5956fb732adad6b0df9b35d5236225c33",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        15,
+        11,
+        113,
+        117
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/raccoon/perfect_thumb.png",
+      "expected_bytes": 48156,
+      "status": "decoded",
+      "bytes": 48156,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "310c3e808fe75a6061aba14a26132bf9bab6ad352a06ca25144a8c04eedbae46",
+      "pixel_sha256": "4a24622232c4c7542da97f096127839c434f39f71e42e6a705088bf2246e5a65",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/raccoon/youth_thumb.png",
+      "expected_bytes": 19274,
+      "status": "decoded",
+      "bytes": 19274,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "63f8eda7a58a34a569f71990ccff130adad0e99f9c01fd743f0db036e906a918",
+      "pixel_sha256": "d41001c1e624d9264d41e829240142d393381f7138763037f17d5dc10233332a",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        10,
+        11,
+        118,
+        117
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/shiba/adult_thumb.png",
+      "expected_bytes": 22999,
+      "status": "decoded",
+      "bytes": 22999,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "6cc9960a1c9819fa0219f3aa07a17788311acc101b6355e8420373c5a362ac79",
+      "pixel_sha256": "5b6dfcff430c14c786296a03e5dbf7ed04338a89bd787582529686d5fb781811",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        13,
+        3,
+        115,
+        125
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/shiba/baby_thumb.png",
+      "expected_bytes": 16544,
+      "status": "decoded",
+      "bytes": 16544,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "41cfb95b61edf78a523af60c6aaa036dfe3e461ede6a42a839bf2a47cd974929",
+      "pixel_sha256": "fb2a90608a3a00f32065c47b8756cf599916a0388954585133344df5ed43cce9",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        13,
+        7,
+        115,
+        121
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/shiba/perfect_thumb.png",
+      "expected_bytes": 49233,
+      "status": "decoded",
+      "bytes": 49233,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "9b5e9b262a421286d3a9685e8d3d77ac54ea1ab3fe5837235e12df23066cfbad",
+      "pixel_sha256": "e01760259b76c5ea232df4276945c4487ca8272e8d4c18450d3bc15c8b939dce",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/shiba/youth_thumb.png",
+      "expected_bytes": 21116,
+      "status": "decoded",
+      "bytes": 21116,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "30c9d893b6c9ff30d6e73a73a222db31e434142961cb210551697f143051dd71",
+      "pixel_sha256": "8549a95adca20e2de6dc5a9d9910bb79bf7237ef36724752031cc30c12945f07",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        13,
+        3,
+        115,
+        125
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/snow_leopard/adult_thumb.png",
+      "expected_bytes": 21341,
+      "status": "decoded",
+      "bytes": 21341,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "0d5b39500942bcde6d05e5d55367aa5bcaf4f8271ab9bdcfbb1093657518159d",
+      "pixel_sha256": "41de59c8c10e2a057abebe47a52caf5342472ffe9705b9102a53063930d96591",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        13,
+        13,
+        115,
+        115
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/snow_leopard/baby_thumb.png",
+      "expected_bytes": 17497,
+      "status": "decoded",
+      "bytes": 17497,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "1b63787f393889693d52c1affbe89594d4a88246a90753cbe767e0455810566c",
+      "pixel_sha256": "d4ca57b9e6613eb9f32c760b7da47ed6a147bf44d8ca254360d6feb6fc9918ec",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        17,
+        17,
+        111,
+        111
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/snow_leopard/perfect_thumb.png",
+      "expected_bytes": 26917,
+      "status": "decoded",
+      "bytes": 26917,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "aeec936aac70cfbb71a80534c726025e947664df73f8bff1b085968ccb657787",
+      "pixel_sha256": "28a6f87352e1c45274df4c2e1d7ce6c65e06ace5c9513437a6b9d1601cac1d48",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        1,
+        7,
+        128,
+        120
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/snow_leopard/youth_thumb.png",
+      "expected_bytes": 20929,
+      "status": "decoded",
+      "bytes": 20929,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGBA",
+      "sha256": "13a5b39ba09f6574c6c7e404d4abd3725cabed446a9b1d10052fa1d70d194747",
+      "pixel_sha256": "9666d1c02787fd57ae73841a95a93cc3c2d1ad42d740e93bbce8ec3e43f3f5fa",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "alpha_bbox": [
+        13,
+        13,
+        114,
+        115
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/wolf/adult_thumb.png",
+      "expected_bytes": 25805,
+      "status": "decoded",
+      "bytes": 25805,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGB",
+      "sha256": "6d2cc18b5a0d32d6524ede80fddc94670b71a2083126857689955cbe1c3b1fbe",
+      "pixel_sha256": "5ef3684a77769bb0b9d532dce86bec55821c411754255033a0423b6346ccb905",
+      "alpha_range": [
+        255,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/wolf/baby_thumb.png",
+      "expected_bytes": 25178,
+      "status": "decoded",
+      "bytes": 25178,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGB",
+      "sha256": "f4de0b4c4be3ffb2865379dc29424d319eb14c730cd1ffa84aa937cc17a9b315",
+      "pixel_sha256": "8bedd4d6e39fea3497acb91b15fbac4119c18b1c3ee368916b430ca891cc01b1",
+      "alpha_range": [
+        255,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/wolf/perfect_thumb.png",
+      "expected_bytes": 28482,
+      "status": "decoded",
+      "bytes": 28482,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGB",
+      "sha256": "7d388737b51da70c0f67423ddaeaf106ef1ba6f16638b325f8443142744f50b8",
+      "pixel_sha256": "a69b2243b243736b040b1f8b9f2e06deeb55eadc2c983a2a30660fd3bc45f06a",
+      "alpha_range": [
+        255,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    },
+    {
+      "key": "pets/wolf/youth_thumb.png",
+      "expected_bytes": 23418,
+      "status": "decoded",
+      "bytes": 23418,
+      "size": [
+        128,
+        128
+      ],
+      "mode": "RGB",
+      "sha256": "f4cc49967c1998d9b147eb6795e78baf7b0e1200b0e77f97e4d0147549191fe2",
+      "pixel_sha256": "d97f9357f07c8ac2f1613746afd82ab28792512f5c98fc65245e934e25373e12",
+      "alpha_range": [
+        255,
+        255
+      ],
+      "alpha_bbox": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "manifest_size_matches": true
+    }
+  ]
+}

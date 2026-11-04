@@ -1,0 +1,34 @@
+[
+  {
+    "path": "cloudfunctions/app/index.js",
+    "sha256": "828F59F0CEC78A217249D0BB699363A60C834BE762B7F44E82BB39A02446A294"
+  },
+  {
+    "path": "cloudfunctions/app/lib/taskRules.js",
+    "sha256": "9FF2055C36E9E4B471F5BE567CE911E9485785B638077087E4B3CBD1B3C1DC2C"
+  },
+  {
+    "path": "miniprogram/utils/planSchedule.js",
+    "sha256": "224572635DB5DECFBCD1BB43C2786268AD261A1A872806517247244AD1551EDF"
+  },
+  {
+    "path": "miniprogram/pages/ai/ai.js",
+    "sha256": "D6E21DBCA92D2E05E8E8E8C427735635A9B904583782C85D62277F20284F391A"
+  },
+  {
+    "path": "miniprogram/pages/ai/ai.wxml",
+    "sha256": "C9F42EE5EE868A6C2346EE8A8D2CED26FE1276591860772AA3BAEADF18CD1F06"
+  },
+  {
+    "path": "miniprogram/pages/goal-detail/goal-detail.js",
+    "sha256": "54EEA8D30B88A96AA1A2CD45FB8D8F89BE458848DC6F5C9B97C95377AEDCEA33"
+  },
+  {
+    "path": "miniprogram/pages/goal-detail/goal-detail.wxml",
+    "sha256": "125DE5D8835FEA721A77A0755A47AEA9D95F8FFDC3F2B9F69670FD25F050AECF"
+  },
+  {
+    "path": "miniprogram/pages/goals/goals.js",
+    "sha256": "38C0302DAD5F2735F5849AE1DDE03290AB0D5D78A7DE04EB6E5A3F815B5C09FA"
+  }
+]

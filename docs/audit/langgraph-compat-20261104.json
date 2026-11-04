@@ -1,0 +1,51 @@
+{
+  "date": "2026-11-04",
+  "runtime": "v22.16.0",
+  "platform": "win32",
+  "scope": "isolated deterministic graph + official Tencent saver with local fake DB; no cloud writes, UI, real model, auth or live database validation",
+  "packages": {
+    "@langchain/langgraph": {
+      "version": "1.6.1",
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "@langchain/core": {
+      "version": "1.3.4",
+      "engines": {
+        "node": ">=20"
+      }
+    },
+    "@cloudbase/agent-adapter-langgraph": {
+      "version": "0.0.24",
+      "engines": null
+    }
+  },
+  "resolvedLockEntries": 590,
+  "presentPackageEntries": 565,
+  "passedChecks": 15,
+  "checks": [
+    "bounded critic revision",
+    "approval interrupts without applying",
+    "confirmation resumes and applies dry run",
+    "interrupt node restarts on resume",
+    "completed invocation does not repeat apply",
+    "declined confirmation does not apply",
+    "threads hold distinct states",
+    "transient planner failure retries within bound",
+    "permanent failure surfaces and does not apply",
+    "invalid plan stops after one revision",
+    "Tencent saver restores after process restart using fake DB",
+    "other user cannot read known thread",
+    "Tencent saver lists checkpoint history",
+    "Tencent saver removes thread",
+    "CommonJS package entry imports on local Node"
+  ],
+  "limitations": [
+    "FileDb is a test double; it does not validate Tencent database limits, indexes or transactions.",
+    "Roles are deterministic stubs; model quality, latency, tokens and supervisor intelligence remain untested.",
+    "Replay and concurrent publish/reward require application idempotency; this probe does not implement it.",
+    "Cloud Node16 is unsupported by tested package engines; production Node22 availability, costs and streaming remain to verify.",
+    "npm emitted a transitive mem0ai/Anthropic peer version warning; install scripts were disabled."
+  ]
+}

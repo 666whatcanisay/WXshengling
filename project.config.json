@@ -46,7 +46,7 @@
   },
   "appid": "wx86c41c5901a9a6a7",
   "projectname": "quickstart-wx-cloud",
-  "libVersion": "2.20.1",
+  "libVersion": "3.14.3",
   "cloudfunctionTemplateRoot": "cloudfunctionTemplate/",
   "condition": {
     "search": {
@@ -74,7 +74,14 @@
   "compileType": "miniprogram",
   "srcMiniprogramRoot": "miniprogram/",
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      { "type": "folder", "value": "assets/pets/species/node_modules" },
+      { "type": "folder", "value": "assets/pets/species/work" },
+      { "type": "folder", "value": "assets/pets/species/lib" },
+      { "type": "folder", "value": "assets/pets/species/assets/pets/test" },
+      { "type": "folder", "value": "assets/pets/species/pipeline" },
+      { "type": "suffix", "value": ".md" }
+    ],
     "include": []
   },
   "editorSetting": {

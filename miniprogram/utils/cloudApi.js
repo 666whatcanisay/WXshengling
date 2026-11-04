@@ -65,13 +65,28 @@ function callCloud(name, action, data, retryCount) {
           return reject(`云函数 "${name}" 尚未部署，请在开发者工具中右键上传`);
         }
 
-        // 判断是否需要重试
-        const isNetworkError = rawMsg.indexOf('timeout') >= 0 ||
-          rawMsg.indexOf('fail') >= 0 ||
-          rawMsg.indexOf('network') >= 0 ||
-          rawMsg.indexOf('abort') >= 0;
+        // 【修复】业务逻辑错误不应重试（密码错误、用户不存在等）
+        const businessErrorPatterns = ['密码错误', '用户不存在', '账号已存在', '参数错误', '权限不足', '非法操作'];
+        const isBusinessError = businessErrorPatterns.some(function(p) { return rawMsg.indexOf(p) >= 0 });
+        if (isBusinessError) {
+          // 直接提取可读的业务错误信息
+          var bizMsg = rawMsg;
+          var errMsgMatch = rawMsg.match(/Error:\s*(.+?)(?:\s+at\s|$)/);
+          if (errMsgMatch && errMsgMatch[1]) { bizMsg = errMsgMatch[1].trim(); }
+          console.warn(`[CloudAPI] 业务错误，不重试:`, bizMsg);
+          return reject(bizMsg);
+        }
 
-        if (attempt < MAX_RETRIES && isNetworkError) {
+        // 判断是否为网络类错误（仅对真正的网络问题重试）
+        // 【修复】云函数超时(-504003)是配置问题，不是网络波动，不重试
+        const isNetworkError = rawMsg.indexOf('timeout') >= 0 ||
+          rawMsg.indexOf('network') >= 0 ||
+          rawMsg.indexOf('abort') >= 0 ||
+          rawMsg.indexOf('-501000') >= 0 ||   // 网络断开
+          rawMsg.indexOf('-502003') >= 0;      // 网络超时
+        const isFunctionTimeout = rawMsg.indexOf('-504003') >= 0; // 云函数执行超时（非网络问题）
+
+        if (attempt < MAX_RETRIES && isNetworkError && !isFunctionTimeout) {
           const online = await checkNetwork();
           if (!online) {
             console.warn(`[CloudAPI] 网络不可用，跳过重试`);
@@ -87,8 +102,11 @@ function callCloud(name, action, data, retryCount) {
               .catch(reject);
           }, RETRY_DELAY * (attempt + 1));
         } else {
-          const friendlyMsg = rawMsg.indexOf('timeout') >= 0 ? '请求超时，请检查网络后重试' : rawMsg;
-          reject(friendlyMsg);
+          // 非网络错误：提取核心错误信息返回
+          var finalMsg = rawMsg;
+          var match = rawMsg.match(/Error:\s*(.+?)(?:\s+\|?\s*errMsg:|\s+at\s|$)/);
+          if (match && match[1]) { finalMsg = match[1].trim(); }
+          reject(finalMsg);
         }
       },
     });
@@ -128,29 +146,68 @@ const cloudApi = {
   tasks: (params) => callCloud('app', 'listTasks', params || {}),
   createTask: (data) => callCloud('app', 'createTask', data),
   taskCheckin: (data) => callCloud('app', 'taskCheckin', data),
+  repairGoalDays: (data) => callCloud('app', 'repairGoalDays', data),
 
-  // ===== 宠物 =====
+  // ===== 宠物 V6 =====
   pets: () => callCloud('app', 'listPets'),
+  /** @deprecated V8.2 已废弃 — 请使用 createEgg + allocatePool 替代 */
   createPet: (data) => callCloud('app', 'createPet', data),
+  createEgg: (data) => callCloud('app', 'createEgg', data || {}),
+  /** V6 成长值系统：传入 { source: 'checkin'|'complete_goal'|'streak_bonus'|'ai_focus' } */
+  hatchProgress: (data) => callCloud('app', 'hatchProgress', data || {}),
+  /** V6 设置宠物性格描述 */
+  setPersonality: (data) => callCloud('app', 'setPersonality', data || {}),
+  /** V6 P4：设置性格期望（跨阶段升级时） */
+  setPersonalityPrompt: (data) => callCloud('app', 'setPersonalityPrompt', data),
+  /** V6 获取成长池信息 */
+  getGrowthPool: () => callCloud('app', 'getGrowthPool'),
+  /** 泉水系统：从池子分配经验到指定宠物 */
+  allocatePool: (data) => callCloud('app', 'allocatePool', data || {}),
+  /** 刷新蛋类型（更换为其他蛋） */
+  refreshEgg: (data) => callCloud('app', 'refreshEgg', data || {}),
+  /** 领取新手800点经验 */
+  claimStarterXp: () => callCloud('app', 'claimStarterXp'),
   petUpdate: (id, data) => callCloud('app', 'updatePet', { id, ...data }),
-  petDetail: (id) => callCloud('app', 'listPets').then(d => {
-    const list = Array.isArray(d) ? d : (d.data || d || []);
-    return list.find(p => p.id === id) || null;
-  }),
+  petDetail: (id) => callCloud('app', 'petDetail', { petId: id }),
+  petInteract: (petId, action) => callCloud('app', 'petInteract', { pet_id: petId, action }),
+  awakenPet: (petId) => callCloud('app', 'awakenPet', { pet_id: petId }),
+  deletePet: (petId) => callCloud('app', 'deletePet', { pet_id: petId }),
+  /** 宠物事件：标记事件已读 */
+  markEventRead: (data) => callCloud('app', 'markEventRead', data || {}),
+  petCollection: () => callCloud('app', 'petCollection'),
   petOverview: () => callCloud('app', 'listPets'),
 
   // ===== 成就 =====
   myAchievements: () => callCloud('app', 'listAchievements'),
+
+  // ===== AI 时间胶囊 =====
+  myCapsules: () => callCloud('app', 'myCapsules'),
+  saveCapsule: (data) => callCloud('app', 'saveCapsule', data),
 
   // ===== 情绪 =====
   emotions: (data) => callCloud('app', 'recordEmotion', data),
 
   // ===== 成长日志 =====
   growthLogs: (params) => callCloud('app', 'listGrowthLogs', params || {}),
+  addGrowthLog: (data) => callCloud('app', 'addGrowthLog', data || {}),
+
+  // ===== 背包系统（V10.4：云端持久化 + 儿童节礼包）=====
+  claimChildrenDayGift: () => callCloud('app', 'claimChildrenDayGift'),
+  getBackpack: () => callCloud('app', 'getBackpack'),
+  useBackpackItem: (itemName) => callCloud('app', 'useBackpackItem', { itemName }),
+  syncEverOwnedSpecies: (speciesList) => callCloud('app', 'syncEverOwnedSpecies', { speciesList }),
 
   // ===== API Keys =====
   myApiKeys: () => callCloud('app', 'listApiKeys'),
   saveApiKey: (data) => callCloud('app', 'saveApiKey', data),
+
+  // ===== V9.0 AI 大模型代理 =====
+  aiTestConnection: (data) => callCloud('app', 'aiTestConnection', data),
+  aiChat: (data) => callCloud('app', 'aiChat', data),
+  aiPlannerChat: (data) => callCloud('app', 'aiPlannerChat', data),
+  aiStartGenerate: (data) => callCloud('app', 'aiStartGenerate', data),
+  aiDoGenerate: (data) => callCloud('app', 'aiDoGenerate', data),
+  aiPollPlan: (data) => callCloud('app', 'aiPollPlan', data),
 
   // ===== 反馈 =====
   submitFeedback: (data) => callCloud('app', 'submitFeedback', data),
@@ -168,6 +225,10 @@ const cloudApi = {
   adminListPets: (params) => callCloud('app', 'adminListPets', params || {}),
   adminEditPet: (data) => callCloud('app', 'adminEditPet', data),
   adminBroadcast: (data) => callCloud('app', 'adminBroadcast', data),
+  /** V8.3 数据清理：删除所有非管理员账号及关联数据 */
+  adminCleanupNonAdmin: () => callCloud('app', 'adminCleanupNonAdmin'),
+  /** V8.3 删除单个用户及其所有关联数据 */
+  adminDeleteUser: (data) => callCloud('app', 'adminDeleteUser', data),
 
   // ===== 兼容占位 =====
   health: () => Promise.resolve({ status: 'ok' }),

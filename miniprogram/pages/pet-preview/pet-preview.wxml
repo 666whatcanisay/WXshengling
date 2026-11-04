@@ -1,0 +1,87 @@
+<!-- Pet Preview — Pipeline 产出验收页 -->
+<view class="preview-page">
+
+  <!-- 骨架屏 -->
+  <view wx:if="{{loading}}" class="loading-wrap">
+    <text class="loading-text">加载资源清单...</text>
+  </view>
+
+  <!-- 主内容 -->
+  <scroll-view wx:else scroll-y class="preview-scroll" enhanced show-scrollbar="{{false}}">
+    <view class="preview-inner">
+
+      <!-- 头部统计 -->
+      <view class="preview-header">
+        <text class="preview-title">Pipeline 图片验收</text>
+        <view class="preview-stats">
+          <text class="stat-item">{{totalSpecies}} 种物种</text>
+          <text class="stat-divider">|</text>
+          <text class="stat-item">{{totalImages}} 张图片</text>
+          <text class="stat-divider">|</text>
+          <text class="stat-item stat-highlight">4 阶段</text>
+        </view>
+        <text class="preview-hint">点击图片可放大查看</text>
+      </view>
+
+      <!-- 分类Tab切换 -->
+      <view class="category-tabs" wx:if="{{categories.length > 1}}">
+        <view
+          wx:for="{{categories}}"
+          wx:key="category"
+          class="cat-tab {{currentCategoryIndex === index ? 'cat-tab-active' : ''}}"
+          data-index="{{index}}"
+          bindtap="switchCategory"
+        >
+          <text class="cat-tab-icon">{{item.categoryIcon}}</text>
+          <text class="cat-tab-name">{{item.categoryName}}</text>
+          <text class="cat-tab-count">{{item.species.length}}</text>
+        </view>
+      </view>
+
+      <!-- 物种列表（当前分类） -->
+      <view
+        wx:for="{{categories}}"
+        wx:key="category"
+        wx:if="{{currentCategoryIndex === index}}"
+        class="species-section"
+      >
+
+        <!-- 每个物种一行：名称 + 4阶段图片 -->
+        <view wx:for="{{item.species}}" wx:for-item="sp" wx:key="id" class="species-row">
+
+          <!-- 物种信息列 -->
+          <view class="species-info-cell">
+            <text class="species-icon-lg">{{sp.icon}}</text>
+            <text class="species-name-lg">{{sp.name}}</text>
+            <text class="species-id-sm">{{sp.id}}</text>
+          </view>
+
+          <!-- 4阶段图片列 -->
+          <view wx:for="{{sp.stages}}" wx:for-item="stage" wx:key="stageKey" class="stage-cell">
+            <view class="stage-image-wrap" bindtap="previewImage"
+              data-url="{{stage.path}}"
+              data-species-id="{{sp.id}}"
+              data-stage="{{stage.stageName}}">
+              <image
+                class="stage-image"
+                src="{{stage.path}}"
+                mode="aspectFit"
+                lazy-load
+                binderror="onImageError"
+              />
+            </view>
+            <text class="stage-label">{{stage.stageLabel}}</text>
+            <text class="stage-key-sm">{{stage.stageName}}</text>
+          </view>
+
+        </view><!-- end species-row -->
+
+      </view><!-- end species-section -->
+
+      <!-- 底部间距 -->
+      <view class="preview-bottom-space"></view>
+
+    </view>
+  </scroll-view>
+
+</view>

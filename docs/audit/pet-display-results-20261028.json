@@ -1,0 +1,106 @@
+{
+  "imageMappings": {
+    "species": 15,
+    "combinations": 180,
+    "uniquePaths": 60,
+    "allColorTiersUseSameImage": true
+  },
+  "sameStageGrowth": [
+    {
+      "growth": 100,
+      "stage": "BABY",
+      "file": "baby_thumb.png"
+    },
+    {
+      "growth": 150,
+      "stage": "BABY",
+      "file": "baby_thumb.png"
+    },
+    {
+      "growth": 299,
+      "stage": "BABY",
+      "file": "baby_thumb.png"
+    },
+    {
+      "growth": 300,
+      "stage": "YOUTH",
+      "file": "youth_thumb.png"
+    },
+    {
+      "growth": 599,
+      "stage": "YOUTH",
+      "file": "youth_thumb.png"
+    },
+    {
+      "growth": 600,
+      "stage": "ADULT",
+      "file": "adult_thumb.png"
+    },
+    {
+      "growth": 1199,
+      "stage": "ADULT",
+      "file": "adult_thumb.png"
+    },
+    {
+      "growth": 1200,
+      "stage": "PERFECT",
+      "file": "perfect_thumb.png"
+    }
+  ],
+  "filters": [
+    {
+      "rarity": "common",
+      "colorTier": "normal",
+      "style": ""
+    },
+    {
+      "rarity": "rare",
+      "colorTier": "normal",
+      "style": "filter: hue-rotate(200deg) saturate(1.15)"
+    },
+    {
+      "rarity": "epic",
+      "colorTier": "normal",
+      "style": "filter: hue-rotate(280deg) saturate(1.25)"
+    },
+    {
+      "rarity": "legendary",
+      "colorTier": "normal",
+      "style": "filter: hue-rotate(45deg) saturate(1.35)"
+    }
+  ],
+  "missingBindings": {
+    "rareAppFlag": true,
+    "rareCardFlag": null,
+    "awakenedInput": true,
+    "awakenedAppFlag": null,
+    "templateUsesAppearanceContainerClass": false
+  },
+  "interactionRefresh": {
+    "initiallyResolved": true,
+    "activePetStage": "ADULT",
+    "displayedStage": "BABY",
+    "displayedGrowth": "100",
+    "imageAfterInteractionScheme": "cloud",
+    "imageResolutionCalls": 0,
+    "wroteCarouselAppearance": false
+  },
+  "itemRefresh": {
+    "stage": "ADULT",
+    "imageFile": "adult_thumb.png",
+    "imageScheme": "cloud",
+    "imageResolutionCalls": 0
+  },
+  "adminEdit": {
+    "savedStage": "PERFECT",
+    "savedGrowth": 100,
+    "savedExperience": 2000,
+    "savedMood": "normal",
+    "displayedStage": "BABY"
+  },
+  "sourceBoundaries": {
+    "tempResolverReferences": 1,
+    "expectedStageImages": 60,
+    "cloudFilesDownloaded": 0
+  }
+}

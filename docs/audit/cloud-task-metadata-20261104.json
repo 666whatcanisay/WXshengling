@@ -1,0 +1,61 @@
+{
+  "scope": "Latest 5 task metadata documents; titles and user identifiers excluded",
+  "results": [
+    [
+      {
+        "xp_reward": {
+          "$numberInt": "30"
+        },
+        "completed": true,
+        "date": "2026-07-10",
+        "created_at": {
+          "$numberLong": "1783666292742"
+        },
+        "completed_at": {
+          "$numberLong": "1783666298492"
+        }
+      },
+      {
+        "xp_reward": {
+          "$numberInt": "30"
+        },
+        "completed": false,
+        "date": "2026-07-10",
+        "created_at": {
+          "$numberLong": "1783666292435"
+        }
+      },
+      {
+        "xp_reward": {
+          "$numberInt": "20"
+        },
+        "completed": false,
+        "date": "2026-07-10",
+        "created_at": {
+          "$numberLong": "1783666292118"
+        }
+      },
+      {
+        "xp_reward": {
+          "$numberInt": "20"
+        },
+        "completed": false,
+        "date": "2026-07-10",
+        "created_at": {
+          "$numberLong": "1783666291825"
+        }
+      },
+      {
+        "xp_reward": {
+          "$numberInt": "20"
+        },
+        "completed": false,
+        "date": "2026-07-10",
+        "created_at": {
+          "$numberLong": "1783666291524"
+        }
+      }
+    ]
+  ],
+  "requestId": "0e08e366-eb97-438b-ab9a-7317e7ba7585"
+}

@@ -50,8 +50,10 @@ Page({
   async loadAchievements() {
     this.setData({ loading: true })
     try {
-      const res = await cloudApi.myAchievements()
-      const unlocked = (res.data || []).reduce((map, a) => {
+      const achievementsArr = await cloudApi.myAchievements()
+      // callCloud 已提取 result.data，故 achievementsArr 直接是数组
+      const list = Array.isArray(achievementsArr) ? achievementsArr : (achievementsArr && achievementsArr.data || [])
+      const unlocked = list.reduce((map, a) => {
         map[a.name] = a.unlocked_at || a.created_at
         return map
       }, {})

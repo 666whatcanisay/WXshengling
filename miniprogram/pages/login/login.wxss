@@ -104,16 +104,35 @@
 }
 .input-placeholder { color: #6B7D6F; font-size: 27rpx; }
 
-/* 密码显示/隐藏 */
-.pwd-toggle {
-  position: absolute; right: 20rpx; bottom: 22rpx;
-  padding: 8rpx;
-}
-.pwd-toggle text { font-size: 30rpx; }
+/* 密码输入框组 */
+.pwd-group { position: relative; margin-bottom: 18rpx; }
+.pwd-input { padding-right: 80rpx; }
 
-/* 协议勾选 */
-.agreement-row { display: flex; align-items: flex-start; gap: 12rpx; margin-bottom: 20rpx; }
-.checkbox-wrap { flex-shrink: 0; padding-top: 4rpx; }
+/* 密码显示/隐藏切换按钮 - 相对输入框垂直居中 */
+.pwd-toggle {
+  position: absolute;
+  right: 8rpx;
+  top: 82rpx;
+  transform: translateY(-50%);
+  width: 72rpx;
+  height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+.pwd-icon { font-size: 34rpx; opacity: 0.7; }
+.pwd-toggle:active .pwd-icon { opacity: 1; transform: scale(0.9); }
+
+/* 协议勾选 - 单行显示 */
+.agreement-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 20rpx;
+  white-space: nowrap;
+}
+.checkbox-wrap { flex-shrink: 0; }
 .custom-checkbox {
   width: 34rpx; height: 34rpx; border-radius: 8rpx;
   border: 2rpx solid rgba(184,134,11,0.4);

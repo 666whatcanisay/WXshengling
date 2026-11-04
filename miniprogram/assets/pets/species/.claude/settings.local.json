@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bl image *)",
+      "mcp__node_repl__js",
+      "mcp__node_repl__js_reset",
+      "Bash(npm init *)",
+      "Bash(npm install *)",
+      "mcp__node_repl__js_add_node_module_dir",
+      "Bash(bl --help)"
+    ]
+  }
+}

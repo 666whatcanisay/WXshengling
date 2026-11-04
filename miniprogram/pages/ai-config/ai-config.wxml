@@ -25,18 +25,6 @@
         <text class="p-name">{{item.name}}</text>
       </view>
     </view>
-
-    <!-- 快捷模板 -->
-    <view class="template-row">
-      <text class="tmpl-label">⚡ 快捷模板：</text>
-      <view
-        wx:for="{{templates}}"
-        wx:key="id"
-        class="tmpl-chip"
-        bindtap="applyTemplate"
-        data-id="{{item.id}}"
-      >{{item.name}}</view>
-    </view>
   </view>
 
   <!-- API Key 配置 -->
@@ -49,12 +37,16 @@
         <input
           class="wood-input key-input"
           password="{{!showKey}}"
-          placeholder="请输入 API Key..."
+          placeholder="{{hasExistingKey ? '输入新 Key 替换或留空保留当前...' : '请输入 API Key...'}}"
           placeholder-class="input-placeholder"
           value="{{apiKey}}"
           bindinput="onApiKey"
         />
         <text class="toggle-key-btn" bindtap="toggleKey">{{showKey ? '🙈' : '👁️'}}</text>
+      </view>
+      <view wx:if="{{hasExistingKey}}" class="key-status-badge">
+        <text class="key-status-icon">✅</text>
+        <text class="key-status-text">已配置: {{apiKeyMasked}}</text>
       </view>
     </view>
 

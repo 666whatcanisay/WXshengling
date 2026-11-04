@@ -43,6 +43,12 @@
 
 /* ---------- 目标信息卡 ---------- */
 .goal-info-card { overflow: hidden; }
+.date-selector { color: #F5E6C8; background: rgba(61,98,84,0.7); border: 2rpx solid #B8860B; border-radius: 18rpx; padding: 18rpx; margin-bottom: 18rpx; font-size: 26rpx; }
+.task-description { flex: 1; min-width: 0; margin-right: 12rpx; }
+.task-description .task-title { display: block; }
+.task-duration { display: block; color: #C4B89A; font-size: 22rpx; margin-top: 6rpx; }
+.empty-tasks { display: block; color: #C4B89A; text-align: center; padding: 20rpx; }
+.status-active { color: #AED581; background: rgba(124,179,66,0.2); }
 
 /* 目标英雄行：大emoji + 状态信息 */
 .goal-hero-row {
@@ -249,17 +255,26 @@
   padding: 20rpx 30rpx;
   background: #2D4A3E;
   border-top: 2rpx solid rgba(139,105,20,0.3);
+  display: flex;
+  gap: 20rpx;
 }
-.abandon-btn {
-  width: 100% !important;
+.complete-btn, .abandon-btn {
+  flex: 1;
   height: 76rpx !important;
   line-height: 76rpx !important;
   text-align: center;
+  border-radius: 38rpx !important;
+  font-size: 28rpx !important;
+}
+.complete-btn {
+  background: rgba(82,196,26,0.15) !important;
+  color: #52c41a !important;
+  border: 2rpx solid rgba(82,196,26,0.3) !important;
+}
+.abandon-btn {
   background: rgba(255,107,107,0.15) !important;
   color: #FF6B6B !important;
   border: 2rpx solid rgba(255,107,107,0.3) !important;
-  border-radius: 38rpx !important;
-  font-size: 28rpx !important;
 }
 
 /* ---------- 弹窗通用 ---------- */

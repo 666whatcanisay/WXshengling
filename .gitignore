@@ -12,3 +12,22 @@ $RECYCLE.BIN/
 
 # Node.js
 node_modules/
+
+# Local tools, credentials and generated migration packages
+.cloudbase/
+.workbuddy-ai/
+.agents/skills/
+.migration/
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+tcb_custom_login.json
+*.log
+project.private.config.json
+miniprogram/utils/_fix_check.txt
+
+# Local graduation reports are kept on disk; source docs live in docs/.
+*.docx

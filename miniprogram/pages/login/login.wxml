@@ -16,10 +16,10 @@
     <!-- Logo & 品牌区 -->
     <view class="brand-area">
       <view class="logo-ring">
-        <text class="logo-icon">🏕️</text>
+        <text class="logo-icon">🌲</text>
       </view>
-      <text class="app-title">森林营地</text>
-      <text class="app-subtitle">Forest Camp · AI 成长伙伴</text>
+      <text class="app-title">AI自律森林</text>
+      <text class="app-subtitle">Discipline Forest · AI 成长伙伴</text>
     </view>
 
     <!-- 登录卡片 -->
@@ -54,10 +54,10 @@
           />
         </view>
 
-        <view class="form-group">
+        <view class="form-group pwd-group">
           <text class="input-label">🔒 密码</text>
           <input
-            class="wood-input"
+            class="wood-input pwd-input"
             password="{{!showPwd}}"
             placeholder="请输入密码"
             placeholder-class="input-placeholder"
@@ -66,7 +66,7 @@
             maxlength="32"
           />
           <view class="pwd-toggle" bindtap="togglePwd">
-            <text>{{showPwd ? '🙈' : '👁'}}</text>
+            <text class="pwd-icon">{{showPwd ? '🙈' : '👁'}}</text>
           </view>
         </view>
 
@@ -110,10 +110,10 @@
           />
         </view>
 
-        <view class="form-group">
+        <view class="form-group pwd-group">
           <text class="input-label">🔒 密码 *</text>
           <input
-            class="wood-input"
+            class="wood-input pwd-input"
             password="{{!showRegPwd}}"
             placeholder="设置密码（至少6位）"
             placeholder-class="input-placeholder"
@@ -121,12 +121,15 @@
             bindinput="onRegPasswordInput"
             maxlength="32"
           />
+          <view class="pwd-toggle" bindtap="toggleRegPwd">
+            <text class="pwd-icon">{{showRegPwd ? '🙈' : '👁'}}</text>
+          </view>
         </view>
 
-        <view class="form-group">
+        <view class="form-group pwd-group">
           <text class="input-label">🔒 确认密码 *</text>
           <input
-            class="wood-input"
+            class="wood-input pwd-input"
             password="{{!showRegPwd2}}"
             placeholder="再次输入密码"
             placeholder-class="input-placeholder"
@@ -134,6 +137,9 @@
             bindinput="onRegPassword2Input"
             maxlength="32"
           />
+          <view class="pwd-toggle" bindtap="toggleRegPwd2">
+            <text class="pwd-icon">{{showRegPwd2 ? '🙈' : '👁'}}</text>
+          </view>
         </view>
 
         <view class="form-group">
@@ -180,15 +186,15 @@
         <view class="d-line"></view>
       </view>
 
-      <!-- 微信一键登录 -->
+      <!-- 微信一键登录（V12：去掉已废弃的 getUserProfile，改用 wx.login + 云函数直取 openid） -->
       <button
         class="btn-wechat-login"
-        open-type="{{hasCachedUser ? '' : 'getUserProfile'}}"
-        bindtap="handleWechatLogin"
-        bindgetuserprofile="onGetUserProfile"
+        bindtap="handleWechatLoginQuick"
+        loading="{{wxLoginLoading}}"
+        disabled="{{wxLoginLoading}}"
       >
         <text class="wechat-icon">💚</text>
-        <text>微信{{hasCachedUser ? '重新授权' : '一键'}}登录</text>
+        <text>{{wxLoginLoading ? '登录中...' : '微信一键登录'}}</text>
       </button>
 
       <!-- 底部说明 -->
@@ -209,7 +215,7 @@
     <scroll-view scroll-y class="protocol-body">
       <view class="protocol-section">
         <text class="section-title">一、服务说明</text>
-        <text class="section-content">森林营地是一款帮助您管理目标、养成宠物、记录成长的AI助手小程序。我们致力于为您提供优质的成长陪伴体验。</text>
+        <text class="section-content">AI自律森林是一款帮助您管理目标、养成宠物、记录成长的AI助手小程序。我们致力于为您提供优质的成长陪伴体验。</text>
       </view>
       <view class="protocol-section">
         <text class="section-title">二、信息收集</text>

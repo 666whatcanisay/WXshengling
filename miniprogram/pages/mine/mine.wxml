@@ -20,6 +20,8 @@
       <view class="level-chip">
         <text class="level-text">Lv.{{levelInfo.level || 3}}</text>
       </view>
+      <!-- OpenID 调试用 -->
+      <text class="openid-text" wx:if="{{myOpenid}}" bindtap="copyOpenid" data-id="{{myOpenid}}">ID: {{myOpenid}}</text>
       <!-- 数据概览（从存储读取） -->
       <view class="user-stats-row">
         <view class="stat-mini"><text class="stat-num">{{totalXp}}</text><text class="stat-label">总XP</text></view>
@@ -28,7 +30,7 @@
       </view>
 
       <!-- 宠物快捷预览（有宠物时显示） -->
-      <view wx:if="{{myPet}}" class="pet-preview-row" bindtap="goPets">
+      <view wx:if="{{myPet}}" class="pet-preview-row" bindtap="openCollection">
         <text class="pet-preview-emoji">{{petEmoji}}</text>
         <view class="pet-preview-info">
           <text class="pet-preview-name">{{myPet.name}}</text>
@@ -41,11 +43,11 @@
 
   <!-- 菜单列表（虚线边框卡片） -->
   <view class="menu-list">
-    <!-- 我的宠物 -->
-    <view class="card menu-card-item" bindtap="goPets">
-      <text class="menu-icon">🐾</text>
-      <text class="menu-label">我的宠物</text>
-      <text wx:if="{{myPet}}" class="menu-badge">{{petStageText}}</text>
+    <!-- 我的宠物图鉴 -->
+    <view class="card menu-card-item" bindtap="openCollection">
+      <text class="menu-icon">📖</text>
+      <text class="menu-label">我的宠物图鉴</text>
+      <text wx:if="{{myPet}}" class="menu-badge">{{collectionCount}}/{{maxPets}}</text>
       <text class="menu-arrow">›</text>
     </view>
 
@@ -91,7 +93,7 @@
     <!-- 管理员入口（仅管理员可见） -->
     <view wx:if="{{isAdmin}}" class="card menu-card-item item-admin" bindtap="goAdmin">
       <text class="menu-icon">🛡️</text>
-      <text class="menu-label label-admin">营地管理中心</text>
+      <text class="menu-label label-admin">自律森林管理中心</text>
       <text class="menu-arrow arrow-admin">›</text>
     </view>
 
@@ -112,4 +114,135 @@
 
     </view>
   </scroll-view>
+
+  <!-- ===== 宠物图鉴弹窗 ===== -->
+  <view wx:if="{{showCollection}}" class="collection-overlay" bindtap="closeCollection">
+    <view class="collection-modal" catchtap>
+      <!-- 弹窗标题栏 -->
+      <view class="collection-header">
+        <text class="collection-title">📖 宠物图鉴</text>
+        <text class="collection-close" bindtap="closeCollection">✕</text>
+      </view>
+
+      <!-- 统计概览区 -->
+      <view class="collection-stats">
+        <view class="stat-cell">
+          <text class="stat-num-lg">{{stats.total_ever_owned || 0}}</text>
+          <text class="stat-label-sm">拥有过</text>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-cell">
+          <text class="stat-num-lg">{{stats.current_count || 0}}</text>
+          <text class="stat-label-sm">当前</text>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-cell">
+          <text class="stat-num-lg">{{stats.released_count || 0}}</text>
+          <text class="stat-label-sm">已放行</text>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-cell">
+          <text class="stat-num-lg">{{stats.awakened_count || 0}}</text>
+          <text class="stat-label-sm">已觉醒</text>
+        </view>
+      </view>
+
+      <!-- 最稀有宠物展示 -->
+      <view wx:if="{{stats.rarest_pet}}" class="rarest-showcase">
+        <text class="rarest-label">🏆 最稀有伙伴</text>
+        <view class="rarest-card">
+          <text class="rarest-emoji">{{rarestDisplay.icon}}</text>
+          <view class="rarest-info">
+            <text class="rarest-name">{{stats.rarest_pet.name}}<text wx:if="{{stats.rarest_pet.awakened}}" class="awaken-mini">✨</text></text>
+            <view class="rarest-tags">
+              <text class="rarity-tag" style="color:{{rarestDisplay.rarityColor}}; border-color:{{rarestDisplay.rarityColor}};">{{rarestDisplay.rarityName}}</text>
+              <text class="stage-tag">Lv.{{stats.rarest_pet.level}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- Tab 切换：当前 / 历史 -->
+      <view class="collection-tabs">
+        <view class="col-tab {{colActiveTab === 'current' ? 'col-tab-active' : ''}}" data-tab="current" bindtap="switchColTab">当前宠物 ({{currentPets.length}})</view>
+        <view class="col-tab {{colActiveTab === 'released' ? 'col-tab-active' : ''}}" data-tab="released" bindtap="switchColTab">历史记录 ({{releasedPets.length}})</view>
+      </view>
+
+      <!-- 当前宠物列表 -->
+      <scroll-view wx:if="{{colActiveTab === 'current'}}" scroll-y class="collection-list" enhanced show-scrollbar="{{false}}">
+        <view wx:if="{{currentPets.length === 0}}" class="empty-collection">
+          <text class="empty-icon">🥚</text>
+          <text class="empty-text">还没有宠物，去创建目标获得神秘蛋吧！</text>
+          <view class="btn-leaf go-pets-btn" bindtap="goPetsFromCollection">前往宠物森林</view>
+        </view>
+        <view wx:for="{{currentPets}}" wx:key="id" class="pet-col-card {{item.is_hatched ? '' : 'is-egg-card'}}">
+          <view class="pet-col-left">
+            <text class="pet-col-emoji">{{item._icon}}</text>
+            <view class="pet-col-info">
+              <text class="pet-col-name">{{item.name}}<text wx:if="{{item.awakened}}" class="awaken-mini">✨</text></text>
+              <view class="pet-col-meta">
+                <text class="meta-rarity" style="color:{{item._rarityColor}};">{{item._rarityName}}</text>
+                <text class="meta-dot">·</text>
+                <text class="meta-stage">{{item._stageText}}</text>
+                <text wx:if="{{!item.is_hatched}}" class="meta-hatch">· {{item.hatch_progress || 0}}%</text>
+              </view>
+              <view class="pet-col-sub" wx:if="{{item.is_hatched}}">
+                <text>Lv.{{item.level || 1}}</text>
+                <text class="meta-dot">·</text>
+                <text>{{item._bondLevel}}</text>
+                <text class="meta-dot">·</text>
+                <text>❤️{{item.bond || 0}}</text>
+              </view>
+            </view>
+          </view>
+          <view class="pet-col-actions">
+            <view class="col-action-btn col-view-btn" data-id="{{item.id}}" bindtap="goPetDetail">查看</view>
+            <view class="col-action-btn col-delete-btn" data-id="{{item.id}}" data-name="{{item.name}}" catchtap="confirmDeletePet">放行</view>
+          </view>
+        </view>
+      </scroll-view>
+
+      <!-- 历史宠物列表 -->
+      <scroll-view wx:if="{{colActiveTab === 'released'}}" scroll-y class="collection-list" enhanced show-scrollbar="{{false}}">
+        <view wx:if="{{releasedPets.length === 0}}" class="empty-collection">
+          <text class="empty-icon">📜</text>
+          <text class="empty-text">还没有放行记录</text>
+        </view>
+        <view wx:for="{{releasedPets}}" wx:key="id" class="pet-col-card released-card">
+          <view class="pet-col-left">
+            <text class="pet-col-emoji faded-emoji">{{item._icon}}</text>
+            <view class="pet-col-info">
+              <text class="pet-col-name faded-text">{{item.name}}<text wx:if="{{item.awakened}}" class="awaken-mini">✨</text></text>
+              <view class="pet-col-meta">
+                <text class="meta-rarity faded-text" style="color:{{item._rarityColor}};">{{item._rarityName}}</text>
+                <text class="meta-dot faded-text">·</text>
+                <text class="meta-stage faded-text">{{item._stageText}}</text>
+                <text class="meta-dot faded-text">·</text>
+                <text class="faded-text">陪伴{{item.owned_days || 0}}天</text>
+              </view>
+            </view>
+          </view>
+          <view class="release-date">
+            <text class="release-date-text">{{item.released_at_text}}</text>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+
+  <!-- ===== 放行确认弹窗 ===== -->
+  <view wx:if="{{showDeleteConfirm}}" class="collection-overlay" bindtap="cancelDelete">
+    <view class="delete-confirm-modal" catchtap>
+      <view class="delete-confirm-header">
+        <text class="delete-confirm-icon">💔</text>
+        <text class="delete-confirm-title">确认放行？</text>
+      </view>
+      <text class="delete-confirm-msg">【{{deleteTargetName}}】将离开你回到大自然，它的数据会保留在图鉴历史中。</text>
+      <text class="delete-confirm-hint">此操作不可撤销，但你可以重新孵化新宠物。</text>
+      <view class="delete-confirm-actions">
+        <button class="btn-wood delete-cancel-btn" bindtap="cancelDelete">再想想</button>
+        <button class="btn-danger delete-ok-btn" bindtap="doDeletePet">确认放行</button>
+      </view>
+    </view>
+  </view>
 </view>

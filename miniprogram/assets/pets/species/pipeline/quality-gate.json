@@ -1,0 +1,70 @@
+{
+  "_description": "Pet V7.1 Quality Gate — PRODUCTION MODE. Only file integrity checks are critical. Visual checks are warnings only.",
+  "_mode": "production",
+
+  "foreground_ratio": {
+    "_critical": false,
+    "_description": "Subject coverage. WARNING only — does not block production.",
+    "baby":    { "min": 0.05, "max": 0.98, "ideal": 0.30 },
+    "youth":   { "min": 0.05, "max": 0.98, "ideal": 0.33 },
+    "adult":   { "min": 0.05, "max": 0.98, "ideal": 0.36 },
+    "perfect": { "min": 0.05, "max": 0.98, "ideal": 0.33 }
+  },
+
+  "growth_area_ratio": {
+    "_critical": false,
+    "_description": "Area ratio vs baby. WARNING only.",
+    "baby":    { "min": 1.00, "max": 1.00 },
+    "youth":   { "min": 0.50, "max": 2.50 },
+    "adult":   { "min": 0.50, "max": 2.50 },
+    "perfect": { "min": 0.30, "max": 2.50 }
+  },
+
+  "head_body_ratio": {
+    "_critical": false,
+    "min": 0.10, "max": 0.60, "ideal": 0.28
+  },
+
+  "aspect_ratio": {
+    "_critical": false,
+    "min": 0.40, "max": 2.50, "ideal": 1.10
+  },
+
+  "outline_ratio": {
+    "_critical": false,
+    "min": 0.01, "max": 0.50, "ideal": 0.08
+  },
+
+  "saturation": {
+    "_critical": false,
+    "min": 0.10, "max": 0.90, "ideal": 0.50
+  },
+
+  "lighting_symmetry": {
+    "_critical": false,
+    "top_bot_ratio": { "min": 0.50, "max": 2.00 },
+    "left_right_ratio": { "min": 0.50, "max": 2.00 }
+  },
+
+  "file_output": {
+    "main": {
+      "width": 512,
+      "height": 512,
+      "max_size_kb": 500,
+      "channels": 4,
+      "has_alpha": true
+    },
+    "thumbnail": {
+      "width": 128,
+      "height": 128,
+      "max_size_kb": 100,
+      "channels": 4,
+      "has_alpha": true
+    }
+  },
+
+  "regeneration": {
+    "max_retries_per_stage": 0,
+    "fail_strategy": "skip_and_continue"
+  }
+}

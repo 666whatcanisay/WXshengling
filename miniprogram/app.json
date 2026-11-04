@@ -16,10 +16,11 @@
     "pages/emotion/emotion",
     "pages/record/record",
     "pages/stats/stats",
-    "pages/admin/admin"
+    "pages/admin/admin",
+    "pages/pet-preview/pet-preview"
   ],
   "window": {
-    "navigationBarTitleText": "AI 成长伙伴",
+    "navigationBarTitleText": "AI自律森林",
     "navigationBarBackgroundColor": "#2D4A3E",
     "navigationBarTextStyle": "white",
     "backgroundColor": "#2D4A3E"

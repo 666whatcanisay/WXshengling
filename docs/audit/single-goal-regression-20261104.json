@@ -1,0 +1,5 @@
+{
+  "passed": 41,
+  "failed": 0,
+  "scope": "Local production source + isolated database/page stubs; no cloud writes or model requests"
+}

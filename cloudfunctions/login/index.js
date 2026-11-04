@@ -1,9 +1,15 @@
 // 登录云函数：支持 账号密码登录 / 注册 / 微信授权登录
 const cloud = require('wx-server-sdk');
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
+const crypto = require('crypto');
 const db = cloud.database();
 const users = db.collection('users');
 const _ = db.command;
+
+// SHA256 密码哈希（加固定盐值，生产环境应使用随机盐）
+function hashPassword(password) {
+  return crypto.createHash('sha256').update('forest_camp_salt_' + password).digest('hex');
+}
 
 function buildUserData(user, openid) {
   return {
@@ -56,12 +62,18 @@ exports.main = async (event, context) => {
 
       const user = userRecord.data[0];
 
-      // 验证密码
-      if (user.password !== password) {
+      // 验证密码（兼容旧明文密码和新的哈希密码）
+      var hashedInput = hashPassword(password);
+      if (user.password !== password && user.password !== hashedInput) {
         return { code: -1, message: '密码错误' };
       }
 
-      // 绑定当前 openid
+      // 【V12 一微信一账号】如果账号已绑定其他微信，拒绝当前微信登录
+      if (user._openid && user._openid !== OPENID) {
+        return { code: -1, message: '该账号已绑定其他微信号，请使用已绑定的微信号登录' };
+      }
+
+      // 绑定当前 openid（仅首次登录时绑定）
       if (!user._openid) {
         try {
           await users.doc(user._id).update({ data: { _openid: OPENID, updated_at: Date.now() } });
@@ -89,6 +101,14 @@ exports.main = async (event, context) => {
         return { code: -1, message: '该用户名已被注册' };
       }
 
+      // 同一微信用户(同一openid)限注册1个账号
+      const existByOpenid = await users.where({ _openid: _.eq(OPENID) }).count();
+      if (existByOpenid.total >= 1) {
+        const existing = (await users.where({ _openid: _.eq(OPENID) }).get()).data;
+        const names = existing.map(u => u.username || '').join('、');
+        return { code: -1, message: '该微信号已注册过' + existByOpenid.total + '个账号（' + names + '），请直接登录' };
+      }
+
       const totalUsers = await users.count();
       const isFirstUser = totalUsers.total === 0;
       const now = Date.now();
@@ -96,7 +116,7 @@ exports.main = async (event, context) => {
       const newUser = {
         _openid: OPENID,
         username: username,
-        password: password,
+        password: hashPassword(password),
         nickname: nickname || username,
         avatar: avatar || '',
         level: 1, total_xp: 0, streak_days: 0,
@@ -114,39 +134,50 @@ exports.main = async (event, context) => {
       return { code: 0, data: result, message: 'ok' };
     }
 
-    // ====== 3. 微信授权登录 ======
+    // ====== 3. 微信授权登录（V12：一微信一账号，保护管理员角色）=====
     if (action === 'authLogin') {
+      // 按 openid 查找已有账号（一个微信只能对应一个账号）
       let userRecord = await users.where({ _openid: OPENID }).get();
       let isNew = false;
       let user;
 
       if (!userRecord.data || userRecord.data.length === 0) {
+        // 新用户：创建账号（第一个用户是 admin，其余都是普通用户）
         const totalUsers = await users.count();
         const isFirstUser = totalUsers.total === 0;
         const now = Date.now();
         const newUser = {
-          _openid: OPENID, nickname: nickname || '森林伙伴', avatar: avatar || '',
+          _openid: OPENID,
+          nickname: nickname || '森林伙伴',
+          avatar: avatar || '',
           level: 1, total_xp: 0, streak_days: 0, last_checkin_date: '',
-          role: isFirstUser ? 'admin' : 'user', status: 'active',
+          role: isFirstUser ? 'admin' : 'user',
+          status: 'active',
           created_at: now, updated_at: now, last_login_at: now,
         };
         const res = await users.add({ data: newUser });
         newUser._id = res._id;
         user = newUser;
         isNew = true;
+        console.log('[login] authLogin 新用户创建 role=' + newUser.role);
       } else {
+        // 已有账号：更新登录信息和昵称头像
         user = userRecord.data[0];
-        const updateData = { updated_at: Date.now(), last_login_at: Date.now() };
-        if (nickname) updateData.nickname = nickname;
+        const updateData = { last_login_at: Date.now(), updated_at: Date.now() };
+        if (nickname && nickname !== '森林伙伴') updateData.nickname = nickname;
         if (avatar) updateData.avatar = avatar;
-        if (Object.keys(updateData).length > 2) {
-          await users.doc(user._id).update({ data: updateData });
-          Object.assign(user, updateData);
+        await users.doc(user._id).update({ data: updateData });
+        Object.assign(user, updateData);
+
+        // 【V12】保护已有管理员角色，绝不降级
+        // 只在 role 为空时才补充默认值
+        if (!user.role || user.role === '') {
+          // 检查是否已存在管理员
+          const adminCount = await users.where({ role: 'admin' }).count();
+          user.role = (adminCount.total === 0) ? 'admin' : 'user';
+          await users.doc(user._id).update({ data: { role: user.role } });
         }
-        if (!user.role) {
-          await users.doc(user._id).update({ data: { role: 'user' } });
-          user.role = 'user';
-        }
+        console.log('[login] authLogin 已有用户 role=' + user.role);
       }
 
       const result = buildUserData(user, OPENID);

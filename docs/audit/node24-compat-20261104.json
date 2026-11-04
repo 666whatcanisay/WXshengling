@@ -1,0 +1,51 @@
+{
+  "date": "2026-11-04",
+  "runtime": "v24.22.2",
+  "platform": "Windows x64",
+  "runtime_install": "Official portable node.exe in temporary directory; system Node22.16.0 and global PATH unchanged",
+  "official_binary_sha256": "1C331340FA6CAC5E4294725959070A143FA0507195A78AD77EED7943F719AAC9",
+  "results": {
+    "business_regression": {
+      "passed": 41,
+      "failed": 0,
+      "source": "tests/single-goal-regression.cjs",
+      "database": "isolated test double"
+    },
+    "production_js_syntax": {
+      "checked": 35,
+      "failed": 0
+    },
+    "langgraph": {
+      "typescript_build": "passed",
+      "flow_checks_passed": 15,
+      "evidence": "langgraph-compat-node24-20261104.json"
+    },
+    "existing_sdk_import": {
+      "app": "main=function",
+      "login": "main=function",
+      "init": "main=function",
+      "invoked_handlers": false
+    }
+  },
+  "cloud_readonly_snapshot": {
+    "environment": "cloud1-d5gz9j6zh654f4b36",
+    "runtimes": {
+      "app": "Nodejs16.13",
+      "login": "Nodejs16.13",
+      "init": "Nodejs16.13"
+    }
+  },
+  "references": {
+    "runtime_support": "https://docs.cloudbase.net/cloud-function/runtime-support",
+    "cli_config": "https://docs.cloudbase.net/cli-v1/functions/configs",
+    "runtime_immutable": "https://cloud.tencent.com/document/api/876/137946",
+    "node_releases": "https://nodejs.org/en/about/previous-releases"
+  },
+  "limits": [
+    "Windows portable24.22.2 is not the exact cloud Nodejs24.11 Linux runtime.",
+    "No cloud function creation/deployment, real model requests or business writes.",
+    "CloudBase central runtime page lists24.11, while CLI config still marks24.11 public beta; environment-level availability is not verified.",
+    "No migration was applied; no package engines/global Node/WeChat tool built-in runtime was changed.",
+    "Old SDK import success is not authentication, database, storage or network acceptance."
+  ]
+}

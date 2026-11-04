@@ -1,0 +1,9 @@
+{
+  "totalCalls": 9,
+  "poolExhausted": false,
+  "callsByModel": {
+    "model-testing": 9
+  },
+  "startedAt": "2026-06-16T11:43:13.141Z",
+  "poolLimit": 100
+}

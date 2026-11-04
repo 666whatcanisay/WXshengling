@@ -1,196 +1,878 @@
+<!-- Pet V6 宠物营地页面（15物种/3蛋类型/BUFF系统/5阶段） -->
 <view class="page">
-  <!-- ===== 骨架屏：数据加载中显示 ===== -->
+
+  <!-- 骨架屏 -->
   <view wx:if="{{loading}}" class="skeleton-wrap">
     <view class="sk-hero"></view>
     <view class="sk-actions"></view>
     <view class="sk-bottom"></view>
   </view>
 
-  <!-- ===== 正常内容 ===== -->
+  <!-- 主内容区 -->
   <scroll-view wx:else scroll-y class="pets-scroll" enhanced show-scrollbar="{{false}}">
     <view class="pets-inner">
 
-      <!-- 1. 木纹标题栏 -->
+      <!-- 标题栏 -->
       <view class="wood-title">
-        <text class="leaf-icon-left">🏕️</text>
-        <text class="wood-title-text">宠物营地</text>
-        <text class="leaf-icon-right">🏕️</text>
+        <text class="leaf-icon-left">🌿</text>
+        <text class="wood-title-text">宠物森林</text>
+        <text class="leaf-icon-right">🌿</text>
       </view>
 
-      <!-- 2. 宠物英雄区（大居中区域） -->
-      <view class="card-solid pet-camp-hero" wx:if="{{activePet}}">
-        <!-- 宠物光晕背景 -->
-        <view class="camp-glow-bg"></view>
-
-        <!-- 巨型宠物 emoji + 浮动动画 -->
-        <view class="pet-giant-area">
-          <view class="pet-emoji-giant {{interacting ? 'interact-bounce' : ''}} {{petStatusClass}}">
-            <text class="pet-emoji-xl">{{petEmoji}}</text>
-          </view>
-        </view>
-
-        <!-- 宠物名字（木纹小标题风格 + 重命名入口） -->
-        <view class="wood-title-mini camp-name-tag" bindtap="showRenameModal">
-          <text>{{activePet.name}}</text>
-          <text class="rename-hint-icon">✏️</text>
-        </view>
-
-        <!-- 状态徽章 -->
-        <view class="status-badge status-{{activePet.status}}">
-          <text>{{statusTextVal}} {{activePet.status === 'happy' ? '😊' : activePet.status === 'normal' ? '😐' : '😔'}}</text>
-        </view>
-
-        <!-- XP 进度条（木框 + 叶子填充） -->
-        <view class="xp-camp-bar" wx:if="{{activePet}}">
-          <view class="xp-camp-info">
-            <text class="xp-lv-text">Lv.{{activePet.level}}</text>
-            <text class="xp-pct-text">{{xpPercent}}%</text>
-          </view>
-          <view class="xp-track-wood">
-            <view class="xp-fill-green" style="width:{{xpPercent}}%"></view>
-          </view>
-          <text class="xp-hint">{{activePet.experience || activePet.xp_progress || 0}} / {{stageMaxXp}} XP</text>
-        </view>
+      <!-- ===== 未读事件提示 ===== -->
+      <view class="unread-events-bar" wx:if="{{unreadEvents.length > 0}}" bindtap="showEventDetail" data-id="{{unreadEvents[0].id}}">
+        <text class="ue-icon">💌</text>
+        <text class="ue-text">{{unreadEvents[0].title}}</text>
+        <text class="ue-badge">{{unreadEvents.length}}</text>
       </view>
 
-      <!-- 无宠物时显示领养提示 -->
-      <view wx:if="{{!activePet && pets.length < 3}}" class="card adopt-section" bindtap="createPet">
-        <text class="adopt-emoji">🐾</text>
-        <text class="adopt-text">还没有宠物伙伴，点击领养一只吧！</text>
-        <view class="btn-leaf adopt-action-btn">＋ 领养宠物</view>
-      </view>
+      <!-- V6: 宠物轮播（原生swiper，支持手滑） -->
+      <view wx:if="{{displayPets.length > 0}}" class="pet-carousel">
 
-      <!-- 3. 操作按钮行（4个木纹按钮） -->
-      <view class="card action-row-card" wx:if="{{activePet}}">
-        <view class="action-grid">
-          <view class="btn-wood action-cell" bindtap="petInteract" data-type="feed">
-            <text class="action-emoji">🍖</text>
-            <text class="action-name">喂食</text>
-          </view>
-          <view class="btn-wood action-cell" bindtap="petInteract" data-type="play">
-            <text class="action-emoji">🎾</text>
-            <text class="action-name">玩耍</text>
-          </view>
-          <view class="btn-wood action-cell" bindtap="petInteract" data-type="pet">
-            <text class="action-emoji">👋</text>
-            <text class="action-name">抚摸</text>
-          </view>
-          <view class="btn-wood action-cell" bindtap="goAIChat">
-            <text class="action-emoji">💬</text>
-            <text class="action-name">聊天</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 4. 底部区域（三个 Tab 切换） -->
-      <view class="bottom-camp-section" wx:if="{{activePet}}">
-        <!-- 木片风格 Tab 切换 -->
-        <view class="wood-chip-tabs">
+        <!-- 轮播指示器 -->
+        <view class="carousel-dots" wx:if="{{displayPets.length > 1}}">
           <view
-            class="wood-chip {{activeSection === 'info' ? 'chip-active' : ''}}"
-            data-section="info"
-            bindtap="switchSection"
-          >
-            <text>📜 信息</text>
-          </view>
-          <view
-            class="wood-chip {{activeSection === 'backpack' ? 'chip-active' : ''}}"
-            data-section="backpack"
-            bindtap="switchSection"
-          >
-            <text>🎒 背包</text>
-          </view>
-          <view
-            class="wood-chip {{activeSection === 'diary' ? 'chip-active' : ''}}"
-            data-section="diary"
-            bindtap="switchSection"
-          >
-            <text>📔 日记</text>
-          </view>
+            wx:for="{{displayPets}}"
+            wx:key="_id"
+            class="carousel-dot {{currentSwiperIndex === index ? 'dot-active' : ''}}"
+            bindtap="switchToPet"
+            data-index="{{index}}"
+          ></view>
         </view>
 
-        <!-- ===== 信息视图：日记精选（引用卡片） ===== -->
-        <view wx:if="{{activeSection === 'info'}}" class="tab-content">
-          <view wx:if="{{diary.length > 0}}" class="quote-card info-diary-card">
-            <text class="quote-accent">📝</text>
-            <view class="quote-body">
-              <text class="diary-date-label">{{diary[0].date}}</text>
-              <text class="quote-text">{{diary[0].content}}</text>
+        <!-- 原生swiper（支持左右滑动） -->
+        <swiper
+          class="camp-swiper"
+          current="{{currentSwiperIndex}}"
+          bindchange="onCampSwiperChange"
+          circular="{{true}}"
+          duration="{{300}}"
+        >
+          <swiper-item wx:for="{{displayPets}}" wx:key="_id" wx:for-item="dp">
+          <scroll-view scroll-y class="camp-scroll" style="height:100%">
+
+        <!-- ===== 蛋状态卡片 ===== -->
+        <view class="card-solid pet-hero-card egg-hero-card" wx:if="{{dp.isEgg}}">
+          <!-- 蛋光晕背景 -->
+          <view wx:if="{{dp.showRarityGlow}}" class="egg-glow-bg egg-shake-glow" style="background: radial-gradient(circle, {{dp.appRarityColor}} 0%, transparent 70%); opacity: {{dp.appGlowIntensity}};"></view>
+
+          <!-- 蛋类型名称（V6：动态显示森林蛋/家园蛋/荒野蛋）-->
+          <view class="egg-name-section">
+            <text class="egg-mystery-name" style="color:{{dp._eggTypeColor}};" wx:if="{{dp._eggTypeName}}">{{dp._eggTypeEmoji}} {{dp._eggTypeName}}</text>
+            <text class="egg-mystery-name" wx:else>神秘蛋</text>
+          </view>
+
+          <!-- 花纹描述 + 刷新按钮 + 领取新蛋 -->
+          <view class="egg-extra-row">
+            <text class="egg-pattern-desc" wx:if="{{dp._eggPatternDesc}}">({{dp._eggPatternDesc}})</text>
+            <view class="egg-refresh-btn" bindtap="openRefreshEggModal" data-index="{{index}}" wx:if="{{!dp.app.is_hatched}}">
+              <text class="refresh-icon">🔄</text>
+              <text class="refresh-text">换个蛋</text>
+            </view>
+            <view class="egg-new-btn" bindtap="createNewEgg" wx:if="{{displayPets.length < 3}}">
+              <text class="egg-new-icon">🥚</text>
+              <text class="egg-new-text">领新蛋</text>
             </view>
           </view>
-          <view wx:else class="card empty-diary-card">
-            <text class="empty-emoji">🌿</text>
-            <text class="empty-msg">还没有日记记录，快和{{activePet.name}}互动吧～</text>
-          </view>
-        </view>
 
-        <!-- ===== 背包视图：2×2 物品网格（木框卡片） ===== -->
-        <view wx:if="{{activeSection === 'backpack'}}" class="tab-content">
-          <!-- [中优先级修复] 背包空状态 -->
-          <view wx:if="{{!backpack || backpack.length === 0}}" class="card empty-diary-card">
-            <text class="empty-emoji">🎒</text>
-            <text class="empty-msg">背包空空如也，完成目标获取奖励吧～</text>
+          <!-- 蛋类型描述标签 -->
+          <view class="egg-hidden-badges">
+            <text class="egg-hidden-tag">成长值 {{dp._growthValue}} / 100</text>
+            <text class="egg-hidden-tag" wx:if="{{dp.eggStageInfo}}">{{dp.eggStageInfo.name}}</text>
           </view>
-          <view wx:else class="backpack-grid">
-            <view
-              wx:for="{{backpack}}"
-              wx:key="index"
-              class="wood-item-card {{item.count <= 0 ? 'item-empty' : ''}}"
-              data-index="{{index}}"
-              bindtap="useItem"
-            >
-              <text class="item-icon">{{item.icon}}</text>
-              <text class="item-name">{{item.name}}</text>
-              <text class="item-count">×{{item.count}}</text>
-              <text class="item-desc">{{item.desc}}</text>
+
+          <!-- 蛋阶段描述 -->
+          <text class="egg-tip" wx:if="{{dp.eggStageInfo}}">{{dp.eggStageInfo.desc}}</text>
+
+          <!-- 蛋展示区（带花纹） -->
+          <view class="pet-display-area egg-display-area" style="background: {{dp._eggBgGradient}}; border-radius: 50%;">
+            <view class="egg-pattern-overlay" wx:if="{{dp._eggPatternChars.length > 0}}">
+              <text class="ep-char ep-c1" wx:if="{{dp._eggPatternChars[0]}}">{{dp._eggPatternChars[0]}}</text>
+              <text class="ep-char ep-c2" wx:if="{{dp._eggPatternChars[1]}}">{{dp._eggPatternChars[1]}}</text>
+              <text class="ep-char ep-c3" wx:if="{{dp._eggPatternChars[2]}}">{{dp._eggPatternChars[2]}}</text>
+              <text class="ep-char ep-c4" wx:if="{{dp._eggPatternChars[3]}}">{{dp._eggPatternChars[3]}}</text>
+              <text class="ep-char ep-c5" wx:if="{{dp._eggPatternChars[4]}}">{{dp._eggPatternChars[4]}}</text>
+            </view>
+            <view class="pet-emoji-wrap {{dp.eggAnimClass}}">
+              <image wx:if="{{dp.app.baseSprite}}" class="pet-image-lg egg-image" src="{{dp.app.baseSprite}}" mode="aspectFit" binderror="onImageError" />
+              <text wx:else class="pet-emoji-xl egg-emoji">{{dp._eggTypeEmoji || '🥚'}}</text>
             </view>
           </view>
+
+          <!-- 成长值进度条（V5：0~100，替代旧百分比）-->
+          <view class="hatch-progress-section">
+            <view class="hatch-info-row">
+              <text class="hatch-label">成长值</text>
+              <text class="hatch-pct">{{dp._growthValue}} / 100</text>
+            </view>
+            <view class="hatch-track">
+              <view class="hatch-fill" style="width:{{dp._growthPercent}}%; background:{{dp._eggTypeColor || '#7CB342'}};"></view>
+            </view>
+            <text class="egg-hint" wx:if="{{dp._growthValue >= 100}}">已就绪，即将孵化！</text>
+            <text class="egg-hint" wx:else>孵化中... 还需要 {{100 - dp._growthValue}} 点成长值</text>
+
+            <!-- V6 成长池显示 -->
+            <view class="pool-display-row" wx:if="{{dp._poolValue > 0}}">
+              <text class="pool-label">📦 成长池</text>
+              <text class="pool-value">{{dp._poolValue}}</text>
+            </view>
+
+            <text class="egg-tip">💡 签到+5 | 完成目标+10 | 连续打卡+20 | AI专注+15</text>
+          </view>
         </view>
 
-        <!-- ===== 日记视图：列表（虚线卡片） ===== -->
-        <view wx:if="{{activeSection === 'diary'}}" class="tab-content">
-          <view wx:if="{{diary.length === 0}}" class="card empty-diary-card">
-            <text class="empty-emoji">📔</text>
-            <text class="empty-msg">暂无日记记录</text>
+        <!-- ===== 已孵化宠物卡片 ===== -->
+        <view class="card-solid pet-hero-card" style="--rarity-color:{{dp.appRarityColor}}; --border-w:{{dp.appBorderWidth}}px; --border-c:{{dp.appBorderColor}};" wx:if="{{!dp.isEgg}}">
+
+          <!-- 左侧领新蛋按钮（最多3只宠物） -->
+          <view class="camp-new-egg-btn" wx:if="{{displayPets.length < 3}}" bindtap="createNewEgg">
+            <text class="camp-new-egg-icon">🥚</text>
+            <text class="camp-new-egg-text">领新蛋</text>
           </view>
-          <view wx:else class="diary-list-camp">
-            <view wx:for="{{diary}}" wx:key="index" class="card diary-entry-card">
-              <view class="diary-entry-top">
-                <text class="diary-date-badge">{{item.date}}</text>
-                <text class="diary-mood-emoji">
-                  {{item.mood === 'happy' ? '😊' : item.mood === 'normal' ? '😐' : '😔'}}
-                </text>
+
+          <!-- 稀有度光晕背景 -->
+          <view wx:if="{{dp.showRarityGlow}}" class="camp-glow-bg" style="background: radial-gradient(circle, {{dp.appRarityColor}} 0%, transparent 70%); opacity: {{dp.appGlowIntensity}};"></view>
+
+          <!-- 头部信息区 -->
+          <view class="pet-card-header">
+            <!-- 稀有度徽章 + 颜色档次标记 -->
+          <view class="rarity-badge" style="background: {{dp.appRarityColor}};">
+            <text class="rarity-badge-text">{{dp.appRarityName}}</text>
+            <text class="color-tier-tag" wx:if="{{dp.isShiny}}">✨</text>
+            <text class="color-tier-tag rare-tag" wx:if="{{dp.isRare}}">💎</text>
+          </view>
+
+          <!-- V8.0 天赋标记 -->
+          <view class="talent-badge" wx:if="{{dp.isHatched}}" style="color: {{dp.appTalentColor || '#9E9E9E'}};">
+            <text class="talent-icon">{{dp.appTalentIcon || '⚪'}}</text>
+            <text class="talent-name">{{dp.appTalentName || '普通'}}</text>
+          </view>
+
+            <!-- 名称行：名称 + 档案按钮 + 觉醒标记 -->
+            <view class="pet-name-section name-row-v3">
+              <text class="pet-name-text">{{dp.app.displayName}}</text>
+              <text wx:if="{{dp.app.awakened}}" class="awaken-tag">✨</text>
+              <view class="profile-btn" bindtap="openProfile">📋</view>
+            </view>
+
+            <!-- 称号标签行 -->
+            <view class="pet-title-row" wx:if="{{dp.levelTitle || dp.streakTitle || dp.specialTitles.length > 0}}">
+              <text wx:if="{{dp.levelTitle}}" class="title-tag" style="color:{{dp.levelTitle.color}}">{{dp.levelTitle.icon}} {{dp.levelTitle.name}}</text>
+              <text wx:if="{{dp.streakTitle}}" class="title-tag" style="color:{{dp.streakTitle.color}}">{{dp.streakTitle.icon}} {{dp.streakTitle.name}}</text>
+              <text wx:for="{{dp.specialTitles}}" wx:for-item="t" wx:key="key" class="title-tag" style="color:{{t.color}}">{{t.icon}} {{t.name}}</text>
+            </view>
+
+            <!-- 物种+属性类型标签 -->
+            <view class="attr-row">
+              <view class="attr-chip species-chip">
+                <text class="attr-icon">{{dp.app.fallbackEmoji}}</text>
+                <text>{{dp._speciesName}}</text>
               </view>
-              <text class="diary-entry-text">{{item.content}}</text>
+              <view class="attr-chip type-chip" wx:if="{{dp._attrTypeName}}">
+                <text>{{dp._attrTypeName}}</text>
+              </view>
+            </view>
+
+            <!-- V5 BUFF 标签行（仅当宠物有BUFF时显示）-->
+            <view class="buff-tag-row" wx:if="{{dp._hasBuff}}">
+              <view class="buff-chip" style="border-color:#FFB300; background:#FFF8E1;">
+                <text class="buff-icon">⚡</text>
+                <text class="buff-label-text" style="color:#FF8F00;">{{dp._buffLabel}}</text>
+              </view>
+              <text class="buff-desc-text" wx:if="{{dp._buffDesc}}">{{dp._buffDesc}}</text>
+            </view>
+
+            <!-- V6 阶段信息行 -->
+            <view class="stage-info-row">
+              <text class="stage-current-icon">{{dp._currentStageIcon}}</text>
+              <text class="stage-current-name">{{dp._currentStageName}}</text>
+              <text class="stage-progress-text" wx:if="{{dp._nextStageName}}">→ {{dp._nextStageName}} {{dp._stageProgressPercent}}%</text>
+              <text class="stage-progress-text" wx:else>（完全体）</text>
+            </view>
+
+            <!-- V6 成长值总览 -->
+            <view class="growth-total-row">
+              <text class="growth-total-label">总成长值</text>
+              <text class="growth-total-value">{{dp._growthValueDisplay}}</text>
+              <text class="pool-hint" wx:if="{{dp._poolValue > 0}}">| 池子 {{dp._poolValue}}</text>
             </view>
           </view>
+
+          <!-- 宠物展示区（图片优先，emoji兜底）-->
+          <view class="pet-display-area pet-display-enhanced" style="{{dp.colorLayerStyle}}">
+            <view class="pet-emoji-wrap {{interactBounceClass}} {{dp.app.moodEffect.animClass}}">
+              <!-- 优先显示云存储图片 -->
+              <image wx:if="{{dp.app.baseSprite}}" class="pet-image-overlay" src="{{dp.app.baseSprite}}" mode="aspectFit" data-index="{{index}}" binderror="onImageError" />
+              <!-- 图片加载失败或无图片时显示emoji -->
+              <text wx:else class="pet-emoji-enhanced">{{dp.app.fallbackEmoji}}</text>
+            </view>
+            <!-- 粒子层 -->
+            <view wx:if="{{dp.showParticle}}" class="particle-layer particle-{{dp.appParticleType}}"></view>
+          </view>
+
+          <!-- 心情气泡 -->
+          <view class="mood-row" wx:if="{{dp.moodDisplay}}">
+            <text class="mood-emoji">{{dp.moodDisplay.emoji}}</text>
+            <view class="mood-bubble" style="background:{{moodBgColor}}; border-color:{{moodBorderColor}};">
+              <text class="mood-bubble-text">{{dp.moodDisplay.bubble}}</text>
+            </view>
+          </view>
+
+          <!-- 成长进度条（与顶部阶段信息一致）-->
+          <view class="xp-camp-bar" wx:if="{{!dp.isEgg}}">
+            <view class="xp-camp-info">
+              <view class="stage-lv-group">
+                <text class="stage-tag">{{dp._currentStageName}}</text>
+                <text class="stage-arrow" wx:if="{{dp._nextStageName}}">→</text>
+                <text class="stage-next-tag" wx:if="{{dp._nextStageName}}">{{dp._nextStageName}}</text>
+              </view>
+              <text class="xp-pct-text">{{dp._stageProgressPercent}}%</text>
+            </view>
+            <view class="xp-track-wood">
+              <view class="xp-fill-green" style="width:{{dp._stageProgressPercent}}%"></view>
+            </view>
+            <view class="xp-hint-row">
+              <text class="xp-hint">总成长值 {{dp._growthValueDisplay}}</text>
+              <text class="xp-hint-sub">互动/签到/任务均可增加</text>
+            </view>
+          </view>
+
+          <!-- 亲密度条（紧凑版）-->
+          <view class="bond-section" wx:if="{{dp.bondProgress}}">
+            <view class="bond-header">
+              <text class="bond-icon">{{dp.bondProgress.icon}}</text>
+              <text class="bond-name" style="color:{{dp.bondProgress.color}}">{{dp.bondProgress.name}}</text>
+              <text class="bond-value">{{dp.bondProgress.current || 0}} / 1000</text>
+            </view>
+            <view class="bond-track">
+              <view class="bond-fill" style="width:{{dp.bondPercent}}%; background:{{dp.bondProgress.color}};"></view>
+            </view>
+            <text wx:if="{{dp.showBondRemaining}}" class="bond-value" style="font-size:18rpx;">{{dp.bondRemainingText}}</text>
+            <text wx:else class="bond-max" style="font-size:18rpx;">已达到最高等级！</text>
+          </view>
+
+          <!-- 性格标签（V4）-->
+          <view class="personality-tag-area" wx:if="{{dp.personalityInfo}}">
+            <view class="personality-main-tag" style="border-color:{{dp.personalityInfo.color}}; background:{{dp.personalityInfo.bgColor}};">
+              <text class="perso-icon">{{dp.personalityInfo.icon}}</text>
+              <text class="perso-name" style="color:{{dp.personalityInfo.color}};">{{dp.personalityInfo.name}}</text>
+              <text class="perso-desc">{{dp.personalityInfo.desc}}</text>
+            </view>
+          </view>
+
+          <!-- Tab 切换栏 -->
+          <view class="section-tabs">
+            <view class="section-tab {{statsTabActive}}" data-section="stats" bindtap="switchSection"><text>属性</text></view>
+            <view class="section-tab {{growthTabActive}}" data-section="growth" bindtap="switchSection"><text>成长</text></view>
+            <view class="section-tab {{backpackTabActive}}" data-section="backpack" bindtap="switchSection"><text>背包</text></view>
+          </view>
+
+          <!-- ===== 属性面板 ===== -->
+          <view wx:if="{{activeSection === 'stats'}}" class="section-content">
+            <!-- 五维属性 -->
+            <view class="panel-section attributes-section">
+              <view class="panel-title-row section-header">
+                <text class="panel-title-text section-label">四维属性</text>
+              </view>
+              <view class="attrs-grid attr-list">
+                <view wx:for="{{dp.attrList}}" wx:for-item="attr" wx:key="key" class="attr-item {{attr.itemClass}}">
+                  <view class="attr-header">
+                    <text class="attr-icon">{{attr.icon}}</text>
+                    <text class="attr-label" style="color:{{attr.color}}">{{attr.label}}</text>
+                    <text wx:if="{{attr.isTop}}" class="attr-top-badge">⭐主属性</text>
+                  </view>
+                  <view class="attr-bar-track">
+                    <view class="attr-bar-fill" style="width:{{attr.percent}}%; background:{{attr.color}};"></view>
+                  </view>
+                  <text class="attr-value-num">{{attr.val}}</text>
+                </view>
+              </view>
+            </view>
+
+            <!-- ===== 成长记录（可折叠）P3 ===== -->
+            <view class="growth-records-section" wx:if="{{!activePet.isEgg && dp.growthRecords.length > 0}}">
+              <view class="gr-header" bindtap="toggleGrowthRecords">
+                <text class="gr-title">📋 成长记录</text>
+                <text class="gr-count">{{dp.growthRecords.length}}条</text>
+                <text class="gr-arrow">{{showGrowthRecords ? '▲' : '▼'}}</text>
+              </view>
+              <view class="gr-list" wx:if="{{showGrowthRecords}}">
+                <view class="gr-item" wx:for="{{dp.growthRecords}}" wx:key="time">
+                  <text class="gr-stage">{{item.stage}}</text>
+                  <text class="gr-msg">{{item.message}}</text>
+                  <text class="gr-time">{{item.timeStr}}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <!-- ===== 成长面板 ===== -->
+          <view wx:if="{{activeSection === 'growth'}}" class="section-content">
+            <!-- 互动按钮组 -->
+            <view class="interact-actions action-row-card">
+              <button class="btn-interact interact-feed" data-type="feed" bindtap="petInteract">
+                <text class="interact-icon">🍖</text><text class="interact-label">喂食</text>
+              </button>
+              <button class="btn-interact interact-play" data-type="play" bindtap="petInteract">
+                <text class="interact-icon">🎾</text><text class="interact-label">玩耍</text>
+              </button>
+              <button class="btn-interact interact-pat" data-type="pat" bindtap="petInteract">
+                <text class="interact-icon">👋</text><text class="interact-label">抚摸</text>
+              </button>
+            </view>
+
+            <!-- 操作按钮行 -->
+            <view class="action-row-extra action-row-card">
+              <button class="btn-wood action-btn" bindtap="showRenameModal">✏️ 改名</button>
+              <button class="btn-wood action-btn" bindtap="openProfile">📋 档案</button>
+            </view>
+
+            <!-- 图鉴入口卡片 -->
+            <view class="dex-entry-card" bindtap="showDexModal">
+              <view class="dex-entry-left">
+                <text class="dex-entry-icon">📖</text>
+                <text class="dex-entry-title">宠物图鉴</text>
+              </view>
+              <view class="dex-entry-right">
+                <text class="dex-entry-count">{{dexCollected}} / {{dexTotal}}</text>
+                <text class="dex-entry-pct">{{dexPercent}}%</text>
+              </view>
+              <view class="dex-bar-track">
+                <view class="dex-bar-fill" style="width:{{dexPercent}}%"></view>
+              </view>
+            </view>
+
+            <!-- 觉醒进化按钮 -->
+            <view wx:if="{{canAwaken}}" class="action-row-card">
+              <button class="awaken-trigger-btn" bindtap="triggerAwaken">✨ 觉醒进化 ✨</button>
+            </view>
+          </view>
+
+          <!-- ===== 背包面板 ===== -->
+          <view wx:if="{{activeSection === 'backpack'}}" class="section-content">
+            <view wx:if="{{bagEmpty}}" class="card empty-diary-card">
+              <text class="empty-msg">背包空空如也</text>
+            </view>
+            <view wx:else class="backpack-grid">
+              <view wx:for="{{backpack}}" wx:key="index" class="wood-item-card {{item.isEmptyClass}}" data-index="{{index}}" bindtap="useItem">
+                <text class="item-icon">{{item.icon}}</text>
+                <text class="item-name">{{item.name}}</text>
+                <text class="item-count">x{{item.count}}</text>
+                <text class="item-desc">{{item.desc}}</text>
+              </view>
+            </view>
+          </view>
+
+        </view><!-- end card-solid pet-hero-card -->
+
+          </scroll-view>
+          </swiper-item>
+        </swiper>
+      </view><!-- end pet-carousel -->
+
+      <!-- ====== 空状态（无宠物）V5：提示3种蛋 ====== -->
+      <view wx:if="{{showEmptyPetState}}" class="card-solid empty-pet-card">
+        <text class="empty-pet-emoji">🥚</text>
+        <text class="empty-pet-title">还没有宠物</text>
+        <text class="empty-pet-desc">新用户可获得森林蛋、家园蛋、荒野蛋各一枚</text>
+        <view class="empty-action-row">
+          <button class="btn-leaf" bindtap="goCreateGoal">去创建目标</button>
+          <button class="btn-wood" bindtap="createNewEgg">🥚 领取宠物蛋</button>
         </view>
       </view>
 
-      <!-- 底部留白 -->
+      <!-- 新手800点经验礼包 -->
+      <view class="starter-gift-card" wx:if="{{showStarterGift && !loading}}" bindtap="claimStarterXp">
+        <view class="sg-glow"></view>
+        <text class="sg-icon">🎁</text>
+        <view class="sg-info">
+          <text class="sg-title">新手礼包</text>
+          <text class="sg-desc">点击领取 800 点初始经验</text>
+        </view>
+        <text class="sg-arrow">→</text>
+      </view>
+
+      <!-- V10.4：儿童节礼包（每人一次，道具x20） -->
+      <view class="starter-gift-card" wx:if="{{showChildrenDayGift && !loading}}" bindtap="claimChildrenDayGift" style="background: linear-gradient(135deg, #FF6B9D, #C44569);">
+        <view class="sg-glow" style="background: rgba(255,107,157,0.3);"></view>
+        <text class="sg-icon">🎈</text>
+        <view class="sg-info">
+          <text class="sg-title" style="color: #FFF;">儿童节礼包</text>
+          <text class="sg-desc" style="color: rgba(255,255,255,0.85);">道具 x20（各20个）</text>
+        </view>
+        <text class="sg-arrow" style="color: #FFF;">→</text>
+      </view>
+
+      <!-- 底部间距 -->
       <view class="pets-bottom-space"></view>
+
+      <!-- ===== 经验泉水系统（V12：领蛋后仍保持可见）===== -->
+      <view class="fountain-section" wx:if="{{!showEmptyPetState && !loading}}">
+        <!-- 有经验时：显示泉水 -->
+        <view class="fountain-card" wx:if="{{fountainPoolValue > 0}}" bindtap="openAllocateModal">
+          <!-- 泉水动画区 -->
+          <view class="fountain-visual">
+            <view class="fountain-water">
+              <text class="fountain-drop drop-1">💧</text>
+              <text class="fountain-drop drop-2">💧</text>
+              <text class="fountain-drop drop-3">✨</text>
+            </view>
+            <text class="fountain-icon">⛲</text>
+          </view>
+
+          <!-- 泉水信息 -->
+          <view class="fountain-info">
+            <text class="fountain-title">经验泉水</text>
+            <text class="fountain-value">{{fountainPoolValue}}</text>
+            <text class="fountain-unit">点</text>
+          </view>
+
+          <!-- 操作提示 -->
+          <view class="fountain-action-hint">
+            <text class="fountain-hint-text">点击分配经验给宠物</text>
+            <text class="fountain-arrow">→</text>
+          </view>
+        </view>
+
+        <!-- 无水时：显示干涸状态 -->
+        <view class="fountain-card fountain-empty" wx:else>
+          <text class="fountain-empty-icon">🏜️</text>
+          <text class="fountain-empty-text">泉水干涸了</text>
+          <text class="fountain-empty-hint">去签到/完成任务补充吧</text>
+        </view>
+      </view>
 
     </view>
   </scroll-view>
 
-  <!-- ===== 重命名弹窗（木纹弹窗） ===== -->
+  <!-- ===== 蛋类型刷新弹窗 ===== -->
+  <view wx:if="{{showRefreshModal}}" class="rename-overlay" bindtap="closeRefreshModal">
+    <view class="refresh-modal" catchtap>
+      <view class="refresh-header">
+        <text class="refresh-icon-big">🔄</text>
+        <text class="refresh-title">更换蛋类型</text>
+      </view>
+      <text class="refresh-subtitle">选择你喜欢的蛋类型</text>
+
+      <!-- 蛋类型选项 -->
+      <view class="refresh-options">
+        <view
+          wx:for="{{refreshEggOptions}}"
+          wx:for-item="opt"
+          wx:key="key"
+          class="refresh-option {{refreshSelectedIndex === index ? 'ropt-selected' : ''}}"
+          style="border-color:{{opt.color}}; background:{{opt.color}}22;"
+          data-index="{{index}}"
+          bindtap="selectRefreshEggType"
+        >
+          <text class="ropt-emoji">{{opt.emoji}}</text>
+          <text class="ropt-name" style="color:{{opt.color}}">{{opt.name}}</text>
+          <text class="ropt-check" wx:if="{{refreshSelectedIndex === index}}" style="color:{{opt.color}}">✓</text>
+          <text class="ropt-desc">{{opt.desc}}</text>
+        </view>
+      </view>
+
+      <!-- 快捷操作 -->
+      <view class="refresh-actions-row">
+        <button class="btn-wood refresh-random-btn" bindtap="randomRefreshEgg">🎲 随机换</button>
+      </view>
+
+      <view class="refresh-actions">
+        <button class="btn-wood refresh-cancel-btn" bindtap="closeRefreshModal">取消</button>
+        <button class="btn-leaf refresh-confirm-btn" bindtap="confirmRefreshEgg">确认更换 🔄</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- ===== 浮动反馈浮层 ===== -->
+  <view wx:if="{{showFloatingFeedback}}" class="floating-feedback-overlay">
+    <view class="floating-feedback-bubble" style="left:{{fbX}}%; top:{{fbY}}%;">
+      <text class="floating-feedback-text">{{fbText}}</text>
+    </view>
+  </view>
+
+  <!-- ===== 孵化揭晓弹窗 V5：新物种名 ===== -->
+  <view wx:if="{{showHatchReveal}}" class="reveal-overlay">
+    <view class="reveal-modal">
+      <!-- 揭晓：稀有度 -->
+      <view class="reveal-row">
+        <text class="reveal-label">稀有度</text>
+        <text class="reveal-value rarity-value" style="color:{{_revealRarityColor}}; text-shadow: 0 0 12rpx {{_revealRarityShadow}};">
+          ★★★ {{_revealRarityName}}
+        </text>
+      </view>
+      <!-- 揭晓：物种 -->
+      <view class="reveal-row">
+        <text class="reveal-label">物种</text>
+        <text class="reveal-value species-value">{{_revealSpeciesText}}</text>
+      </view>
+      <!-- 揭晓：属性倾向 -->
+      <view class="reveal-row" wx:if="{{_revealAttrName}}">
+        <text class="reveal-label">属性倾向</text>
+        <text class="reveal-value attr-value" style="color:{{_revealAttrColor}};">{{_revealAttrName}}</text>
+      </view>
+      <!-- 揭晓：性格 -->
+      <view class="reveal-row" wx:if="{{_revealPersoName}}">
+        <text class="reveal-label">性格</text>
+        <text class="reveal-value perso-value" style="color:{{_revealPersoColor}};">
+          {{_revealPersoIcon}} {{_revealPersoName}}
+        </text>
+      </view>
+      <!-- 四维属性预览 -->
+      <view class="reveal-attrs" wx:if="{{_revealAttrs}}">
+        <view wx:for="{{_revealAttrs}}" wx:for-item="attr" wx:key="key" class="reveal-attr-item">
+          <text class="ra-icon">{{attr.icon}}</text>
+          <text class="ra-label">{{attr.label}}</text>
+          <view class="ra-bar">
+            <view class="ra-fill" style="width:{{attr.percent}}%; background:{{attr.color}};"></view>
+          </view>
+          <text class="ra-val">{{attr.val}}</text>
+        </view>
+      </view>
+      <!-- 确认按钮 -->
+      <view class="reveal-actions">
+        <button class="btn-leaf reveal-confirm-btn" bindtap="closeHatchReveal">太棒了！去看看它 ✨</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- ===== 改名弹窗 ===== -->
   <view wx:if="{{showRenameModal}}" class="rename-overlay" bindtap="cancelRenameModal">
     <view class="rename-modal-wood" catchtap>
       <view class="rename-header-wood">
         <text class="rename-icon-wood">✏️</text>
         <text class="rename-title-wood">给宠物改名</text>
       </view>
-      <input
-        class="rename-input-wood"
-        placeholder="输入新名字..."
-        value="{{renameInput}}"
-        bindinput="onRenameInput"
-        maxlength="8"
-      />
+      <input class="rename-input-wood" placeholder="输入新名字..." value="{{renameInput}}" bindinput="onRenameInput" maxlength="8" />
       <view class="rename-actions-wood">
         <button class="btn-wood rename-cancel-btn" bindtap="cancelRenameModal">取消</button>
         <button class="btn-leaf rename-confirm-btn" bindtap="renamePet">确定</button>
       </view>
     </view>
   </view>
+
+  <!-- ===== 宠物图鉴弹窗 V6：15物种 ===== -->
+  <view wx:if="{{showDexModal}}" class="rename-overlay dex-overlay" bindtap="closeDexModal">
+    <view class="dex-modal" catchtap>
+      <!-- 图鉴头部 -->
+      <view class="dex-modal-header">
+        <text class="dex-modal-title">📖 宠物图鉴</text>
+        <view class="dex-modal-summary">
+          <text class="dex-modal-count">收集进度：{{dexCollected}} / {{dexTotal}}</text>
+          <text class="dex-modal-pct">{{dexPercent}}%</text>
+        </view>
+        <view class="dex-bar-track">
+          <view class="dex-bar-fill" style="width:{{dexPercent}}%"></view>
+        </view>
+      </view>
+
+      <!-- 物种列表（V6：15种物种）-->
+      <scroll-view scroll-y class="dex-species-list">
+        <view wx:for="{{dexSpeciesList}}" wx:for-item="sp" wx:key="key" class="dex-species-item {{sp.itemClass}}">
+          <text class="dex-sp-icon">{{sp.displayIcon}}</text>
+          <text class="dex-sp-name">{{sp.name}}</text>
+          <text class="dex-sp-status">{{sp.displayStatus}}</text>
+        </view>
+      </scroll-view>
+
+      <!-- 关闭按钮 -->
+      <view class="dex-close-area">
+        <button class="btn-wood dex-close-btn" bindtap="closeDexModal">关闭</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- ===== V6 阶段升级弹窗 ===== -->
+  <view wx:if="{{showStageUpModal}}" class="rename-overlay" bindtap="closeStageUpModal">
+    <view class="stage-up-modal" catchtap>
+      <view class="stage-up-header">
+        <text class="stage-up-icon">⬆️</text>
+        <text class="stage-up-title">成长升级！</text>
+      </view>
+      <text class="stage-up-subtitle" wx:if="{{_stageUpData}}"> {{_stageUpData.from}} → {{_stageUpData.name}} </text>
+
+      <!-- 属性奖励展示 -->
+      <view class="attr-bonus-list" wx:if="{{_attrBonusList.length > 0}}">
+        <view wx:for="{{_attrBonusList}}" wx:for-item="ab" wx:key="key" class="attr-bonus-item">
+          <text class="ab-icon">{{ab.icon}}</text>
+          <text class="ab-name">{{ab.name}}</text>
+          <text class="ab-value">+{{ab.value}}</text>
+        </view>
+      </view>
+
+      <view class="stage-up-actions">
+        <button class="btn-leaf stage-up-confirm-btn" bindtap="closeStageUpModal">太棒了！</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- ===== V6 性格输入弹窗 ===== -->
+  <view wx:if="{{showPersonalityModal}}" class="rename-overlay personality-overlay" bindtap="cancelPersonalityModal">
+    <view class="personality-modal" catchtap>
+      <view class="personality-header">
+        <text class="personality-icon">✨</text>
+        <text class="personality-title">你的宠物破壳了！</text>
+      </view>
+      <text class="personality-subtitle">用一句话描述它的性格吧～</text>
+
+      <textarea
+        class="personality-textarea"
+        placeholder="例如：有点傲娇 / 很喜欢学习 / 总是鼓励我 / 冷静又理性..."
+        value="{{personalityInput}}"
+        bindinput="onPersonalityInput"
+        maxlength="50"
+        auto-height
+      />
+      <text class="personality-count">{{personalityInput.length || 0}}/50</text>
+
+      <view class="personality-actions">
+        <button class="btn-wood personality-cancel-btn" bindtap="cancelPersonalityModal">跳过</button>
+        <button class="btn-leaf personality-confirm-btn" bindtap="submitPersonality">确定</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- ===== 性格期望弹窗（P4：跨阶段升级时） ===== -->
+  <view wx:if="{{showPersonalityPromptModal}}" class="rename-overlay" bindtap="closePersonalityPromptModal">
+    <view class="rename-modal personality-prompt-modal" catchtap>
+      <view class="modal-header">
+        <text class="modal-title">✨ {{promptTargetStage}}达成！</text>
+      </view>
+      <view class="modal-body">
+        <text class="modal-desc">你的宠物成长了！请告诉它你希望它成为什么样的伙伴：</text>
+        <textarea
+          class="personality-prompt-input"
+          value="{{personalityPromptText}}"
+          placeholder="例如：希望你成为勇敢的小伙伴&#10;希望你监督我学习&#10;希望每天鼓励我"
+          maxlength="100"
+          bindinput="onPersonalityPromptInput"
+          auto-height
+        />
+        <text class="input-hint">{{personalityPromptText.length}}/100</text>
+      </view>
+      <view class="modal-actions">
+        <button class="btn-cancel" bindtap="closePersonalityPromptModal">跳过</button>
+        <button class="btn-confirm" bindtap="submitPersonalityPrompt">确定 ✨</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- ===== 泉水分配弹窗 ===== -->
+  <view wx:if="{{showAllocateModal}}" class="rename-overlay fountain-overlay" bindtap="closeAllocateModal">
+    <view class="fountain-modal" catchtap>
+      <!-- 标题 -->
+      <view class="fountain-modal-header">
+        <text class="fountain-modal-icon">⛲</text>
+        <text class="fountain-modal-title">分配经验</text>
+        <text class="fountain-modal-pool">可用: {{fountainPoolValue}} 点</text>
+      </view>
+
+      <!-- 选择目标 -->
+      <view class="fountain-target-section">
+        <text class="fountain-label">选择目标：</text>
+        <scroll-view scroll-y class="fountain-target-list">
+          <view
+            wx:for="{{allocatePetList}}"
+            wx:for-item="pet"
+            wx:key="id"
+            class="fountain-target-item {{allocateSelectedIndex === index ? 'target-selected' : ''}}"
+            data-index="{{index}}"
+            bindtap="selectAllocateTarget"
+          >
+            <text class="ft-emoji">{{pet.emoji}}</text>
+            <view class="ft-info">
+              <text class="ft-name">{{pet.name}}</text>
+              <text class="ft-stage">{{pet.stageText}}</text>
+            </view>
+            <text class="ft-check" wx:if="{{allocateSelectedIndex === index}}">✓</text>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- 输入数量 -->
+      <view class="fountain-amount-section">
+        <text class="fountain-label">分配数量：</text>
+        <view class="fountain-input-row">
+          <input
+            class="fountain-amount-input"
+            type="number"
+            placeholder="输入数量"
+            value="{{allocateAmount}}"
+            bindinput="onAllocateInput"
+            maxlength="6"
+          />
+          <text class="fountain-max-btn" bindtap="setAllAmount">全部</text>
+          <text class="fountain-slash">/ {{allocateMaxPool}}</text>
+        </view>
+        <!-- 快捷投入按钮 -->
+        <view class="quick-add-buttons">
+          <view class="quick-btn" bindtap="quickAddAmount" data-amount="10">+10</view>
+          <view class="quick-btn" bindtap="quickAddAmount" data-amount="50">+50</view>
+          <view class="quick-btn" bindtap="quickAddAmount" data-amount="100">+100</view>
+          <view class="quick-btn quick-btn-all" bindtap="quickAddAmount" data-amount="0">全部</view>
+        </view>
+      </view>
+
+      <!-- 按钮 -->
+      <view class="fountain-actions">
+        <button class="btn-wood fountain-cancel-btn" bindtap="closeAllocateModal">取消</button>
+        <button class="btn-leaf fountain-confirm-btn" bindtap="confirmAllocate">确认灌注 💧</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- ===== P7：完整档案弹窗 ===== -->
+  <view wx:if="{{showProfileModal && profileData}}" class="rename-overlay profile-overlay" bindtap="closeProfile">
+    <view class="profile-modal" catchtap>
+      <!-- 档案标题 -->
+      <view class="profile-header">
+        <text class="profile-title-icon">📋</text>
+        <text class="profile-title-text">宠物完整档案</text>
+      </view>
+
+      <scroll-view scroll-y class="profile-content">
+
+        <!-- 【基本信息】区块 -->
+        <view class="profile-section">
+          <view class="profile-section-title">
+            <text class="ps-title-icon">📝</text>
+            <text class="ps-title-text">基本信息</text>
+          </view>
+          <view class="ps-divider"></view>
+
+          <view class="ps-info-row">
+            <text class="ps-label">物种</text>
+            <text class="ps-value">{{profileData.speciesIcon}} {{profileData.speciesName}}</text>
+          </view>
+          <view class="ps-info-row">
+            <text class="ps-label">名称</text>
+            <text class="ps-value ps-value-name">{{profileData.name}}</text>
+          </view>
+          <view class="ps-info-row" wx:if="{{!profileData.isEgg}}">
+            <text class="ps-label">成长阶段</text>
+            <text class="ps-value">{{profileData.stageIcon}} {{profileData.stageName}}</text>
+          </view>
+          <view class="ps-info-row" wx:if="{{!profileData.isEgg}}">
+            <text class="ps-label">成长值</text>
+            <text class="ps-value">{{profileData.growthValue}} / {{profileData.stageMaxGrowth}}</text>
+          </view>
+          <view class="ps-info-row">
+            <text class="ps-label">等级</text>
+            <text class="ps-value ps-value-level">Lv.{{profileData.level}}</text>
+          </view>
+
+          <!-- 蛋类型信息（仅蛋状态显示）-->
+          <view class="ps-info-row" wx:if="{{profileData.isEgg && profileData.eggType}}">
+            <text class="ps-label">蛋类型</text>
+            <text class="ps-value">{{profileData.eggType.emoji || '🥚'}} {{profileData.eggType.name || '神秘蛋'}}</text>
+          </view>
+        </view>
+
+        <!-- 【四维属性】区块（仅已孵化宠物）-->
+        <view class="profile-section" wx:if="{{!profileData.isEgg}}">
+          <view class="profile-section-title">
+            <text class="ps-title-icon">⚡</text>
+            <text class="ps-title-text">四维属性</text>
+          </view>
+          <view class="ps-divider"></view>
+
+          <view wx:for="{{profileData.attrList}}" wx:for-item="attr" wx:key="key" class="ps-attr-item">
+            <view class="ps-attr-header">
+              <text class="ps-attr-icon">{{attr.icon}}</text>
+              <text class="ps-attr-label" style="color:{{attr.color}}">{{attr.label}}</text>
+              <text class="ps-attr-val">{{attr.val}}</text>
+            </view>
+            <view class="ps-attr-bar-track">
+              <view class="ps-attr-bar-fill" style="width:{{attr.percent}}%; background:linear-gradient(90deg, {{attr.color}}, {{attr.color}}99);"></view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 【成长记录】区块（可折叠）-->
+        <view class="profile-section" wx:if="{{profileData.growthRecords.length > 0}}">
+          <view class="profile-section-title" bindtap="toggleGrowthRecords">
+            <text class="ps-title-icon">📈</text>
+            <text class="ps-title-text">成长记录</text>
+            <text class="ps-count">{{profileData.growthRecords.length}}条</text>
+            <text class="ps-arrow">{{showGrowthRecords ? '▲' : '▼'}}</text>
+          </view>
+          <view class="ps-divider"></view>
+
+          <view class="gr-list" wx:if="{{showGrowthRecords}}">
+            <view wx:for="{{profileData.growthRecords}}" wx:key="time" class="gr-item">
+              <text class="gr-stage">{{item.stage}}</text>
+              <text class="gr-msg">{{item.message}}</text>
+              <text class="gr-time">{{item.timeStr}}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 【性格设定】区块 -->
+        <view class="profile-section">
+          <view class="profile-section-title">
+            <text class="ps-title-icon">✨</text>
+            <text class="ps-title-text">性格设定</text>
+          </view>
+          <view class="ps-divider"></view>
+          <view class="ps-personality-box">
+            <text class="ps-personality-text">"{{profileData.personalityPrompt}}"</text>
+          </view>
+        </view>
+
+        <!-- 【BUFF加成】区块（仅已孵化且有BUFF时显示）-->
+        <view class="profile-section" wx:if="{{!profileData.isEgg && profileData.buffLabel}}">
+          <view class="profile-section-title">
+            <text class="ps-title-icon">⚡</text>
+            <text class="ps-title-text">BUFF加成</text>
+          </view>
+          <view class="ps-divider"></view>
+          <view class="ps-buff-tag">
+            <text class="ps-buff-label">{{profileData.buffLabel}}</text>
+            <text class="ps-buff-desc" wx:if="{{profileData.buffDesc}}">{{profileData.buffDesc}}</text>
+          </view>
+        </view>
+
+        <!-- 【陪伴信息】区块（仅已孵化宠物）-->
+        <view class="profile-section" wx:if="{{!profileData.isEgg}}">
+          <view class="profile-section-title">
+            <text class="ps-title-icon">💝</text>
+            <text class="ps-title-text">陪伴信息</text>
+          </view>
+          <view class="ps-divider"></view>
+
+          <view class="ps-info-row">
+            <text class="ps-label">亲密度</text>
+            <text class="ps-value">{{profileData.bondLevel.icon}} {{profileData.bondLevel.name}} ({{profileData.bond}}/1000)</text>
+          </view>
+          <view class="ps-info-row">
+            <text class="ps-label">心情</text>
+            <text class="ps-value">{{profileData.moodEmoji}} {{profileData.mood === 'happy' ? '开心' : (profileData.mood === 'sad' ? '难过' : (profileData.mood === 'excited' ? '兴奋' : '平静'))}}</text>
+          </view>
+          <view class="ps-info-row">
+            <text class="ps-label">陪伴天数</text>
+            <text class="ps-value">{{profileData.companionDays}}天</text>
+          </view>
+        </view>
+
+      </scroll-view>
+
+      <!-- 关闭按钮 -->
+      <view class="profile-actions">
+        <button class="btn-wood profile-close-btn" bindtap="closeProfile">关闭</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- ===== 事件详情弹窗 ===== -->
+  <view wx:if="{{showEventModal}}" class="rename-overlay" bindtap="closeEventModal">
+    <view class="event-detail-modal" catchtap>
+      <view class="event-type-badge {{currentEvent.type}}">{{currentEvent.type === 'letter' ? '💌 信件' : currentEvent.type === 'title' ? '🏅 称号' : currentEvent.type === 'memory' ? '💫 纪念' : '👑 记录'}}</view>
+      <view class="event-title">{{currentEvent.title}}</view>
+      <view class="event-content">
+        <text wx:for="{{eventContentLines}}" wx:key="*this" class="event-line">{{item}}</text>
+      </view>
+      <button class="btn-confirm" bindtap="closeEventModal">收到了 ❤️</button>
+    </view>
+  </view>
+
 </view>

@@ -30,9 +30,9 @@ const MOCK_RECENT_USERS = [
   { id: 'u3', username: 'xiaohong', nickname: '小红花', avatar: '', level: 4, total_xp: 1420, streak_days: 5, role: 'user', status: 'active', created_at: Date.now() - 259200000 },
 ]
 const MOCK_PETS = [
-  { id: 'p1', name: '小宝贝', type: '猫咪', stage: 'teen', level: 8, experience: 1200, status: 'happy', owner_name: 'lzk' },
-  { id: 'p2', name: '旺财', type: '狗狗', stage: 'child', level: 3, experience: 300, status: 'normal', owner_name: 'xiaoming' },
-  { id: 'p3', name: '皮皮', type: '仓鼠', stage: 'baby', level: 1, experience: 50, status: 'happy', owner_name: 'xiaohong' },
+  { id: 'p1', name: '小宝贝', species: 'forest_cat', stage: 'YOUTH', level: 8, experience: 1200, mood: 'happy', owner_name: 'lzk' },
+  { id: 'p2', name: '旺财', species: 'forest_dog', stage: 'BABY', level: 3, experience: 300, mood: 'normal', owner_name: 'xiaoming' },
+  { id: 'p3', name: '皮皮', species: 'wild_hamster', stage: 'EGG', level: 1, experience: 50, mood: 'happy', owner_name: 'xiaohong' },
 ]
 const MOCK_FEEDBACKS = [
   { id: 'f1', type: 'suggestion', title: '希望增加宠物互动功能', content: '希望能让宠物之间可以互动玩耍', contact: '微信：test01', created_at: Date.now() - 3600000, resolved: false },
@@ -40,21 +40,27 @@ const MOCK_FEEDBACKS = [
   { id: 'f3', type: 'other', title: '很棒的小程序', content: '用了一周了，体验很好，继续加油！', contact: '', created_at: Date.now() - 86400000, resolved: true },
 ]
 
-// 阶段映射
+// V7 阶段映射（与主系统 petConstants.js 一致：EGG→BABY→YOUTH→ADULT→PERFECT）
 const STAGE_MAP = {
-  baby:   { emoji: '🥚', label: '蛋' },
-  child:  { emoji: '🐣', label: '幼年' },
-  teen:   { emoji: '🐱', label: '少年' },
-  adult:  { emoji: '🦁', label: '成年' },
-  elder:  { emoji: '🦉', label: '传说' },
+  EGG:    { emoji: '🥚', label: '蛋' },
+  BABY:   { emoji: '🐣', label: '幼体' },
+  YOUTH:  { emoji: '🐱', label: '青年' },
+  ADULT:  { emoji: '🦁', label: '成年' },
+  PERFECT:{ emoji: '🦉', label: '完全体' },
 }
-const STATUS_MAP = {
+const STAGE_KEYS = ['EGG', 'BABY', 'YOUTH', 'ADULT', 'PERFECT']
+const STAGE_OPTIONS = ['蛋', '幼体', '青年', '成年', '完全体']
+
+// 宠物心情映射（与主系统一致）
+const MOOD_MAP = {
   happy:    '开心',
   normal:   '普通',
   sad:      '难过',
-  sleeping: '睡觉',
-  sick:     '生病',
+  excited:  '兴奋',
+  calm:     '平静',
 }
+const MOOD_KEYS = ['happy', 'normal', 'sad', 'excited', 'calm']
+const MOOD_OPTIONS = ['开心', '普通', '难过', '兴奋', '平静']
 
 // ===== 页面定义 =====
 Page({
@@ -109,6 +115,10 @@ Page({
     bcContent: '',
     sendingBroadcast: false,
 
+    // 清理操作
+    cleaningUp: false,
+    cleanupResult: '',
+
     // 弹窗
     showDetailModal: false,
     detailUser: {},
@@ -117,17 +127,17 @@ Page({
     editPetStageIdx: 0,
     editPetLevel: 1,
     editPetExp: 0,
-    editPetStatusIdx: 0,
-    stageOptions: ['蛋', '幼年', '少年', '成年', '传说'],
-    statusOptions: ['开心', '普通', '难过', '睡觉', '生病'],
+    editPetMoodIdx: 0,
+    stageOptions: STAGE_OPTIONS,
+    moodOptions: MOOD_OPTIONS,
     savingPet: false,
   },
 
   // WXML 模板方法
   fmtTime, formatXp,
-  getStageEmoji(stage) { return (STAGE_MAP[stage] || STAGE_MAP.baby).emoji },
-  getStageLabel(stage) { return (STAGE_MAP[stage] || STAGE_MAP.baby).label },
-  getStatusLabel(status) { return STATUS_MAP[status] || status },
+  getStageEmoji(stage) { return (STAGE_MAP[stage] || STAGE_MAP.EGG).emoji },
+  getStageLabel(stage) { return (STAGE_MAP[stage] || STAGE_MAP.EGG).label },
+  getMoodLabel(mood) { return MOOD_MAP[mood] || mood },
 
   onLoad() {
     this.setData({ currentUserId: (wx.getStorageSync('cloud_userInfo') || {}).id || '' })
@@ -372,10 +382,10 @@ Page({
     const pet = this.data.petList.find(p => p.id === id)
     if (!pet) return
 
-    const stageKeys = ['baby', 'child', 'teen', 'adult', 'elder']
-    const stageIdx = stageKeys.indexOf(pet.stage) >= 0 ? stageKeys.indexOf(pet.stage) : 0
-    const statusKeys = ['happy', 'normal', 'sad', 'sleeping', 'sick']
-    const statusIdx = statusKeys.indexOf(pet.status) >= 0 ? statusKeys.indexOf(pet.status) : 0
+    var stageIdx = STAGE_KEYS.indexOf(pet.stage)
+    if (stageIdx < 0) stageIdx = 0
+    var moodIdx = MOOD_KEYS.indexOf(pet.mood || pet.status)
+    if (moodIdx < 0) moodIdx = 0
 
     this.setData({
       showPetEditModal: true,
@@ -383,7 +393,7 @@ Page({
       editPetStageIdx: stageIdx,
       editPetLevel: pet.level || 1,
       editPetExp: pet.experience || 0,
-      editPetStatusIdx: statusIdx,
+      editPetMoodIdx: moodIdx,
     })
   },
   closePetModal() { this.setData({ showPetEditModal: false }) },
@@ -391,20 +401,17 @@ Page({
   onPetStageChange(e) { this.setData({ editPetStageIdx: parseInt(e.detail.value) }) },
   onPetLevelInput(e) { this.setData({ editPetLevel: parseInt(e.detail.value) || 1 }) },
   onPetExpInput(e) { this.setData({ editPetExp: parseInt(e.detail.value) || 0 }) },
-  onPetStatusChange(e) { this.setData({ editPetStatusIdx: parseInt(e.detail.value) }) },
+  onPetMoodChange(e) { this.setData({ editPetMoodIdx: parseInt(e.detail.value) }) },
 
   async savePetEdit() {
-    const stageKeys = ['baby', 'child', 'teen', 'adult', 'elder']
-    const statusKeys = ['happy', 'normal', 'sad', 'sleeping', 'sick']
-
     try {
       this.setData({ savingPet: true })
       await cloudApi.adminEditPet({
         petId: this.data.editPetId,
-        stage: stageKeys[this.data.editPetStageIdx],
+        stage: STAGE_KEYS[this.data.editPetStageIdx],
         level: Math.min(99, Math.max(1, this.data.editPetLevel)),
         experience: Math.max(0, this.data.editPetExp),
-        status: statusKeys[this.data.editPetStatusIdx],
+        mood: MOOD_KEYS[this.data.editPetMoodIdx],
       })
       this.setData({ savingPet: false, showPetEditModal: false })
       wx.showToast({ title: '保存成功', icon: 'success' })
@@ -490,6 +497,73 @@ Page({
   refreshData() {
     wx.showLoading({ title: '刷新中...' })
     this.loadAdminData().then(() => { wx.hideLoading(); wx.showToast({ title: '数据已更新', icon: 'success' }) })
+  },
+
+  // ========== 删除用户 ==========
+  async deleteUser(e) {
+    const { userId, username } = e.currentTarget.dataset
+    const ok = await new Promise(resolve => {
+      wx.showModal({
+        title: '⚠️ 删除用户',
+        content: `确定要删除用户「${username}」吗？\n将同时删除其宠物、经验池、成长日志等所有数据，不可恢复！`,
+        confirmText: '确认删除',
+        confirmColor: '#c0392b',
+        success: r => resolve(r.confirm),
+      })
+    })
+    if (!ok) return
+
+    try {
+      wx.showLoading({ title: '删除中...' })
+      await cloudApi.adminDeleteUser({ userId })
+      wx.hideLoading()
+      wx.showToast({ title: '已删除', icon: 'success' })
+      this.loadUserList(this.data.userPage)
+      this.refreshData()
+    } catch (err) {
+      wx.hideLoading()
+      wx.showToast({ title: '删除失败: ' + (err.message || ''), icon: 'none' })
+    }
+  },
+
+  // ========== 一键清理非管理员 ==========
+  async cleanupNonAdmin() {
+    const ok = await new Promise(resolve => {
+      wx.showModal({
+        title: '⚠️ 危险操作确认',
+        content: '此操作将删除所有非管理员账号及其关联数据（宠物/经验池/日志），仅保留管理员账号。\n\n确定执行吗？',
+        confirmText: '确认清理',
+        confirmColor: '#c0392b',
+        success: r => resolve(r.confirm),
+      })
+    })
+    if (!ok) return
+
+    this.setData({ cleaningUp: true, cleanupResult: '' })
+
+    try {
+      const res = await cloudApi.adminCleanupNonAdmin()
+      const d = res.data || {}
+      const text = [
+        '✅ 清理完成',
+        '删除用户: ' + (d.deletedUsers || 0),
+        '删除宠物: ' + (d.deletedPets || 0),
+        '删除经验池: ' + (d.deletedPools || 0),
+        '删除日志: ' + (d.deletedLogs || 0),
+        '保留账号: ' + (d.keptUsers || []).join(', ') || '(无)',
+      ].join('\n')
+
+      if (d.errors && d.errors.length > 0) {
+        text += '\n\n⚠️ 部分失败:\n' + d.errors.join('\n')
+      }
+
+      this.setData({ cleaningUp: false, cleanupResult: text })
+      // 刷新列表
+      this.loadUserList(1)
+      this.refreshData()
+    } catch (err) {
+      this.setData({ cleaningUp: false, cleanupResult: '❌ 清理失败: ' + (err.message || '') })
+    }
   },
 
   goBack() { wx.navigateBack() },

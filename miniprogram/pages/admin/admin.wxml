@@ -1,4 +1,4 @@
-<!-- 管理员控制台 - 营地管理中心 v2 -->
+<!-- 管理员控制台 - 自律森林管理中心 v2 -->
 <view class="page">
   <scroll-view scroll-y class="admin-scroll" enhanced show-scrollbar="{{false}}">
     <view class="admin-inner">
@@ -13,7 +13,7 @@
 
       <!-- 加载中 -->
       <view wx:if="{{loading}}" class="loading-wrap">
-        <text class="loading-text">正在加载营地数据...</text>
+        <text class="loading-text">正在加载数据...</text>
       </view>
 
       <!-- ===== 管理员主内容 ===== -->
@@ -22,7 +22,7 @@
         <!-- 顶部标题栏 -->
         <view class="admin-header">
           <view class="header-top">
-            <text class="admin-title">🛡️ 营地管理中心</text>
+            <text class="admin-title">🛡️ 自律森林管理中心</text>
             <text class="header-badge">v2.0</text>
           </view>
           <text class="admin-subtitle">全平台数据 · 用户管理 · 内容审核 · 系统工具</text>
@@ -194,6 +194,9 @@
                 <view class="action-btn btn-pwd" data-user-id="{{item.id}}" catchtap="resetUserPassword">
                   <text>重置密码</text>
                 </view>
+                <view class="action-btn btn-delete" data-user-id="{{item.id}}" data-username="{{item.username || item.nickname}}" catchtap="deleteUser">
+                  <text>删除</text>
+                </view>
               </view>
             </view>
           </view>
@@ -226,7 +229,7 @@
                 <text class="pet-owner">主人：{{item.ownerName || '未知'}}</text>
                 <view class="pet-tags">
                   <text class="stage-tag stage-{{item.stage}}">{{getStageLabel(item.stage)}}</text>
-                  <text class="status-tag status-{{item.status}}">{{getStatusLabel(item.status)}}</text>
+                  <text class="status-tag status-{{item.mood || item.status}}">{{getMoodLabel(item.mood || item.status)}}</text>
                 </view>
                 <text class="pet-exp">经验值: {{item.experience || 0}}</text>
               </view>
@@ -333,7 +336,24 @@
           <view class="tool-section danger-zone">
             <text class="tool-title danger-title">⚠️ 危险操作</text>
             <text class="danger-desc">以下操作会影响平台数据，请谨慎使用</text>
-            <button class="danger-btn" bindtap="goBack">返回营地</button>
+
+            <!-- 一键清理非管理员 -->
+            <view class="danger-item">
+              <text class="danger-item-title">🗑️ 一键清理所有非管理员</text>
+              <text class="danger-item-desc">删除所有普通用户账号及其宠物/经验池/日志，仅保留管理员</text>
+              <button
+                class="danger-btn cleanup-btn"
+                bindtap="cleanupNonAdmin"
+                loading="{{cleaningUp}}"
+              >
+                {{cleaningUp ? '清理中...' : '执行清理'}}
+              </button>
+              <text wx:if="{{cleanupResult}}" class="cleanup-result">
+                {{cleanupResult}}
+              </text>
+            </view>
+
+            <button class="danger-btn" bindtap="goBack">返回首页</button>
           </view>
         </view>
 
@@ -402,9 +422,9 @@
           <input class="edit-input-num" type="number" value="{{editPetExp}}" bindinput="onPetExpInput" min="0" />
         </view>
         <view class="edit-field">
-          <text class="edit-label">状态</text>
-          <picker mode="selector" range="{{statusOptions}}" value="{{editPetStatusIdx}}" bindchange="onPetStatusChange">
-            <view class="edit-picker">{{statusOptions[editPetStatusIdx]}} ▾</view>
+          <text class="edit-label">心情</text>
+          <picker mode="selector" range="{{moodOptions}}" value="{{editPetMoodIdx}}" bindchange="onPetMoodChange">
+            <view class="edit-picker">{{moodOptions[editPetMoodIdx]}} ▾</view>
           </picker>
         </view>
         <button class="tool-submit-btn" style="margin-top:24rpx;" bindtap="savePetEdit" loading="{{savingPet}}">保存修改</button>

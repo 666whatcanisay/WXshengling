@@ -1,0 +1,26 @@
+[
+  {
+    "path": "cloudfunctions/app/index.js",
+    "sha256": "D485B3CDAE824B1E3B07E595CE35908FFB4C45B2AE79A21514AF001F0CC231D0"
+  },
+  {
+    "path": "miniprogram/pages/ai/ai.js",
+    "sha256": "969B76BB9B25EC775A4C3A02F5D621D6683302455DCE4A5DADE8CDBA2FA4C61B"
+  },
+  {
+    "path": "miniprogram/pages/goals/goals.js",
+    "sha256": "616FE9E41D021FE0AAEE45FDA64087B43D027E83C3B93CB3D561977C35E604D3"
+  },
+  {
+    "path": "miniprogram/pages/goal-detail/goal-detail.js",
+    "sha256": "87F06FD9D36EA32948C54FA4A28B1791298F37DA5FC8A24465C30E89ABA8A88D"
+  },
+  {
+    "path": "miniprogram/pages/growth-report/growth-report.js",
+    "sha256": "4F44D7B8828E9499839E2435A4C2773B1056870DF3C17A1D857D98C4C0F1F1D4"
+  },
+  {
+    "path": "miniprogram/utils/cloudApi.js",
+    "sha256": "86F44961ACE7A21B2C176B675B16893F3DE0AC09625B1C2E425A115DF2AD41AE"
+  }
+]

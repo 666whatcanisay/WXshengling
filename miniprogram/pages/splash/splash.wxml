@@ -16,15 +16,15 @@
 
   <!-- 主内容区 -->
   <view class="splash-content">
-    <!-- 营地Logo -->
+    <!-- Logo -->
     <view class="camp-logo">
-      <text class="logo-camp">🏕️</text>
+      <text class="logo-camp">🌲</text>
       <view class="logo-ring"></view>
     </view>
 
     <!-- 标题 -->
-    <text class="splash-title">森林营地</text>
-    <text class="splash-subtitle">Forest Camp</text>
+    <text class="splash-title">AI自律森林</text>
+    <text class="splash-subtitle">Discipline Forest</text>
 
     <!-- 加载动画文字 -->
     <view class="loading-area">
@@ -37,7 +37,7 @@
 
     <!-- 底部标语 -->
     <view class="splash-footer">
-      <text class="footer-text">🌿 在这里，每一份努力都会被看见 ✨</text>
+      <text class="footer-text">{{footerText}}</text>
     </view>
   </view>
 </view>

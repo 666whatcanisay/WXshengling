@@ -160,6 +160,19 @@
 }
 
 /* ===== 3. 宠物英雄区 ===== */
+.pet-carousel {
+  position: relative;
+}
+/* 原生swiper轮播 */
+.pet-swiper {
+  width: 100%;
+  height: 520rpx;
+}
+.pet-swiper swiper-item {
+  display: flex;
+  justify-content: center;
+  overflow: visible;
+}
 .pet-hero-card {
   display: flex;
   flex-direction: column;
@@ -207,13 +220,50 @@
   line-height: 1.2;
   filter: drop-shadow(0 6rpx 20rpx rgba(124, 179, 66, 0.35));
 }
-/* 宠物名字 */
+/* 宠物名字行 */
+.pet-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14rpx;
+  margin-bottom: 12rpx;
+}
 .pet-display-name {
   font-size: 34rpx;
   font-weight: 700;
   color: var(--cream);
-  margin-bottom: 12rpx;
   letter-spacing: 2rpx;
+}
+/* 稀有度标签（与营地一致的视觉呈现） */
+.rarity-tag {
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  font-size: 20rpx;
+  color: #fff;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+/* ===== 引用悬浮卡片（对话气泡） ===== */
+
+/* ===== 轮播指示点 ===== */
+.carousel-dots {
+  display: flex;
+  justify-content: center;
+  gap: 14rpx;
+  padding-bottom: 16rpx;
+}
+.carousel-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: rgba(139, 105, 20, 0.4);
+  transition: all 0.25s ease;
+}
+.carousel-dot.dot-active {
+  width: 38rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, var(--leaf-green), var(--leaf-light));
 }
 
 /* ===== 引用悬浮卡片（对话气泡） ===== */
@@ -657,4 +707,70 @@
 /* ===== 底部留白 ===== */
 .bottom-spacer {
   height: 40rpx;
+}
+
+/* ===== 客服按钮 — 标题栏内嵌 ===== */
+.cs-btn-inline {
+  margin-left: auto;
+  display: flex !important;
+  align-items: center;
+  gap: 6rpx;
+  padding: 6rpx 18rpx !important;
+  background: rgba(139, 105, 20, 0.25) !important;
+  border: 2rpx solid rgba(184, 134, 11, 0.35) !important;
+  border-radius: 24rpx !important;
+  line-height: 1.4 !important;
+  font-size: 0 !important; /* 隐藏默认文字 */
+  min-width: unset !important;
+}
+.cs-btn-inline::after {
+  border: none !important; /* 去掉 button 默认边框 */
+}
+.cs-btn-hover {
+  background: rgba(139, 105, 20, 0.45) !important;
+  transform: scale(0.94);
+}
+.cs-icon {
+  font-size: 24rpx;
+}
+.cs-label {
+  font-size: 20rpx;
+  color: var(--cream-soft);
+  font-weight: 600;
+}
+
+/* ===== 客服按钮 — 右下角悬浮 ===== */
+.cs-float-btn {
+  position: fixed;
+  right: 28rpx;
+  bottom: 180rpx;      /* 在tabBar上方，不遮挡 */
+  z-index: 100;
+  width: 96rpx !important;
+  height: 96rpx !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, #7CB342, #689F38) !important;
+  box-shadow: 0 8rpx 28rpx rgba(124, 179, 66, 0.4) !important;
+  border: 3rpx solid rgba(255, 255, 255, 0.2) !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  animation: csFloatPulse 2.5s ease-in-out infinite;
+  line-height: 1 !important;
+}
+.cs-float-btn::after {
+  border: none !important; /* 去掉 button 默认边框 */
+}
+.cs-float-hover {
+  transform: scale(0.88) !important;
+  box-shadow: 0 4rpx 16rpx rgba(124, 179, 66, 0.3) !important;
+}
+.cs-float-icon {
+  font-size: 48rpx;
+}
+
+/* 悬浮按钮呼吸动画 */
+@keyframes csFloatPulse {
+  0%, 100% { box-shadow: 0 8rpx 28rpx rgba(124, 179, 66, 0.4); }
+  50% { box-shadow: 0 8rpx 40rpx rgba(124, 179, 66, 0.65), 0 0 0 8rpx rgba(124, 179, 66, 0.08); }
 }

@@ -1,0 +1,49 @@
+{
+  "date": "2026-11-04",
+  "scope": "Read-only CLI metadata and downloaded code; no function invocation or business writes",
+  "envId": "cloud1-d5gz9j6zh654f4b36",
+  "alias": "cloud1",
+  "region": "ap-shanghai",
+  "status": "NORMAL",
+  "functions": [
+    {
+      "name": "app",
+      "runtime_from_function_list": "Nodejs16.13",
+      "local_sha256": "d485b3cdae824b1e3b07e595ce35908ffb4c45b2ae79a21514af001f0cc231d0",
+      "cloud_sha256": "d485b3cdae824b1e3b07e595ce35908ffb4c45b2ae79a21514af001f0cc231d0",
+      "byte_identical": true,
+      "normalized_newlines_identical": true
+    },
+    {
+      "name": "login",
+      "runtime_from_function_list": "Nodejs16.13",
+      "local_sha256": "174c0ae2a706435d6f4d35c914caa43b48500cb48d780c6f38490d0d0eb7bf8e",
+      "cloud_sha256": "174c0ae2a706435d6f4d35c914caa43b48500cb48d780c6f38490d0d0eb7bf8e",
+      "byte_identical": true,
+      "normalized_newlines_identical": true
+    },
+    {
+      "name": "init",
+      "runtime_from_function_list": "Nodejs16.13",
+      "local_sha256": "1d6b214ef4eb3e55dfc8f2bdb586f142ffd8883aec45ee58a7cc2416ff973d7b",
+      "cloud_sha256": "d1b73148a8717a632896d4bae10d636e15bdaa7d2435b7cac50bcb4f6a4cd248",
+      "byte_identical": false,
+      "normalized_newlines_identical": true
+    }
+  ],
+  "app_configuration": {
+    "timeout_seconds": 30,
+    "memory_mb": 256,
+    "handler": "index.main",
+    "install_dependency": true
+  },
+  "collection_document_counts_observed": {
+    "users": 4,
+    "goals": 29,
+    "tasks": 47,
+    "pets": 20
+  },
+  "count_scope": "All documents, including any soft-deleted or abandoned records; not active-user metrics",
+  "local_cloud_code_directory": "D:\\Temp\\ai-forest-cloud-audit-20261104",
+  "task_metadata_sample": "Latest five by created_at, only approved task fields, see cloud-task-metadata-20261104.json"
+}

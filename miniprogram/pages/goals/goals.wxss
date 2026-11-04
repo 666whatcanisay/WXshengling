@@ -8,19 +8,15 @@
 .page-inner { max-width: 720rpx; margin: 0 auto; padding: 20rpx 24rpx 150rpx; box-sizing: border-box; }
 
 /* ===== 头部区域：标题栏 + 新建按钮 ===== */
-.header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; gap: 16rpx; }
-
-/* 内联木纹标题 */
-.wood-title-inline { margin: 0; flex: 1; padding: 14rpx 28rpx; }
-
-/* 新建目标按钮 */
-.btn-add-goal { flex-shrink: 0; width: auto; height: 68rpx; padding: 0 28rpx; font-size: 26rpx; white-space: nowrap; }
+/* 新建目标按钮 — 独占一行 */
+.btn-add-goal { width: 100% !important; height: 72rpx; font-size: 28rpx; margin-bottom: 24rpx; }
 .btn-add-goal::after { border: none; }
 
 /* ===== 空状态 ===== */
-.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 0; }
-.empty-icon { font-size: 96rpx; margin-bottom: 20rpx; opacity: 0.7; }
-.empty-text { font-size: 28rpx; color: #8B9A7D; }
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 100rpx 40rpx 160rpx; }
+.empty-icon { font-size: 100rpx; margin-bottom: 20rpx; opacity: 0.75; animation: float 3s ease-in-out infinite; }
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12rpx); } }
+.empty-text { font-size: 28rpx; color: #A8B89D; text-align: center; line-height: 1.6; margin-bottom: 28rpx; }
 
 /* ===== 实边卡片（复用动森主题） ===== */
 .card-solid { background: linear-gradient(135deg, #3D6254, #4A7361); border: 3rpx solid #B8860B; border-radius: 28rpx; padding: 28rpx; margin-bottom: 20rpx; box-shadow: 0 6rpx 24rpx rgba(0,0,0,0.25); position: relative; overflow: hidden; transition: transform 0.2s ease; }

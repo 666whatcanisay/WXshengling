@@ -52,6 +52,7 @@ Page({
     showProtocolModal: false,
     // 微信登录
     hasCachedUser: false,
+    wxLoginLoading: false,
   },
 
   onLoad() {
@@ -72,6 +73,8 @@ Page({
   onUsernameInput(e) { this.setData({ username: e.detail.value.trim() }) },
   onPasswordInput(e) { this.setData({ password: e.detail.value }) },
   togglePwd() { this.setData({ showPwd: !this.data.showPwd }) },
+  toggleRegPwd() { this.setData({ showRegPwd: !this.data.showRegPwd }) },
+  toggleRegPwd2() { this.setData({ showRegPwd2: !this.data.showRegPwd2 }) },
 
   // ===== 注册表单输入 =====
   onRegUsernameInput(e) { this.setData({ regUsername: e.detail.value.trim() }) },
@@ -101,7 +104,9 @@ Page({
         }
 
         const app = getApp()
+        app.clearUserSession() // 【安全修复】切换用户前清除所有旧缓存
         app.globalData.userInfo = userInfo
+        app.setUserInfo(userInfo) // 【V8.3修复】确保 currentOpenid 被正确设置
         wx.setStorageSync('cloud_userInfo', userInfo)
 
         wx.showToast({
@@ -118,10 +123,14 @@ Page({
 
       // 云端超时时，如果是 lzk 则用本地管理员数据放行
       if ((msg.indexOf('timeout') >= 0 || msg.indexOf('超时') >= 0) && username === 'lzk') {
-        console.warn('[Login] 云端超时，使用本地管理员模式')
+        console.warn('[Login] 云端超时，使用本地管理员模式（仅UI展示，不操作数据库）')
         const localInfo = buildAdminUserInfo({ username: 'lzk', nickname: 'lzk' })
+        // 【安全修复】标记为离线模式，前端应避免数据库操作
+        localInfo._offlineMode = true
         const app = getApp()
+        app.clearUserSession() // 先清除旧用户所有缓存
         app.globalData.userInfo = localInfo
+        app.setUserInfo(localInfo) // 【V8.3修复】离线模式也设置
         wx.setStorageSync('cloud_userInfo', localInfo)
         wx.showToast({ title: '👑 管理员模式（离线）', icon: 'success' })
         setTimeout(() => { wx.switchTab({ url: '/pages/home/home' }) }, 800)
@@ -156,15 +165,18 @@ Page({
       })
 
       if (userInfo) {
-        // 第一个注册用户或 lzk → 管理员
-        if (userInfo.role === 'admin' || userInfo.is_new || regUsername === 'lzk') {
+        // 【V12】只检查 role，不滥用 is_new（所有新用户的 is_new 都是 true）
+        // lzk 已经是管理员，新注册的用户都是普通用户
+        if (userInfo.role === 'admin' || regUsername === 'lzk') {
           userInfo = buildAdminUserInfo(userInfo)
         } else {
           userInfo = buildNormalUserInfo(userInfo)
         }
 
         const app = getApp()
+        app.clearUserSession() // 【安全修复】切换用户前清除所有旧缓存
         app.globalData.userInfo = userInfo
+        app.setUserInfo(userInfo) // 【V8.3修复】确保 currentOpenid 被正确设置
         wx.setStorageSync('cloud_userInfo', userInfo)
 
         const roleTag = userInfo.role === 'admin' ? '（管理员）🎉' : ' 🌿'
@@ -182,12 +194,15 @@ Page({
 
       // 云端超时时，如果是 lzk 注册 → 本地创建管理员
       if ((msg.indexOf('timeout') >= 0 || msg.indexOf('超时') >= 0) && regUsername === 'lzk') {
-        console.warn('[Login] 云端超时，本地创建管理员账号')
+        console.warn('[Login] 云端超时，本地创建管理员账号（仅UI展示）')
         const localInfo = buildAdminUserInfo({
           username: 'lzk', nickname: regNickname || 'lzk', is_new: true,
         })
+        localInfo._offlineMode = true
         const app = getApp()
+        app.clearUserSession() // 先清除旧用户所有缓存
         app.globalData.userInfo = localInfo
+        app.setUserInfo(localInfo) // 【V8.3修复】离线模式也设置
         wx.setStorageSync('cloud_userInfo', localInfo)
         wx.showToast({ title: '🎉 注册成功！（管理员·离线模式）', icon: 'success' })
         setTimeout(() => { wx.switchTab({ url: '/pages/home/home' }) }, 800)
@@ -200,56 +215,76 @@ Page({
     }
   },
 
-  // ===== 微信一键登录 =====
-  handleWechatLogin() {
-    // getUserProfile 通过 open-type 触发，这里做协议检查
-    if (!this.data.agreed) {
-      return wx.showToast({ title: '请先同意用户协议', icon: 'none' })
-    }
-    // open-type="getUserProfile" 会自动弹出授权框，不需要手动调用
-  },
-
-  onGetUserProfile(e) {
+  // ===== 微信一键登录（V12：wx.login + 云函数直取 openid，不依赖已废弃的 getUserProfile）=====
+  async handleWechatLoginQuick() {
     if (!this.data.agreed) {
       return wx.showToast({ title: '请先同意用户协议', icon: 'none' })
     }
 
-    const userProfile = e.detail
-    if (!userProfile || !userProfile.userInfo) {
-      return wx.showToast({ title: '需要授权才能使用', icon: 'none' })
-    }
-
-    const { nickName, avatarUrl } = userProfile.userInfo
-    this.doWechatAuth(nickName, avatarUrl)
-  },
-
-  async doWechatAuth(nickName, avatarUrl) {
-    this.setData({ loading: true })
+    this.setData({ wxLoginLoading: true })
 
     try {
-      const userInfo = await cloudApi.authLogin({
-        nickname: nickName,
-        avatar: avatarUrl,
+      // Step 1: 调用 wx.login 获取临时 code，确保微信身份可信
+      const loginRes = await new Promise((resolve, reject) => {
+        wx.login({
+          success: resolve,
+          fail: reject
+        })
       })
 
-      if (userInfo) {
-        const app = getApp()
-        app.globalData.userInfo = userInfo
-        wx.setStorageSync('cloud_userInfo', userInfo)
-
-        const welcomeMsg = userInfo.is_new ? '欢迎加入森林营地！🎉' : '欢迎回来 🌿'
-        wx.showToast({ title: welcomeMsg, icon: 'success' })
-
-        setTimeout(() => {
-          wx.switchTab({ url: '/pages/home/home' })
-        }, 800)
+      if (!loginRes.code) {
+        this.setData({ wxLoginLoading: false })
+        return wx.showToast({ title: '微信登录失败，请重试', icon: 'none' })
       }
+
+      console.log('[Login] wx.login 成功，调用云函数 authLogin')
+
+      // Step 2: 调用云函数 authLogin（云函数通过 WXContext 获取 openid）
+      const userInfo = await cloudApi.authLogin({
+        nickname: '森林伙伴',
+        avatar: '',
+      })
+
+      if (!userInfo) {
+        this.setData({ wxLoginLoading: false })
+        return wx.showToast({ title: '登录失败，请重试', icon: 'none' })
+      }
+
+      // Step 3: 根据角色构建用户数据
+      if (userInfo.role === 'admin') {
+        var finalInfo = buildAdminUserInfo(userInfo)
+      } else {
+        var finalInfo = buildNormalUserInfo(userInfo)
+      }
+
+      // Step 4: 保存用户会话
+      const app = getApp()
+      app.clearUserSession()
+      app.globalData.userInfo = finalInfo
+      app.setUserInfo(finalInfo)
+      wx.setStorageSync('cloud_userInfo', finalInfo)
+
+      const welcomeMsg = userInfo.is_new
+        ? '欢迎加入AI自律森林！🎉'
+        : (finalInfo.role === 'admin' ? '👑 管理员，欢迎回来 🌿' : '欢迎回来 🌿')
+      wx.showToast({ title: welcomeMsg, icon: 'success' })
+
+      setTimeout(() => {
+        wx.switchTab({ url: '/pages/home/home' })
+      }, 800)
+
     } catch (err) {
-      console.error('[Login] 微信登录失败:', err)
-      wx.showToast({ title: '登录失败，请重试', icon: 'none' })
+      console.error('[Login] 微信一键登录失败:', err)
+      const msg = typeof err === 'string' ? err : (err.message || '登录失败，请重试')
+      wx.showToast({ title: msg, icon: 'none' })
     } finally {
-      this.setData({ loading: false })
+      this.setData({ wxLoginLoading: false })
     }
+  },
+
+  // ===== 旧版兼容：保留但不作为主要入口 =====
+  handleWechatLogin() {
+    this.handleWechatLoginQuick()
   },
 
   // ===== 协议相关 =====
