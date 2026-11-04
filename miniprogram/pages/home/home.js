@@ -328,8 +328,10 @@ Page({
 
     try {
       const res = await cloudApi.taskCheckin({ task_id: taskId })
-      // 打卡增加成长值（V6：source=complete_goal, +15）
-      try { await cloudApi.hatchProgress({ source: 'complete_goal' }) } catch(e) { /* 无蛋时忽略 */ }
+      // 仅首次成功结算才触发宠物成长，避免重复/已完成场景又写一次
+      if (!res.already_completed) {
+        try { await cloudApi.hatchProgress({ source: 'complete_goal' }) } catch(e) { /* 无蛋时忽略 */ }
+      }
 
       const tasks = this.data.todayTasks.map(t =>
         t.id === taskId ? { ...t, completed: true } : t
@@ -337,14 +339,15 @@ Page({
       const completedCount = tasks.filter(t => t.completed).length
       const totalCount = tasks.length
       const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
-      const addedXp = res.xp_earned || task.xp_reward || 10
+      // 仅用后端真实返回值；already_completed 时 xp_earned=0，不再假装拿了 task.xp_reward
+      const addedXp = res.already_completed ? 0 : (res.xp_earned || 0)
 
       this.setData({
         todayTasks: tasks,
         todayGrowth: { ...this.data.todayGrowth, completedTasks: completedCount, completionRate, xp: (this.data.todayGrowth.xp || 0) + addedXp },
       })
-      wx.showToast({ title: `打卡成功 +${addedXp}XP ⭐`, icon: 'success' })
-      log('打卡', '打卡成功', { taskId, xp: addedXp })
+      wx.showToast({ title: res.already_completed ? '任务已完成' : ('打卡成功 +' + addedXp + 'XP ⭐'), icon: 'success' })
+      log('打卡', res.already_completed ? '重复打卡（后端已结算）' : '打卡成功', { taskId, xp: addedXp })
     } catch (err) {
       wx.showToast({ title: '打卡失败', icon: 'error' })
     }

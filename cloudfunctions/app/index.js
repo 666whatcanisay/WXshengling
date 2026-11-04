@@ -378,9 +378,18 @@ async function createTask(openid, data) {
   return { success: true, id: res._id };
 }
 
+// V10.3：事务化任务打卡
+// 把「标记完成 + XP入账 + 成长日志 + 成长池」捆成一次业务结算：
+//   - 先用 where 拿到 task / user / pool 的真实 _id（事务不能用 where）；
+//   - 事务内先 get 校验 task.completed，若已完成则回滚；
+//   - growth_logs / 新增长池使用确定性 _id，事务重试时不会重复写入；
+//   - repairGoalDays 留在事务外，本身幂等。
 async function taskCheckin(openid, data) {
   if (!data.task_id) return { code: -1, message: "缺少任务ID" };
-  // 【安全修复】查询必须绑定 _openid，防止跨用户操作
+  if (!openid) return { code: -1, message: "未登录" };
+
+  // 事务外：身份/日期/前置条件检查，以及预取各目标的真实 _id
+  // 腾讯事务不支持 where，所以提前用 where 定位 doc 路径。
   const tasks = await safeQuery("tasks", { _id: data.task_id, _openid: openid });
   const task = tasks[0];
   if (!task) return { code: -1, message: "任务不存在" };
@@ -388,29 +397,87 @@ async function taskCheckin(openid, data) {
   if (task.completed) return { success: true, already_completed: true, message: "任务已完成" };
 
   const xpReward = task.xp_reward || 10;
-  await safeUpdate("tasks", { _id: data.task_id, _openid: openid }, { completed: true, completed_at: Date.now(), updated_at: Date.now() });
-  await safeUpdate("users", { _openid: openid }, { total_xp: _.inc(xpReward), updated_at: Date.now() });
-  await safeAdd("growth_logs", { _openid: openid, xp_change: xpReward, reason: `完成任务: ${task.title}`, source: "task", created_at: Date.now() });
 
-  // Only today's tasks participate in today's completion; future tasks remain independent.
+  const [userRows, poolRows] = await Promise.all([
+    safeQuery("users", { _openid: openid }),
+    safeQuery("user_growth_pool", { _openid: openid }),
+  ]);
+  const user = userRows[0];
+  const pool = poolRows[0];
+
+  // 幂等 key：同一 task_id / openid 下唯一；事务重试 add 时不会重复写
+  const IDEMP_LOG_ID = 'checkin-log:' + task._id;
+  const IDEMP_POOL_ID = 'pool:' + openid;
+
+  let alreadyCompletedFromConflict = false;
+  try {
+    await db.runTransaction(async (tx) => {
+      // 1) 再读一次 task，若在本事务开始前已被其他事务标成完成则抛异常回滚
+      const taskSnap = await tx.collection("tasks").doc(task._id).get();
+      if (taskSnap.data && taskSnap.data.completed) {
+        const err = new Error("ALREADY_COMPLETED_CONFLICT");
+        err.code = "ALREADY_COMPLETED_CONFLICT";
+        throw err;
+      }
+
+      // 2) 标记任务完成
+      await tx.collection("tasks").doc(task._id).update({ data: {
+        completed: true, completed_at: Date.now(), updated_at: Date.now()
+      }});
+
+      // 3) 用户 XP 递增（未绑定 _id 的 users 记录跳过，不影响其他步骤）
+      if (user && user._id) {
+        await tx.collection("users").doc(user._id).update({ data: {
+          total_xp: _.inc(xpReward), updated_at: Date.now()
+        }});
+      }
+
+      // 4) 成长日志（确定性 _id 保证 add 幂等）
+      await tx.collection("growth_logs").add({
+        data: {
+          _openid: openid, xp_change: xpReward,
+          reason: '完成任务: ' + task.title, source: "task",
+          created_at: Date.now(), updated_at: Date.now(),
+        },
+        _id: IDEMP_LOG_ID,
+      });
+
+      // 5) 成长池：有则 inc，无则 add 一份确定性 _id 的新池（兼容旧随机ID记录）
+      if (pool && pool._id) {
+        await tx.collection("user_growth_pool").doc(pool._id).update({ data: {
+          growth_pool: _.inc(xpReward), total_earned: _.inc(xpReward), updated_at: Date.now()
+        }});
+      } else {
+        await tx.collection("user_growth_pool").add({
+          data: {
+            _openid: openid, growth_pool: xpReward, total_earned: xpReward,
+            created_at: Date.now(), updated_at: Date.now(),
+          },
+          _id: IDEMP_POOL_ID,
+        });
+      }
+    });
+  } catch (txErr) {
+    if (txErr.code === "ALREADY_COMPLETED_CONFLICT") {
+      alreadyCompletedFromConflict = true;
+    } else {
+      console.warn('[TASK-CHECKIN] 事务失败:', txErr && txErr.message);
+      throw txErr;
+    }
+  }
+
+  if (alreadyCompletedFromConflict) {
+    return { success: true, already_completed: true, message: "任务已完成" };
+  }
+
+  // 事务外：非核心的目标天数修复（repairGoalDays 自身用 last_completed_date 做幂等）
   let completedDays;
   try {
     if (task.goal_id && (!task.date || task.date === todayStr())) {
       const result = await repairGoalDays(openid, { goal_id: task.goal_id });
       if (result.success) completedDays = result.completed_days;
     }
-  } catch(e) { console.warn('[TASK-CHECKIN] 更新目标天数失败（非致命）:', e.message); }
-
-  // 【V8.5修复】任务打卡经验也进入成长池，用户可自行分配给宠物
-  try {
-    var pool = await safeQuery("user_growth_pool", { _openid: openid });
-    var poolRecord = pool[0];
-    if (!poolRecord) {
-      await safeAdd("user_growth_pool", { _openid: openid, growth_pool: xpReward, total_earned: xpReward, created_at: Date.now(), updated_at: Date.now() });
-    } else {
-      await safeUpdate("user_growth_pool", { _openid: openid }, { growth_pool: _.inc(xpReward), total_earned: _.inc(xpReward), updated_at: Date.now() });
-    }
-  } catch(e) { console.warn('[TASK-CHECKIN] 入池失败（非致命）:', e.message); }
+  } catch (e) { console.warn('[TASK-CHECKIN] 更新目标天数失败（非致命）:', e.message); }
 
   const result = { success: true, xp_earned: xpReward };
   if (completedDays !== undefined) result.completed_days = completedDays;
@@ -2627,30 +2694,21 @@ async function submitFeedback(openid, data) {
 
 // ====== 管理员接口 ======
 
-// V8.2：管理员权限校验（严格模式）
+// V8.4：管理员权限校验（只可信调用者身份）
+// 仅根据服务端传入的 openid 查询其自身 users 记录的 role 字段判定；
+// 不再硬编码 username 兜底，避免无关调用者因数据库中存在管理员用户名即被放行。
 async function checkAdmin(openid) {
   if (!openid) return false;
   try {
-    // 方式1：按 openid 查找
     const res = await db.collection("users").where({ _openid: openid }).get();
     if (res.data && res.data.length > 0) {
-      // 遍历所有匹配记录（同openid可能有多个），任一为admin即通过
       const adminRecord = res.data.find(u => u.role === 'admin');
       if (adminRecord) {
         console.log('[checkAdmin] ✅ 通过(openid)', adminRecord.username);
         return true;
       }
-      // 打印所有匹配记录便于排查
       console.log('[checkAdmin] ❌ openid匹配但无admin, 用户列表:', res.data.map(u => u.username + '(' + u.role + ')'));
     }
-
-    // 【V8.3兜底】方式2：按 username 查找（兼容 Local 模式多账号同openid场景）
-    const byName = await db.collection("users").where({ username: 'lzk' }).get();
-    if (byName.data && byName.data[0] && byName.data[0].role === 'admin') {
-      console.log('[checkAdmin] ✅ 通过(username兜底)');
-      return true;
-    }
-
     console.warn('[checkAdmin] 权限校验失败，openid:', (openid || '').substring(0, 10) + '...');
     return false;
   } catch (e) {

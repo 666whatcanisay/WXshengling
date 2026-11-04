@@ -19,19 +19,47 @@ function matches(row, filter) {
     return row[key] === value;
   });
 }
+function docOps(name, id) {
+  return {
+    collection(coll) { return docOps(coll, id); },
+    async get() {
+      const row = copy((collections[name] || []).find(r => r._id === id));
+      return { data: row || null };
+    },
+    async update({ data }) {
+      const row = (collections[name] || []).find(r => r._id === id);
+      if (!row) return { updated: 0, stats: { updated: 0 } };
+      for (const [key, value] of Object.entries(data)) {
+        if (value && value.__auditOp === 'inc') row[key] = (row[key] || 0) + value.value;
+        else row[key] = copy(value);
+      }
+      return { updated: 1, stats: { updated: 1 } };
+    },
+    async add({ data }, optId) {
+      const id = optId || 'audit_' + (++idCounter);
+      (collections[name] ||= []).push({ _id: id, ...copy(data) });
+      return { _id: id };
+    },
+    async remove() {
+      const before = (collections[name] || []).length;
+      collections[name] = (collections[name] || []).filter(r => r._id !== id);
+      return { removed: before - collections[name].length };
+    },
+  };
+}
 function query(name, filter = {}) {
   return {
     where(next) { return query(name, next); },
-    doc(id) { return query(name, { _id: id }); },
+    doc(id) { return docOps(name, id); },
     async get() {
       const rows = copy((collections[name] || []).filter(row => matches(row, filter)));
       return { data: rows };
     },
     async count() { return { total: (collections[name] || []).filter(row => matches(row, filter)).length }; },
-    async add({ data }) {
-      const row = { _id: `audit_${++idCounter}`, ...copy(data) };
-      (collections[name] ||= []).push(row);
-      return { _id: row._id };
+    async add({ data }, optId) {
+      const id = optId || 'audit_' + (++idCounter);
+      (collections[name] ||= []).push({ _id: id, ...copy(data) });
+      return { _id: id };
     },
     async update({ data }) {
       let updated = 0;
@@ -52,6 +80,22 @@ const db = {
   collection: name => query(name),
   async createCollection(name) { collections[name] ||= []; },
   command: { inc: value => op('inc', value), neq: value => op('neq', value), eq: value => op('eq', value), in: value => op('in', value) },
+  async runTransaction(callback) {
+    // 简化事务替身：直接执行 callback。不模拟 snapshot isolation / 锁冲突。
+    const tx = {
+      collection(name) {
+        return {
+          doc(id) { return docOps(name, id); },
+          async add({ data }, optId) {
+            const id = optId || 'tx_audit_' + (++idCounter);
+            (collections[name] ||= []).push({ _id: id, ...copy(data) });
+            return { _id: id };
+          },
+        };
+      },
+    };
+    return await callback(tx);
+  },
 };
 let seed = 5;
 const auditMath = Object.create(Math);

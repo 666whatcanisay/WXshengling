@@ -49,6 +49,11 @@ Page({
 
     try {
       const res = await cloudApi.taskCheckin({ task_id: taskId });
+      const isDup = !!res.already_completed;
+      // 仅首次结算才触发宠物成长
+      if (!isDup) {
+        try { await cloudApi.hatchProgress({ source: 'complete_goal' }) } catch(e) { /* 无蛋时忽略 */ }
+      }
 
       const tasks = this.data.tasks.map(t =>
         t.id === taskId ? { ...t, completed: true } : t
@@ -56,17 +61,22 @@ Page({
       const completedCount = tasks.filter(t => t.completed).length;
       const totalCount = tasks.length;
       const progressPercent = Math.round((completedCount / totalCount) * 100);
+      // 仅用后端真实返回值；不再假装拿了 task.xp_reward
+      const xpFromServer = res.xp_earned || 0;
 
       this.setData({
         tasks, completedCount, totalCount, progressPercent,
         checkinResult: {
-          xp_added: res.xp_earned || task.xp_reward || 10,
+          xp_added: isDup ? 0 : xpFromServer,
           streak_bonus: 0,
-          total_xp: res.xp_earned || task.xp_reward || 10,
+          total_xp: isDup ? 0 : xpFromServer,
         },
       });
 
-      wx.showToast({ title: `打卡成功 +${res.xp_earned || task.xp_reward || 10}XP`, icon: 'success' });
+      wx.showToast({
+        title: isDup ? '任务已完成' : ('打卡成功 +' + xpFromServer + 'XP'),
+        icon: 'success',
+      });
     } catch (err) {
       console.error('[Record] 打卡失败:', err);
       wx.showToast({ title: '打卡失败，请重试', icon: 'error' });

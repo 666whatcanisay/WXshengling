@@ -18,13 +18,45 @@ class AuditDate extends Date {
 function matches(row, filter) {
   return Object.entries(filter).every(([key, value]) => value && value.kind === 'neq' ? row[key] !== value.value : row[key] === value);
 }
+function docOps(name, id) {
+  return {
+    collection(coll) { return docOps(coll, id); },
+    async get() {
+      const row = clone((rows[name] || []).find(r => r._id === id));
+      return { data: row || null };
+    },
+    async update({ data }) {
+      const row = (rows[name] || []).find(r => r._id === id);
+      if (!row) return { stats: { updated: 0 }, updated: 0 };
+      for (const [key, value] of Object.entries(data)) {
+        row[key] = value && value.kind === 'inc' ? (row[key] || 0) + value.value : clone(value);
+      }
+      return { stats: { updated: 1 }, updated: 1 };
+    },
+    async add({ data }, optId) {
+      const id = optId || 'row-' + (++nextId);
+      (rows[name] ||= []).push({ _id: id, ...clone(data) });
+      return { _id: id };
+    },
+    async remove() {
+      const before = (rows[name] || []).length;
+      rows[name] = (rows[name] || []).filter(r => r._id !== id);
+      return { stats: { removed: before - rows[name].length }, removed: before - rows[name].length };
+    },
+  };
+}
 function query(name, filter = {}, offset = 0, limit = Infinity) {
   return {
     where: next => query(name, next, offset, limit),
+    doc: id => docOps(name, id),
     skip: value => query(name, filter, value, limit),
     limit: value => query(name, filter, offset, value),
     async get() { return { data: clone((rows[name] || []).filter(row => matches(row, filter)).slice(offset, offset + limit)) }; },
-    async add({ data }) { const id = 'row-' + (++nextId); (rows[name] ||= []).push({ _id: id, ...clone(data) }); return { _id: id }; },
+    async add({ data }, optId) {
+      const id = optId || 'row-' + (++nextId);
+      (rows[name] ||= []).push({ _id: id, ...clone(data) });
+      return { _id: id };
+    },
     async update({ data }) {
       let updated = 0;
       for (const row of rows[name] || []) {
@@ -36,7 +68,27 @@ function query(name, filter = {}, offset = 0, limit = Infinity) {
     },
   };
 }
-const db = { collection: name => query(name), command: { inc: value => ({ kind: 'inc', value }), neq: value => ({ kind: 'neq', value }) } };
+const db = {
+  collection: name => query(name),
+  command: { inc: value => ({ kind: 'inc', value }), neq: value => ({ kind: 'neq', value }), eq: value => ({ kind: 'eq', value }), in: value => ({ kind: 'in', value }) },
+  async runTransaction(callback) {
+    // 简化的事务替身：直接执行 callback 并自动 commit；
+    // 不模拟真正的 snapshot isolation / 锁冲突 / 重试。
+    const tx = {
+      collection(name) {
+        return {
+          doc(id) { return docOps(name, id); },
+          async add({ data }, optId) {
+            const id = optId || 'tx-row-' + (++nextId);
+            (rows[name] ||= []).push({ _id: id, ...clone(data) });
+            return { _id: id };
+          },
+        };
+      },
+    };
+    return await callback(tx);
+  },
+};
 const appFile = path.join(root, 'cloudfunctions/app/index.js');
 const appRequire = createRequire(appFile);
 const quiet = { log() {}, warn() {}, error() {} };
