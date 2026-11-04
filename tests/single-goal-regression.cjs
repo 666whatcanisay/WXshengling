@@ -7,7 +7,7 @@ const { createRequire } = require('node:module');
 const root = path.resolve(__dirname, '..');
 const rules = require('../cloudfunctions/app/lib/taskRules');
 const schedule = require('../miniprogram/utils/planSchedule');
-const clone = value => JSON.parse(JSON.stringify(value));
+const clone = value => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 let rows = {}, nextId = 0, clock = Date.parse('2026-11-04T08:00:00Z');
 let checks = 0;
 const equal = (actual, expected) => { assert.deepEqual(clone(actual), clone(expected)); checks++; };

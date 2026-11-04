@@ -1,0 +1,98 @@
+{
+  "date": "2026-11-04",
+  "node": "v24.22.2",
+  "reviewedCommit": "adbfe60",
+  "sdk": "2.4.0",
+  "dependencyDatabase": "1.2.2",
+  "baseline": {
+    "missingUser": {
+      "results": [
+        {
+          "success": true,
+          "xp_earned": 10
+        }
+      ],
+      "tasksCompleted": 1,
+      "userXp": null,
+      "poolRows": 1,
+      "poolIds": [
+        "random-3"
+      ],
+      "logIds": [
+        "random-2"
+      ]
+    },
+    "firstPoolDifferentTasks": {
+      "results": [
+        {
+          "success": true,
+          "xp_earned": 10
+        },
+        {
+          "success": true,
+          "xp_earned": 10
+        }
+      ],
+      "tasksCompleted": 2,
+      "userXp": 20,
+      "poolRows": 2,
+      "poolIds": [
+        "random-5",
+        "random-9"
+      ],
+      "logIds": [
+        "random-3",
+        "random-8"
+      ]
+    }
+  },
+  "corrected": {
+    "missingUser": {
+      "results": [
+        {
+          "code": -1,
+          "message": "用户记录异常，请重新登录或联系管理员"
+        }
+      ],
+      "tasksCompleted": 0,
+      "userXp": null,
+      "poolRows": 0,
+      "poolIds": [],
+      "logIds": []
+    },
+    "firstPoolDifferentTasks": {
+      "results": [
+        {
+          "success": true,
+          "xp_earned": 10
+        },
+        {
+          "success": true,
+          "xp_earned": 10
+        }
+      ],
+      "tasksCompleted": 2,
+      "userXp": 20,
+      "poolRows": 1,
+      "poolIds": [
+        "pool:owner"
+      ],
+      "logIds": [
+        "checkin-log:a",
+        "checkin-log:b"
+      ]
+    }
+  },
+  "tests": {
+    "passed": 220,
+    "scenarios": 25,
+    "failed": 0,
+    "scope": "Production handlers/pages + installed wx-server-sdk 2.4.0 and its transaction retry; offline optimistic wire transport, no real cloud validation"
+  },
+  "regression": {
+    "passed": 41,
+    "failed": 0,
+    "scope": "Local production source + isolated database/page stubs; no cloud writes or model requests"
+  },
+  "boundary": "Installed SDK with offline wire transport; no cloud deployment, real database or phone verification"
+}

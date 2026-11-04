@@ -167,7 +167,7 @@ Page({
       // 1. 调用后端打卡
       const checkinResult = await cloudApi.taskCheckin({ task_id: taskId });
       // 2. 触发成长值入池/孵化（与首页quickCheckin保持一致）
-      if (!checkinResult.already_completed) {
+      if (!checkinResult.already_completed && checkinResult.xp_earned > 0) {
         try { await cloudApi.hatchProgress({ source: 'complete_goal' }) } catch(e) { /* 无蛋时忽略 */ }
       }
 
@@ -190,7 +190,7 @@ Page({
         };
       });
       this.setData({ goals });
-      wx.showToast({ title: '打卡成功 ⭐', icon: 'success' });
+      wx.showToast({ title: checkinResult.already_completed ? '任务已完成' : '打卡成功 ⭐', icon: 'success' });
     } catch (err) {
       console.error('打卡失败:', err);
       wx.showToast({ title: '打卡失败，请重试', icon: 'none' });

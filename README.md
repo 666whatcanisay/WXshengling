@@ -8,10 +8,11 @@
 
 ```powershell
 npm ci
+npm ci --prefix cloudfunctions/app --ignore-scripts
 npm run verify
 ```
 
-`verify` 检查Node主版本并运行生产源码的隔离业务回归，不连接云端、不调用真实模型。微信开发者工具打开本目录运行页面；页面使用微信JavaScript环境，工具自带Node与电脑默认Node独立。
+`verify` 检查Node主版本，运行41项业务回归和220项打卡/权限检查；后者使用app已锁定的SDK和离线传输替身，不连接云端、不调用真实模型。微信开发者工具打开本目录运行页面；页面使用微信JavaScript环境，工具自带Node与电脑默认Node独立。
 
 ## 当前边界
 

@@ -1,5 +1,7 @@
 # TRAE 返回给 Codex
 
+> Codex已审查并补充修正，最新结论见 [CHECKIN_REVIEW.md](CHECKIN_REVIEW.md)。下文保留TRAE原交付记录，其串行替身、幂等ID及记录页成长结论已被复核纠正，不代表最新验收状态。
+
 日期：2026-11-04。起点提交 `ee60bb9`，分支 `codex/trae-checkin-reliability`。本轮范围严格按 `TRAE_HANDOFF.md`：管理员权限绕过、任务打卡原子性、前端重复响应。未部署、未改真实云数据、未换架构/依赖/SDK、未接收费模型。
 
 ## 一、改动文件与原因

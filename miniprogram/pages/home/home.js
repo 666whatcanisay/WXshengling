@@ -329,7 +329,7 @@ Page({
     try {
       const res = await cloudApi.taskCheckin({ task_id: taskId })
       // 仅首次成功结算才触发宠物成长，避免重复/已完成场景又写一次
-      if (!res.already_completed) {
+      if (!res.already_completed && res.xp_earned > 0) {
         try { await cloudApi.hatchProgress({ source: 'complete_goal' }) } catch(e) { /* 无蛋时忽略 */ }
       }
 

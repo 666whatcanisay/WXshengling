@@ -7,7 +7,7 @@ const { createRequire } = require('module');
 // Read and execute the current source with an in-memory database; never connects to CloudBase.
 const root = path.resolve(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'cloudfunctions/app/index.js'), 'utf8');
-const copy = value => JSON.parse(JSON.stringify(value));
+const copy = value => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 let collections = {};
 let idCounter = 0;
 const op = (kind, value) => ({ __auditOp: kind, value });
@@ -140,12 +140,24 @@ function loadPage(relative, api) {
   const findings = {};
   reset({ users: [{ _id: 'admin', _openid: 'owner', username: 'lzk', role: 'admin' }] });
   findings.adminFallback = { unrelatedCaller: 'audit', accepted: await call('checkAdmin', {}) };
-  reset({ users: [{ _id: 'u', _openid: 'audit', total_xp: 0 }],
+  // This concurrency probe needs the installed SDK + an isolated transaction
+  // transport. The simple diagnostic database below cannot model isolation.
+  const { offlineCloudbase } = require('../tests/helpers/offline-cloudbase.cjs');
+  const checkinEnv = offlineCloudbase({ users: [{ _id: 'u', _openid: 'audit', total_xp: 0 }],
     tasks: [{ _id: 'task', _openid: 'audit', completed: false, xp_reward: 10 }],
-    user_growth_pool: [{ _id: 'pool', _openid: 'audit', growth_pool: 0, total_earned: 0 }] });
-  await Promise.all([call('taskCheckin', { task_id: 'task' }), call('taskCheckin', { task_id: 'task' })]);
-  findings.concurrentTaskReward = { userXp: collections.users[0].total_xp,
-    growthPool: collections.user_growth_pool[0].growth_pool, logs: collections.growth_logs.length };
+    growth_logs: [], user_growth_pool: [{ _id: 'pool', _openid: 'audit', growth_pool: 0, total_earned: 0 }] });
+  try {
+    const checkinContext = vm.createContext({
+      require(name) { return name === 'wx-server-sdk' ? checkinEnv.cloud : context.require(name); },
+      exports: {}, console: { log() {}, warn() {}, error() {} }, Buffer, setTimeout, clearTimeout,
+    });
+    vm.runInContext(source, checkinContext);
+    const checkin = vm.runInContext('taskCheckin', checkinContext);
+    await Promise.all([checkin('audit', { task_id: 'task' }), checkin('audit', { task_id: 'task' })]);
+    findings.concurrentTaskReward = { userXp: checkinEnv.rows.users[0].total_xp,
+      growthPool: checkinEnv.rows.user_growth_pool[0].growth_pool, logs: checkinEnv.rows.growth_logs.length,
+      scope: 'Installed SDK + offline optimistic transport; not a real cloud test' };
+  } finally { checkinEnv.close(); }
   reset({ goals: [{ _id: 'goal', _openid: 'audit', completed_days: 0 }], tasks: [] });
   await call('repairGoalDays', { goal_id: 'goal' });
   findings.repairWithoutTasks = { completedDays: collections.goals[0].completed_days };

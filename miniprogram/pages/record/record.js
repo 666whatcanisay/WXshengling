@@ -50,10 +50,6 @@ Page({
     try {
       const res = await cloudApi.taskCheckin({ task_id: taskId });
       const isDup = !!res.already_completed;
-      // 仅首次结算才触发宠物成长
-      if (!isDup) {
-        try { await cloudApi.hatchProgress({ source: 'complete_goal' }) } catch(e) { /* 无蛋时忽略 */ }
-      }
 
       const tasks = this.data.tasks.map(t =>
         t.id === taskId ? { ...t, completed: true } : t
