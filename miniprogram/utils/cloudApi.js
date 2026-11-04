@@ -208,6 +208,7 @@ const cloudApi = {
   aiStartGenerate: (data) => callCloud('app', 'aiStartGenerate', data),
   aiDoGenerate: (data) => callCloud('app', 'aiDoGenerate', data),
   aiPollPlan: (data) => callCloud('app', 'aiPollPlan', data),
+  publishAiPlan: (data) => callCloud('app', 'publishAiPlan', data),
 
   // ===== 反馈 =====
   submitFeedback: (data) => callCloud('app', 'submitFeedback', data),

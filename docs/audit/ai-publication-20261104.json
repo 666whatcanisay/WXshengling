@@ -1,0 +1,49 @@
+{
+  "date": "2026-11-04",
+  "node": "v24.22.2",
+  "base": "72e858e",
+  "branch": "codex/ai-plan-publication",
+  "sdk": "2.4.0",
+  "tests": [
+    {
+      "name": "single-goal-regression",
+      "passed": 41,
+      "failed": 0,
+      "scope": "Local production source + isolated database/page stubs; no cloud writes or model requests"
+    },
+    {
+      "name": "checkin-reliability",
+      "passed": 220,
+      "scenarios": 25,
+      "failed": 0,
+      "scope": "Production handlers/pages + installed wx-server-sdk 2.4.0 and its transaction retry; offline optimistic wire transport, no real cloud validation"
+    },
+    {
+      "name": "ai-publication-reliability",
+      "passed": 163,
+      "scenarios": 26,
+      "failed": 0,
+      "scope": "Production publication handler/page + installed SDK with offline wire transport; no real cloud or phone validation"
+    }
+  ],
+  "totalAssertions": 424,
+  "syntax": {
+    "checkedFiles": 37,
+    "failures": []
+  },
+  "wxml": {
+    "file": "miniprogram/pages/ai/ai.wxml",
+    "compiler": "Installed WeChat DevTools wcc.exe",
+    "exitCode": 0,
+    "artifactBytes": 121716
+  },
+  "sha256": {
+    "cloudfunctions/app/index.js": "9bfe31cce2b9b5be28b135632f43d22f6e7b1897fb7fb125124420f51cfbd15f",
+    "cloudfunctions/app/lib/planPublication.js": "a8cf5d6af7469edf3d6f17a6f53bf4474a9ae7a1a0f71d9b30e1b4930382ece4",
+    "miniprogram/pages/ai/ai.js": "d0991e89272a19dfdfd9e98174d546a7f38ed5dd037eb6d1055f93e8664d7896",
+    "miniprogram/pages/ai/ai.wxml": "380a427189b64e31df39d1ce4c12562f755d303f01b33a920ea7a1d8fae585fa",
+    "miniprogram/utils/cloudApi.js": "df83808fc260a9996d0b3974dd9eaf7d5b8eca1aabf44cd1b2024bee47cba3cc",
+    "miniprogram/utils/planPublicationDraft.js": "a44e28e00965741d1576acf6cbb9e49cf1834a7bfae1bf0f21ddf1581f5a9235"
+  },
+  "boundary": "Offline SDK transport and page VM; no cloud deployment/data writes, real model call or phone test"
+}

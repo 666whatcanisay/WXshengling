@@ -115,7 +115,7 @@ function page(relative, api) {
   let definition;
   const state = vm.createContext({
     require: name => name.endsWith('/cloudApi') ? api : localRequire(name),
-    Page: value => { definition = value; }, getApp: () => ({ globalData: {} }),
+    Page: value => { definition = value; }, getApp: () => ({ globalData: { currentOpenid: 'owner' } }),
     wx: new Proxy({}, { get: () => () => {} }), Date: AuditDate, console: quiet,
     setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {},
   });
@@ -145,7 +145,7 @@ function page(relative, api) {
 
   rows = { users: [{ _id: 'user', _openid: 'owner', total_xp: 0 }] };
   const ai = page('miniprogram/pages/ai/ai.js', {
-    createGoal: data => apiCall('createGoal', data), createTask: data => apiCall('createTask', data),
+    publishAiPlan: data => apiCall('publishAiPlan', data),
   });
   ai._updatePlannerState({ generatedGoal: { title: '七天阅读', period: '7天', stages: [{ name: '起步', duration: '第1-7天' }] },
     generatedTasks: [

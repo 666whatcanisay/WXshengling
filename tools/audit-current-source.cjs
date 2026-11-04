@@ -105,7 +105,7 @@ const context = vm.createContext({
     if (name === 'wx-server-sdk') return { init() {}, database: () => db, getWXContext: () => ({ OPENID: 'audit' }) };
     if (name === 'https') return { request() { throw new Error('Network calls prohibited in local audit'); } };
     if (name === 'crypto') return require('crypto');
-    if (name === './lib/taskRules') return require(path.join(root, 'cloudfunctions/app/lib/taskRules'));
+    if (name.startsWith('./lib/')) return require(path.join(root, 'cloudfunctions/app', name));
     throw new Error(`Unexpected dependency: ${name}`);
   },
   exports: {}, console: { log() {}, warn() {}, error() {} }, Math: auditMath, Date, Buffer, setTimeout, clearTimeout,
@@ -125,7 +125,7 @@ function loadPage(relative, api) {
   const pageContext = vm.createContext({
     Page(value) { definition = value; },
     require(name) { return name.endsWith('/cloudApi') ? api : localRequire(name); },
-    getApp: () => ({ globalData: {}, isOfflineMode: false }),
+    getApp: () => ({ globalData: { currentOpenid: 'audit' }, isOfflineMode: false }),
     wx: new Proxy({}, { get: (_, key) => key === 'getStorageSync' ? () => '' : () => {} }),
     console: { log() {}, warn() {}, error() {} },
     setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {},
@@ -239,8 +239,10 @@ function loadPage(relative, api) {
 
   const createdGoals = [], createdTasks = [];
   const aiPage = loadPage('miniprogram/pages/ai/ai.js', {
-    async createGoal(data) { createdGoals.push(data); return { id: 'testgoal' }; },
-    async createTask(data) { createdTasks.push(data); return { id: 'testtask' }; },
+    async publishAiPlan(data) {
+      createdGoals.push(data.goal); createdTasks.push(...data.tasks);
+      return { success: true, goal_id: 'testgoal', created_count: data.tasks.length };
+    },
   });
   aiPage._updatePlannerState({generatedTasks:[{title:'第一天阅读',xp_reward:10,stage:1,estimated_minutes:15,day_index:1},{title:'第七天总结',xp_reward:20,stage:2,estimated_minutes:20,day_index:7}],generatedGoal:{title:'7天阅读',period:'7天'}});
   aiPage.data.plannerState.lastPlanId='audit-plan';

@@ -2,6 +2,7 @@
 
 const cloudApi = require("../../utils/cloudApi")
 const schedule = require('../../utils/planSchedule')
+const publicationDraft = require('../../utils/planPublicationDraft').createDraftStore(wx, getApp)
 
 // 性能日志工具
 function log(tag, msg, data) {
@@ -364,7 +365,7 @@ Page({
     planMessages: [], planInput: "", planScrollTop: 0, scrollIntoView: '',
     planTestMode: false, showDebugTools: false, showPlanModal: false,
     editableTasks: [],
-    planDays: 30, planStartDate: '', planEndDate: '',
+    planDays: 30, planStartDate: '', planEndDate: '', publicationPending: false, publicationMessage: '',
     typewriterSpeed: 25,
     plannerState: {
       phase: 'idle',
@@ -372,6 +373,7 @@ Page({
       missingFields: ['what','why','deadline','dailyTime','level','constraints'],
       readyToGenerate: false,
       lastPlanId: '',
+      sourcePlanId: '',
       generatedTasks: [],
       generatedGoal: null,
       localAssess: '',
@@ -473,6 +475,7 @@ Page({
   },
 
   onShow() {
+    this._restorePendingPublication()
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 3 })
     }
@@ -531,6 +534,7 @@ Page({
     }
     const extraData = {}
     if (updates.generatedTasks !== undefined) {
+      ps.sourcePlanId = updates.sourcePlanId || ''
       // 同步到 editableTasks（工作副本），plannerState 中保持初始值 []
       const tasks = Array.isArray(updates.generatedTasks) ? updates.generatedTasks : []
       if (tasks.length) {
@@ -577,6 +581,7 @@ Page({
 
   /** 清空对话，重新开始 */
   resetPlanChat() {
+    if (this._restorePendingPublication()) return
     wx.showModal({
       title: '重新开始',
       content: '确定要清空当前对话，开始新的规划吗？',
@@ -640,6 +645,7 @@ Page({
   // ═══════════ 初始化会话 ═══════════
 
   initPlanChat() {
+    if (this._restorePendingPublication()) return
     // 测试模式：预填模拟对话
     if (this.data.planTestMode) {
       const mockMessages = [
@@ -1660,6 +1666,7 @@ Page({
 
   /** 测试用例 2：mock 任务生成并自动发布到数据库 */
   async runTestScroll() {
+    if (this._restorePendingPublication()) return
     if (!this.data.planTestMode || !this.data.showDebugTools) return
     wx.showLoading({ title: '模拟生成并发布...', mask: true })
     log('🧪 测试', '开始全流程测试: mock 数据 → 发布到数据库')
@@ -1700,52 +1707,7 @@ Page({
     })
     wx.hideLoading()
 
-    // ═══ 自动发布到数据库 ═══
-    try {
-      const cloudApi = require('../../utils/cloudApi')
-
-      // Step 1: 创建目标
-      const goalRes = await cloudApi.createGoal({
-        title: mockGoal.title,
-        description: '📋 AI 规划师测试：' + (ctx.why || '自我提升'),
-        emoji: '🏃',
-        target_value: 30,
-      })
-      const goalId = this._extractId(goalRes)
-      log('🧪 测试', '目标创建成功', { goalId })
-
-      // Step 2: 创建 5 个任务
-      const today = new Date()
-      const dateStr = today.getFullYear() + '-' +
-        String(today.getMonth() + 1).padStart(2, '0') + '-' +
-        String(today.getDate()).padStart(2, '0')
-      let createdCount = 0
-
-      for (const task of mockTasks) {
-        await cloudApi.createTask({
-          goal_id: goalId,
-          title: task.title,
-          xp_reward: task.xp_reward || 10,
-          date: dateStr,
-        })
-        createdCount++
-      }
-
-      log('🧪 测试', `发布完成: 1个目标 + ${createdCount}个任务`)
-      wx.showToast({
-        title: '✅ 已创建 ' + createdCount + ' 个任务，请去目标页查看',
-        icon: 'success',
-        duration: 3000,
-      })
-
-      // Step 3: 跳转到目标页
-      setTimeout(() => {
-        wx.switchTab({ url: '/pages/goals/goals' })
-      }, 1500)
-    } catch (e) {
-      log('🧪 测试', '自动发布失败', String(e))
-      wx.showToast({ title: '发布失败，请手动点"发布任务"', icon: 'none' })
-    }
+    await this.publishPlanTasks()
   },
 
   /** 延迟辅助 */
@@ -1754,6 +1716,7 @@ Page({
   // ═══════════ Layer 2: Reasoning（AI 生成任务） ═══════════
 
   async generatePlanTasks() {
+    if (this._restorePendingPublication()) return
     if (this.data.plannerState.loading) return
     const fields = this.data.plannerState.goalContext
     const t0 = Date.now()
@@ -1913,6 +1876,7 @@ Page({
         loading: false,
         phase: 'generating',
         lastPlanId: currentPlanId,
+        sourcePlanId: planId,
         errorMessage: '',
       })
       log('生成任务', `✅ 正常模式完成 总耗时 ${Date.now() - t0}ms, tasks=${tasks.length}`)
@@ -1999,14 +1963,17 @@ Page({
   // ═══════════ 编辑任务（使用 editableTasks） ═══════════
 
   onPlanGoalTitle(e) {
+    if (this.data.publicationPending) return
     const goal = { ...this.data.plannerState.generatedGoal, title: e.detail.value }
     this._updatePlannerState({ generatedGoal: goal })
   },
   onPlanDays(e) {
+    if (this.data.publicationPending) return
     const days = schedule.durationDays(e.detail.value)
     this.setData({ planDays: e.detail.value, planEndDate: days ? schedule.endDate(this.data.planStartDate, days) : '' })
   },
   onPlanStartDate(e) {
+    if (this.data.publicationPending) return
     const start = e.detail.value
     const old = this.data.planStartDate
     const days = schedule.durationDays(this.data.planDays)
@@ -2018,24 +1985,28 @@ Page({
     this.setData({ planStartDate: start, planEndDate: days ? schedule.endDate(start, days) : '', editableTasks: tasks })
   },
   editPlanTaskDate(e) {
+    if (this.data.publicationPending) return
     const tasks = this.data.editableTasks.map(task => ({ ...task }))
     const index = Number(e.currentTarget.dataset.index)
     if (tasks[index]) tasks[index].date = e.detail.value
     this.setData({ editableTasks: tasks })
   },
   editPlanTaskMinutes(e) {
+    if (this.data.publicationPending) return
     const tasks = this.data.editableTasks.map(task => ({ ...task }))
     const index = Number(e.currentTarget.dataset.index)
     if (tasks[index]) tasks[index].estimated_minutes = e.detail.value
     this.setData({ editableTasks: tasks })
   },
   editPlanTaskTitle(e) {
+    if (this.data.publicationPending) return
     const index = parseInt(e.currentTarget.dataset.index)
     const tasks = Array.isArray(this.data.editableTasks) ? this.data.editableTasks.slice() : []
     if (tasks[index]) tasks[index].title = e.detail.value
     this.setData({ editableTasks: tasks })
   },
   setPlanTaskXp(e) {
+    if (this.data.publicationPending) return
     const index = parseInt(e.currentTarget.dataset.index)
     const xp = parseInt(e.currentTarget.dataset.xp)
     const tasks = Array.isArray(this.data.editableTasks) ? this.data.editableTasks.slice() : []
@@ -2043,12 +2014,14 @@ Page({
     this.setData({ editableTasks: tasks })
   },
   deletePlanTask(e) {
+    if (this.data.publicationPending) return
     const index = parseInt(e.currentTarget.dataset.index)
     const tasks = Array.isArray(this.data.editableTasks) ? this.data.editableTasks.slice() : []
     if (index >= 0 && index < tasks.length) tasks.splice(index, 1)
     this.setData({ editableTasks: tasks })
   },
   addPlanTask() {
+    if (this.data.publicationPending) return
     const tasks = Array.isArray(this.data.editableTasks) ? this.data.editableTasks.slice() : []
     tasks.push({ title: '新的成长任务', xp_reward: 10, stage: 1, estimated_minutes: 20, date: this.data.planStartDate || getTodayStr() })
     log('编辑任务', 'addPlanTask', { newCount: tasks.length })
@@ -2058,143 +2031,106 @@ Page({
   closePlanModal() {
     this.setData({
       showPlanModal: false,
-      'plannerState.phase': 'planning'
+      'plannerState.phase': this._publicationInFlight ? 'publishing' : 'planning'
     })
   },
 
   backToPlanChat() {
+    if (this.data.publicationPending) return
     this._updatePlannerState({ generatedGoal: null, generatedTasks: null, phase: 'planning' })
     this.setData({ planStatus: '', showPlanModal: false, editableTasks: [] })
   },
 
   // ═══════════ Layer 3: Executor（发布） ═══════════
 
-  async publishPlanTasks() {
-    // ═══ 防重复：publishing 状态禁止重复点击 ═══
-    if (this.data.plannerState.phase === 'publishing') {
-      log('发布任务', '⛔ 已在发布中，跳过重复点击')
-      wx.showToast({ title: '发布中，请勿重复操作', icon: 'none' })
-      return
-    }
-
-    // ═══ 防重复：同一个 plan_id 不允许重复发布 ═══
-    if (this._publishedPlanIds && this._publishedPlanIds.has(this.data.plannerState.lastPlanId)) {
-      log('发布任务', '⛔ 此计划已发布过，plan_id=' + this.data.plannerState.lastPlanId)
-      wx.showToast({ title: '此计划已发布过', icon: 'none' })
-      return
-    }
-
-    // 使用 editableTasks（工作副本），保证安全数组
-    const rawTasks = Array.isArray(this.data.editableTasks) ? this.data.editableTasks : []
-    const goal = this.data.plannerState.generatedGoal
-    const goalTitle = (goal && goal.title || '').trim()
-    log('发布任务', '开始', { goalTitle, taskCount: rawTasks.length })
-    console.log('[AI计划] 开始发布 editableTasks=', rawTasks)
-    console.log('[AI计划] goalTitle=' + goalTitle)
-
-    if (!goalTitle) {
-      wx.showToast({ title: '请输入目标名称', icon: 'none' })
-      return
-    }
-
-    // 过滤空标题任务
-    const days = schedule.durationDays(this.data.planDays)
-    const startDate = this.data.planStartDate || getTodayStr()
-    if (!days || !schedule.validDate(startDate)) return wx.showToast({ title: '请填写有效周期和开始日期', icon: 'none' })
-    const endDate = schedule.endDate(startDate, days)
-    if (!endDate) return wx.showToast({ title: '目标周期超出日期范围', icon: 'none' })
-    const tasks = schedule.draftTasks(rawTasks.filter(t => t && t.title && t.title.trim()), startDate, days)
-    if (tasks.length === 0) {
-      wx.showToast({ title: '至少需要一个有效任务', icon: 'none' })
-      log('发布任务', '⛔ 跳过：所有任务标题均为空', { rawCount: rawTasks.length })
-      return
-    }
-    if (tasks.some(task => !schedule.validDate(task.date) || task.date < startDate || task.date > endDate)) {
-      return wx.showToast({ title: '任务日期需在目标周期内', icon: 'none' })
-    }
-    if (tasks.some(task => !Number.isInteger(Number(task.estimated_minutes)) || Number(task.estimated_minutes) < 1 || Number(task.estimated_minutes) > 1440)) {
-      return wx.showToast({ title: '请填写有效任务时长', icon: 'none' })
-    }
-
-    this._updatePlannerState({ phase: 'publishing' })
-    this._publishedPlanIds = this._publishedPlanIds || new Set()
-
-    wx.showLoading({ title: '发布中...' })
+  _restorePendingPublication() {
     try {
-      /**
-       * Step 1: 创建目标
-       * cloudApi.createGoal 返回格式兼容:
-       *   { success: true, id: "xxx" }
-       *   { id: "xxx" }
-       *   { data: { id: "xxx" } }
-       *   { result: { id: "xxx" } }
-       *   { data: { data: { id: "xxx" } } }
-       */
-      log('发布任务', 'Step1-创建目标', { title: goalTitle })
-      let goalRes
-      try { goalRes = await cloudApi.createGoal({ title: goalTitle, emoji: '🎯', target_value: days, target_days: days,
-        start_date: startDate, stages: goal.stages || [], create_initial_task: false }) }
-      catch (e) { log('发布任务', '❌ createGoal失败', e); throw e }
-      log('发布任务', 'Step1-完成', { raw: JSON.stringify(goalRes).slice(0, 200) })
-
-      // 兼容多层嵌套的 goalId 提取
-      const goalId = this._extractId(goalRes)
-      if (!goalId) {
-        throw new Error('创建目标失败：未能获取目标ID (返回: ' + JSON.stringify(goalRes).slice(0, 100) + ')')
+      if (this._pendingPublication && this._pendingPublication.owner !== publicationDraft.owner()) {
+        this._pendingPublication = null
+        this._updatePlannerState({ generatedGoal: null, generatedTasks: [], phase: 'idle',
+          goalContext: { what: '', why: '', deadline: '', dailyTime: '', level: '', constraints: '' } })
+        this.setData({ showPlanModal: false, publicationPending: false, publicationMessage: '' })
       }
-      log('发布任务', 'Step1-goalId=' + goalId)
+      if (this._publicationInFlight) return true
+      const saved = publicationDraft.load()
+      if (!saved) return false
+      this._pendingPublication = saved
+      const request = saved.request
+      this._updatePlannerState({ generatedGoal: request.goal, generatedTasks: request.tasks,
+        sourcePlanId: request.source_plan_id || '', phase: 'generating', goalContext: saved.context || {} })
+      this.setData({ mode: 'plan', showPlanModal: true, editableTasks: request.tasks,
+        planDays: request.goal.target_days, planStartDate: request.goal.start_date,
+        planEndDate: schedule.endDate(request.goal.start_date, request.goal.target_days), publicationPending: true,
+        publicationMessage: '上次发布尚待确认，点击继续确认即可安全重试。草稿暂时锁定，避免重复创建。' })
+      return true
+    } catch (error) {
+      wx.showToast({ title: error.message || '无法读取待确认草稿', icon: 'none' })
+      return true
+    }
+  },
 
-      /**
-       * Step 2: 创建任务
-       */
-      let created = 0
-      for (const task of tasks) {
-        const taskParams = {
-          goal_id: goalId,
-          title: task.title.trim(),
-          xp_reward: task.xp_reward || 10,
-          date: task.date,
-          stage: task.stage || 1,
-          estimated_minutes: Number(task.estimated_minutes)
-        }
-        log('发布任务', 'Step2-createTask', { index: created, title: taskParams.title, xp: taskParams.xp_reward })
-        try {
-          await cloudApi.createTask(taskParams)
-          created++
-        } catch (e) {
-          log('发布任务', '❌ createTask失败', { title: task.title, err: e })
-          // 继续创建下一个，不阻塞
-        }
+  async publishPlanTasks() {
+    if (this._publicationInFlight) return
+    if (!this._pendingPublication) {
+      if (this._restorePendingPublication() && !this._pendingPublication) return
+    }
+    if (!this._pendingPublication) {
+      const goal = this.data.plannerState.generatedGoal
+      const goalTitle = (goal && goal.title || '').trim()
+      const days = schedule.durationDays(this.data.planDays)
+      const start = this.data.planStartDate || getTodayStr()
+      const end = days && schedule.endDate(start, days)
+      if (!goalTitle || goalTitle.length > 200) return wx.showToast({ title: '目标名称需为1至200字', icon: 'none' })
+      if (!days || !schedule.validDate(start) || !end) return wx.showToast({ title: '请填写有效周期和开始日期', icon: 'none' })
+      const raw = Array.isArray(this.data.editableTasks) ? this.data.editableTasks : []
+      const tasks = schedule.draftTasks(raw.filter(t => t && typeof t.title === 'string' && t.title.trim()), start, days)
+        .map(t => ({ title: t.title.trim(), xp_reward: Number(t.xp_reward || 10), stage: t.stage || 1,
+          estimated_minutes: Number(t.estimated_minutes), date: t.date }))
+      if (!tasks.length || tasks.length > 20) return wx.showToast({ title: '一次请发布1至20项任务', icon: 'none' })
+      if (tasks.some(t => !schedule.validDate(t.date) || t.date < start || t.date > end)) return wx.showToast({ title: '任务日期需在目标周期内', icon: 'none' })
+      if (tasks.some(t => !Number.isInteger(t.estimated_minutes) || t.estimated_minutes < 1 || t.estimated_minutes > 1440)) return wx.showToast({ title: '请填写有效任务时长', icon: 'none' })
+      if (tasks.some(t => t.title.length > 200 || !Number.isInteger(t.xp_reward) || t.xp_reward < 1 || t.xp_reward > 1000 || !['string', 'number'].includes(typeof t.stage) || String(t.stage).length > 80 || (typeof t.stage === 'number' && (!Number.isSafeInteger(t.stage) || t.stage < 1)))) return wx.showToast({ title: '任务名称、经验或阶段不正确', icon: 'none' })
+      const stages = goal.stages || []
+      if (!Array.isArray(stages) || stages.length > 20 || stages.some(s => !s || [['name', 80], ['duration', 80], ['milestone', 200]].some(([key, limit]) => typeof (s[key] || '') !== 'string' || (s[key] || '').length > limit))) return wx.showToast({ title: '阶段内容过长或格式不正确', icon: 'none' })
+      const request = { publication_id: publicationDraft.newId(), source_plan_id: this.data.plannerState.sourcePlanId || '',
+        goal: { title: goalTitle, target_days: days, start_date: start,
+          stages: stages.map(s => ({ name: (s.name || '').trim(), duration: (s.duration || '').trim(), milestone: (s.milestone || '').trim() })) }, tasks }
+      try {
+        this._pendingPublication = publicationDraft.save(request, this.data.plannerState.goalContext)
+      } catch (error) {
+        return wx.showToast({ title: error.message || '无法保存草稿，请稍后重试', icon: 'none' })
       }
-      log('发布任务', 'Step2-完成', { created, total: tasks.length })
-
-      // 记录已发布的 plan_id
-      if (this.data.plannerState.lastPlanId) {
-        this._publishedPlanIds.add(this.data.plannerState.lastPlanId)
-      }
-
-      wx.hideLoading()
-      wx.showToast({ title: `✅ 已生成并发布 ${created} 个任务`, icon: 'success', duration: 2000 })
-
-      // 重置状态
-      this._updatePlannerState({ generatedGoal: null, generatedTasks: null, phase: 'idle' })
-      this.setData({ planStatus: '', showPlanModal: false, editableTasks: [] })
-
-      log('发布任务', '✅ 全部完成', { goalId, created })
-      console.log('[AI计划] 发布完成 goalId=' + goalId + ' created=' + created)
-      console.log('[AI计划] createGoal 返回=', goalRes)
-      console.log('[AI计划] createTask 完成数量=', created)
-
-      // 跳转到目标详情页
+    }
+    const saved = this._pendingPublication
+    if (saved.owner !== publicationDraft.owner()) {
+      this._restorePendingPublication()
+      return wx.showToast({ title: '账号已变化，请重新确认草稿', icon: 'none' })
+    }
+    this._publicationInFlight = true
+    this._updatePlannerState({ phase: 'publishing' })
+    this.setData({ publicationPending: true, publicationMessage: '正在确认发布结果，请稍候。' })
+    wx.showLoading({ title: '确认发布中...', mask: true })
+    try {
+      const result = await cloudApi.publishAiPlan(saved.request)
+      if (!result || result.success !== true || !result.goal_id || result.created_count !== saved.request.tasks.length) throw new Error('发布结果未确认，请重试')
+      if (saved.owner !== publicationDraft.owner()) return
+      try { publicationDraft.clear(saved.owner) } catch (error) { console.warn('[AI发布] 草稿缓存清理失败', error.message) }
+      this._pendingPublication = null
+      this._updatePlannerState({ generatedGoal: null, generatedTasks: [], phase: 'idle' })
+      this.setData({ planStatus: '', showPlanModal: false, editableTasks: [], publicationPending: false, publicationMessage: '' })
+      wx.showToast({ title: result.already_published ? '已确认此前发布成功' : '已发布' + result.created_count + '项任务', icon: 'success' })
       setTimeout(() => {
-        wx.navigateTo({ url: '/pages/goal-detail/goal-detail?id=' + goalId })
-      }, 1500)
-    } catch (e) {
+        if (saved.owner === publicationDraft.owner()) wx.navigateTo({ url: '/pages/goal-detail/goal-detail?id=' + result.goal_id })
+      }, 1200)
+    } catch (error) {
+      if (saved.owner !== publicationDraft.owner()) return
+      this._updatePlannerState({ phase: 'generating' })
+      const message = String(error && (error.message || error.errMsg) || error || '发布失败')
+      this.setData({ showPlanModal: true, publicationMessage: '结果尚未确认，草稿已保留。请点击继续确认发布。' })
+      wx.showToast({ title: message.slice(0, 40), icon: 'none' })
+    } finally {
+      this._publicationInFlight = false
       wx.hideLoading()
-      this._updatePlannerState({ phase: 'generating' })  // 恢复状态
-      const errMsg = (e && (e.message || e.errMsg || e)) || '发布失败'
-      log('发布任务', '❌ 发布失败', errMsg)
-      wx.showToast({ title: errMsg.slice(0, 30), icon: 'none' })
     }
   },
 

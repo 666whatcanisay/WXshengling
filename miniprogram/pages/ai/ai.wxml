@@ -489,7 +489,8 @@
           <text class="plan-sheet-title">AI 已生成成长计划</text>
           <text class="plan-sheet-close" bindtap="closePlanModal">×</text>
         </view>
-        <text class="plan-sheet-subtitle">确认后会创建目标和今日任务</text>
+        <text class="plan-sheet-subtitle">确认后会创建目标和按日期安排的任务</text>
+        <text wx:if="{{publicationPending}}" class="bs-schedule-hint">{{publicationMessage}}</text>
       </view>
       <view class="plan-sheet-body">
         <scroll-view scroll-y class="plan-sheet-scroll">
@@ -512,7 +513,7 @@
             <view class="bs-card-title">🎯 目标草稿</view>
             <view class="bs-goal-title-row">
               <text class="bs-goal-title-label">目标名称</text>
-              <input class="bs-input" value="{{plannerState.generatedGoal.title}}" bindinput="onPlanGoalTitle" placeholder="输入目标名称" />
+              <input class="bs-input" value="{{plannerState.generatedGoal.title}}" bindinput="onPlanGoalTitle" placeholder="输入目标名称" disabled="{{publicationPending}}" />
             </view>
             <view wx:if="{{plannerState.goalContext.why}}" class="bs-card-row">
               <text class="bs-card-label">描述</text>
@@ -520,12 +521,12 @@
             </view>
             <view class="bs-card-row">
               <text class="bs-card-label">周期</text>
-              <input class="bs-schedule-number" type="number" value="{{planDays}}" bindinput="onPlanDays" />
+              <input class="bs-schedule-number" type="number" value="{{planDays}}" bindinput="onPlanDays" disabled="{{publicationPending}}" />
               <text class="bs-card-text">天</text>
             </view>
             <view class="bs-card-row">
               <text class="bs-card-label">开始</text>
-              <picker mode="date" value="{{planStartDate}}" bindchange="onPlanStartDate">
+              <picker mode="date" value="{{planStartDate}}" bindchange="onPlanStartDate" disabled="{{publicationPending}}">
                 <text class="bs-schedule-picker">{{planStartDate}}　选择日期</text>
               </picker>
             </view>
@@ -541,17 +542,17 @@
           </view>
           <view class="bs-card bs-card-tasks">
             <view class="bs-card-title">📝 计划任务（{{editableTasks.length || 0}}）</view>
-            <text class="bs-schedule-hint">请确认每项任务的日期和时长。未指定日期的草案按顺序安排。</text>
+            <text class="bs-schedule-hint">请确认日期和时长，一次最多20项。未指定日期按顺序安排。</text>
             <view wx:if="{{editableTasks && editableTasks.length > 0}}">
               <view wx:for="{{editableTasks}}" wx:key="index" class="bs-task-item">
                 <view class="bs-task-row">
                   <view class="bs-task-info">
-                    <input class="bs-task-input" value="{{item.title}}" data-index="{{index}}" bindinput="editPlanTaskTitle" placeholder="输入任务描述" />
+                    <input class="bs-task-input" value="{{item.title}}" data-index="{{index}}" bindinput="editPlanTaskTitle" placeholder="输入任务描述" disabled="{{publicationPending}}" />
                     <view class="bs-task-schedule">
-                      <picker mode="date" value="{{item.date}}" start="{{planStartDate}}" end="{{planEndDate}}" data-index="{{index}}" bindchange="editPlanTaskDate">
+                      <picker mode="date" value="{{item.date}}" start="{{planStartDate}}" end="{{planEndDate}}" data-index="{{index}}" bindchange="editPlanTaskDate" disabled="{{publicationPending}}">
                         <text class="bs-schedule-picker">{{item.date}}</text>
                       </picker>
-                      <input class="bs-schedule-number" type="number" value="{{item.estimated_minutes}}" data-index="{{index}}" bindinput="editPlanTaskMinutes" />
+                      <input class="bs-schedule-number" type="number" value="{{item.estimated_minutes}}" data-index="{{index}}" bindinput="editPlanTaskMinutes" disabled="{{publicationPending}}" />
                       <text>分钟 · 阶段{{item.stage || 1}}</text>
                     </view>
                     <view class="bs-xp-row">
@@ -578,9 +579,9 @@
         </scroll-view>
       </view>
       <view class="plan-sheet-footer">
-        <button class="plan-sheet-btn plan-sheet-btn-cancel" bindtap="closePlanModal">取消</button>
+        <button class="plan-sheet-btn plan-sheet-btn-cancel" bindtap="closePlanModal">{{publicationPending ? '稍后确认' : '取消'}}</button>
         <button class="plan-sheet-btn plan-sheet-btn-publish" bindtap="publishPlanTasks" disabled="{{plannerState.phase === 'publishing'}}">
-          {{plannerState.phase === 'publishing' ? '发布中...' : '确认发布'}}
+          {{plannerState.phase === 'publishing' ? '发布中...' : (publicationPending ? '继续确认发布' : '确认发布')}}
         </button>
       </view>
     </view>

@@ -4,6 +4,7 @@ const db = cloud.database();
 const _ = db.command;
 const https = require('https');
 const taskRules = require('./lib/taskRules');
+const publishAiPlan = require('./lib/planPublication').createPublisher(cloud);
 
 function getOpenId() {
   return cloud.getWXContext().OPENID || "";
@@ -3327,6 +3328,7 @@ async function aiDoGenerate(openid, data) {
     if (!docs || docs.length === 0) return { code: -1, message: '任务不存在' }
 
     const plan = docs[0]
+    if (plan.kind === 'plan_publication') return { code: -1, message: '发布记录不能用于生成任务' }
     const messages = plan.messages || []
 
     // 已生成过直接返回
@@ -3648,6 +3650,7 @@ exports.main = async (event, context) => {
       case "aiStartGenerate":   return await aiStartGenerate(openid, data || {});
       case "aiDoGenerate":      return await aiDoGenerate(openid, data || {});
       case "aiPollPlan":        return await aiPollPlan(openid, data || {});
+      case "publishAiPlan":     return await publishAiPlan(openid, data || {});
       default:                  return { code: -1, message: "未知操作: " + action };
     }
   } catch (err) {
