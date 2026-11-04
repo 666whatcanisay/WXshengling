@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-04",
+  "envId": "cloud1-d5gz9j6zh654f4b36",
+  "region": "ap-shanghai",
+  "cliVersion": "3.5.6",
+  "scope": "Read-only fn list/detail, individual permission get and six collection counts; no function invocation, deployment, ACL or business writes",
+  "functions": [
+    {"name":"app","runtime":"Nodejs16.13","status":"Active","timeout":30,"memoryMb":256,"handler":"index.main","installDependency":true,"environmentVariables":0,"layers":0,"triggers":0,"hasRole":true,"hasVpc":false,"publicNet":"ENABLE","lastModifiedFromList":"2026-06-26 10:59:15"},
+    {"name":"login","runtime":"Nodejs16.13","status":"Active","timeout":3,"memoryMb":256,"handler":"index.main","installDependency":true,"environmentVariables":0,"layers":0,"triggers":0,"hasRole":true,"hasVpc":false,"publicNet":"ENABLE","lastModifiedFromList":"2026-06-23 20:13:22"},
+    {"name":"init","runtime":"Nodejs16.13","status":"Active","timeout":3,"memoryMb":256,"handler":"index.main","installDependency":true,"environmentVariables":0,"layers":0,"triggers":0,"hasRole":true,"hasVpc":false,"publicNet":"ENABLE","lastModifiedFromList":"2026-06-23 22:01:55"}
+  ],
+  "candidateFunctionNamesAbsent": ["app-node24","login-node24","init-node24"],
+  "functionRule": {"*":{"invoke":"auth != null && auth.loginType != 'ANONYMOUS'"}},
+  "collectionPermissionsIndividuallyQueried": {"users":"PRIVATE","goals":"PRIVATE","tasks":"PRIVATE","ai_plans":"PRIVATE","growth_logs":"PRIVATE","user_growth_pool":"PRIVATE"},
+  "collectionCounts": {"users":4,"goals":29,"tasks":47,"ai_plans":27,"growth_logs":572,"user_growth_pool":4},
+  "clientSourceInspection": {"scope":"miniprogram JavaScript files","directDatabaseApiMatches":0,"patterns":["wx.cloud.database","cloud.database",".collection("]},
+  "inference": "PRIVATE permits owners to read/write their documents. Sensitive user roles, XP, pool balances and publication receipts may bypass cloud-function validation through client database APIs; no write exploit was attempted.",
+  "permissionProposalApplied": false,
+  "node24CreationInThisAccountVerified": false,
+  "notes": ["Comma-separated CLI resource query produced a combined resource name; only individually queried collection permissions are used as evidence.","hasRole is presence only, not proof of equivalent effective permissions."]
+}

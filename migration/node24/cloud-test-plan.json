@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "status": "proposal-awaiting-cloud-write-scope-confirmation",
+  "envId": "cloud1-d5gz9j6zh654f4b36",
+  "region": "ap-shanghai",
+  "sourceCommit": "05459962d725361661d156699779d2bff8c434e3",
+  "newFunctions": ["app-node24", "login-node24", "init-node24"],
+  "runtime": "Nodejs24.11",
+  "collectionPermissionChanges": {
+    "users": "ADMINONLY",
+    "goals": "ADMINONLY",
+    "tasks": "ADMINONLY",
+    "ai_plans": "ADMINONLY",
+    "growth_logs": "ADMINONLY",
+    "user_growth_pool": "ADMINONLY"
+  },
+  "functionPermissionMerge": {"init-node24": {"invoke": false}},
+  "preserveExistingFunctionRules": true,
+  "testAccountProposal": "lzk; verify native caller identity before any business write",
+  "testLimits": {
+    "newGoals": 1,
+    "newTasks": 3,
+    "newPublicationRecords": 1,
+    "newGrowthLogs": 2,
+    "newGrowthPoolsIfInitiallyAbsent": 1,
+    "maxUserXpDelta": 30,
+    "maxPoolDelta": 30,
+    "maxTotalEarnedDelta": 30,
+    "paidModelCalls": 0
+  },
+  "checks": [
+    "Cloud runtime, entry loading and strict database read with native WeChat identity",
+    "Silent login lookup for existing account only; no authLogin or registration",
+    "20 repeated publications return the same goal and 3 tasks",
+    "Repeated and concurrent completion of two today tasks awards only 10+20 XP",
+    "Future task rejected without reward",
+    "An ignored first response followed by retry returns the existing receipt"
+  ],
+  "cleanup": {
+    "selector": "Exact manifest IDs plus verified caller ownership; never prefix-only or collection-wide deletion",
+    "rewardReversal": "Only the actual verified test reward increments; do not restore whole-user snapshots",
+    "onUncertainState": "Stop cleanup and report; no guessed balance correction"
+  },
+  "excluded": [
+    "Invoke init or init-node24",
+    "Modify or delete existing production functions",
+    "Switch normal frontend function mappings or publish the mini program",
+    "Invoke hatchProgress or modify pets, inventory, API keys or user roles",
+    "Run writes as another user's openid or invent a trusted caller identity",
+    "Claim non-admin native caller isolation without a second test WeChat account"
+  ]
+}

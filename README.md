@@ -19,6 +19,7 @@ npm run verify
 - 本地日期/周期与任务流程有改动，尚未部署；线上三个函数仍为Node16。详见 [项目状态](docs/README.md)。
 - LangGraph.js仅有[隔离兼容实验](experiments/langgraph-compat/README.md)，正式多Agent尚未完成。
 - [Node24迁移准备](docs/NODE24_MIGRATION.md)从已下载的线上基线生成新函数副本材料，不自动部署，不混入未上线业务改动。
+- [Node24业务联调准备](docs/NODE24_CLOUD_PREFLIGHT.md)另从固定Git提交生成包含修复的副本，附云端权限发现与待确认的真实测试范围。
 - API Key在应用配置或云端管理；不要写入源码。个人微信开发者工具配置、工具缓存和依赖目录不提交。
 
 ## 接手项目

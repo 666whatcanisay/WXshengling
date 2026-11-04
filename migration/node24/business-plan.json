@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "purpose": "current-business-node24-verification",
+  "envId": "cloud1-d5gz9j6zh654f4b36",
+  "region": "ap-shanghai",
+  "runtime": "Nodejs24.11",
+  "sourceCommit": "05459962d725361661d156699779d2bff8c434e3",
+  "functions": [
+    {
+      "sourceName": "app",
+      "targetName": "app-node24",
+      "handler": "index.main",
+      "timeout": 30,
+      "memorySize": 256,
+      "files": {
+        "index.js": "9bfe31cce2b9b5be28b135632f43d22f6e7b1897fb7fb125124420f51cfbd15f",
+        "lib/taskRules.js": "9ff2055c36e9e4b471f5be567ce911e9485785b638077087e4b3cbd1b3c1dc2c",
+        "lib/planPublication.js": "a8cf5d6af7469edf3d6f17a6f53bf4474a9ae7a1a0f71d9b30e1b4930382ece4",
+        "config.json": "5e544f6d0cdda72ae4509a6607a749831d0dbfcc4aab480993d442060e63151d",
+        "package.json": "c0e76f918eebd52ae1536fa2a9739ef8856175248ca32f55034c11ea6e619555",
+        "package-lock.json": "5130e75350ee2454af3dd95a8d6841826fcb18b44ccf5daf586c0482b3ffdd04"
+      }
+    },
+    {
+      "sourceName": "login",
+      "targetName": "login-node24",
+      "handler": "index.main",
+      "timeout": 3,
+      "memorySize": 256,
+      "files": {
+        "index.js": "174c0ae2a706435d6f4d35c914caa43b48500cb48d780c6f38490d0d0eb7bf8e",
+        "package.json": "fdc68cbd795e6d4bbf50c032c4fa58fb6d09c097fe9d5be9ed472a769434ecdf",
+        "package-lock.json": "07b7440dd3776f5b2e7295178ad9029b2b3c6e18165cc01b7f5a28dccef67697"
+      }
+    },
+    {
+      "sourceName": "init",
+      "targetName": "init-node24",
+      "handler": "index.main",
+      "timeout": 3,
+      "memorySize": 256,
+      "files": {
+        "index.js": "1d6b214ef4eb3e55dfc8f2bdb586f142ffd8883aec45ee58a7cc2416ff973d7b",
+        "package.json": "e5133c1eea49722c408eb7cc7cab29003e5730f60d97594cee8551c9b93432ec",
+        "package-lock.json": "c4d69b21d9f90ea545c4ad26688e488fc72776bb6e9661ddba6e508151df0d27"
+      }
+    }
+  ],
+  "permissionProposal": {
+    "collections": [
+      "users",
+      "goals",
+      "tasks",
+      "ai_plans",
+      "growth_logs",
+      "user_growth_pool"
+    ],
+    "from": "PRIVATE",
+    "to": "ADMINONLY",
+    "applied": false
+  },
+  "deployApproved": false
+}

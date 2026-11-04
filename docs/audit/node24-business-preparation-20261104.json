@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-04",
+  "node": "v24.22.2",
+  "sourceCommit": "05459962d725361661d156699779d2bff8c434e3",
+  "artifact": {
+    "status": "prepared-and-verified",
+    "sourceCommit": "05459962d725361661d156699779d2bff8c434e3",
+    "output": "C:\\Users\\27715\\WeChatProjects\\miniprogram-2\\.migration\\node24-business-0545996",
+    "files": 14,
+    "targets": [
+      "app-node24",
+      "login-node24",
+      "init-node24"
+    ],
+    "deployed": false
+  },
+  "checks": [
+    "Unpinned HEAD rejected",
+    "System Node22 rejected",
+    "Tampered artifact rejected without overwrite",
+    "Extra artifact file rejected"
+  ],
+  "sdkEntriesLoadedWithoutInvocation": [
+    "app-node24",
+    "login-node24",
+    "init-node24"
+  ],
+  "baselineManifestSha256": "f843c65f40ca86772b5218e2f6b343bb1694b2cc75394255e5149fd671eb91f1",
+  "scope": "Local artifact preparation and read-only cloud checks; no deploy/invocation/database writes/permission changes",
+  "configurationValidation": {
+    "semanticMatchToPreviouslyValidatedBaseline": true,
+    "officialSchema": "https://static.cloudbase.net/cli/cloudbaserc.schema.json",
+    "scope": "Same JSON structure and values as the baseline validated against the official schema; no fresh validator execution"
+  }
+}
