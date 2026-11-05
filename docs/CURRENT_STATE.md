@@ -5,6 +5,7 @@
 
 ## 状态说明
 
+- 2026-11-05 旧版兼容补丁（D025，待原app部署确认）：重新下载原app完整包，入口SHA256仍d485b3cd...231d0；实际SDK与本地一致。固定0545996抽取严格管理员校验/打卡奖励事务，仅修改原index的两个函数，其余字节不变；保留原目标天数派生/repairGoalDays、全局UTC、宠物及其他路由。未来任务按北京日期拒绝；不改旧客户端额外hatchProgress，不能说旧版全部奖励/统计已闭环。补丁9aca735d...504bf在Node16.13与24各220项通过、主线531项通过；SDK增量打包仅index.js/47.7KB，云预检原app配置未变、六集合ADMINONLY。完整备份/单文件回退材料位于忽略目录，脱敏证据audit/legacy-app-hotfix-20261105.json。本轮尚未覆盖原app、调用模型或新增业务测试数据；已提交具体部署范围供用户确认，详见LEGACY_APP_HOTFIX.md。
 - 2026-11-05 前端入口（D024）：用户确认已正式发布，版本号/源码未核实。本地cloudConfig统一env与app/login映射，cloudApi固定Node24副本、显式config.env，重试不混后端；App只读诊断输出身份摘要/离线缓存标志。531项本地检查及38份生产JS语法通过。用户编译后返回真实Node24入口/lzk/admin/cachedOffline=false/loginVerified=true/tasksReadable=true，连接检查通过；页面未逐项确认。成长日志入口已核实为“我的→成长日志→成长足迹”，不在AI规划师，非聊天后才出现；计划中的主动复盘新流程尚未实现。未改模板/样式、SDK、旧函数、权限或发布包。
 - 再核旧版边界：原app/login仍Active且客户端可用；旧app的管理员username兜底、非原子打卡未因数据库ADMINONLY自动修复。新前端publishAiPlan旧app不支持，改回旧名只能应急选择旧接口，不代表完整版本回退。登录页仍存在超时离线管理员/默认经验模板，验收需排除离线假成功。新版发布、旧端兼容补丁及普通账号/真机仍待明确。
 - 2026-11-05 Node24云端执行（D023）：用户批准具体方案，已创建三个Nodejs24.11副本（Active）；六集合改ADMINONLY，保留原函数通配规则并只增加init-node24调用拒绝。原app/login/init仍16.13，日常前端仍调用原名。Node24在线装依赖失败，改为本地打包原锁定wx-server-sdk2.4.0，InstallDependency=FALSE；没有升级产品SDK。管理连接经现有本机代理解决超时，没有更改系统网络配置。

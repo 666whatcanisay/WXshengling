@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "envId": "cloud1-d5gz9j6zh654f4b36",
+  "functionName": "app",
+  "runtime": "Nodejs16.13",
+  "baselineIndexSha256": "d485b3cdae824b1e3b07e595ce35908ffb4c45b2ae79a21514af001f0cc231d0",
+  "canonicalCommit": "05459962d725361661d156699779d2bff8c434e3",
+  "canonicalPath": "cloudfunctions/app/index.js",
+  "canonicalIndexSha256": "9bfe31cce2b9b5be28b135632f43d22f6e7b1897fb7fb125124420f51cfbd15f",
+  "changedFiles": ["index.js"],
+  "changes": ["strict caller-bound checkAdmin", "atomic taskCheckin rewards; Beijing-date future-task guard"],
+  "preserve": ["all other functions and routes", "legacy goal-day derivation", "dependencies", "runtime and configuration", "function security rules", "login/init and Node24 functions"],
+  "businessTestWrites": "not authorized by this preparation; use read-only native checks after deployment",
+  "rollback": "Exact backed-up index.js only; restoring it reintroduces known bugs, never automatic"
+}

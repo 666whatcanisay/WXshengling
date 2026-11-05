@@ -19,6 +19,7 @@ const seed = (tasks = [task('t')], pool = []) => ({
 });
 const source = process.argv[2] === '--source-ref'
   ? execFileSync('git', ['show', process.argv[3] + ':cloudfunctions/app/index.js'], { cwd: root, encoding: 'utf8' })
+  : process.argv[2] === '--source-file' ? fs.readFileSync(path.resolve(process.argv[3]), 'utf8')
   : fs.readFileSync(appFile, 'utf8');
 function contextFor(env) {
   const context = vm.createContext({

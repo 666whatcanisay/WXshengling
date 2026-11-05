@@ -1,0 +1,120 @@
+--- a/index.js
++++ b/index.js
+@@ -338,18 +338,58 @@
+ }
+ 
+ async function taskCheckin(openid, data) {
+-  if (!data.task_id) return { code: -1, message: "缺少任务ID" };
+-  // 【安全修复】查询必须绑定 _openid，防止跨用户操作
+-  const tasks = await safeQuery("tasks", { _id: data.task_id, _openid: openid });
+-  const task = tasks[0];
+-  if (!task) return { code: -1, message: "任务不存在" };
+-  if (task.completed) return { success: true, already_completed: true, message: "任务已完成" };
+-
+-  const xpReward = task.xp_reward || 10;
+-  await safeUpdate("tasks", { _id: data.task_id }, { completed: true, completed_at: Date.now(), updated_at: Date.now() });
+-  await safeUpdate("users", { _openid: openid }, { total_xp: _.inc(xpReward), updated_at: Date.now() });
+-  await safeAdd("growth_logs", { _openid: openid, xp_change: xpReward, reason: `完成任务: ${task.title}`, source: "task", created_at: Date.now() });
+-
++  if (typeof data.task_id !== 'string' || !data.task_id) return { code: -1, message: "缺少任务ID" };
++  if (!openid) return { code: -1, message: "未登录" };
++  // 仅本流程允许 doc.get 返回 null，不改变其它接口的缺失文档行为。
++  const checkinDb = cloud.database({ throwOnNotFound: false });
++  // 不能用吞错的 safeQuery：读取失败不等于用户/成长池不存在。
++  const [userRows, poolRows] = await Promise.all([
++    checkinDb.collection("users").where({ _openid: openid }).limit(2).get(),
++    checkinDb.collection("user_growth_pool").where({ _openid: openid }).limit(2).get(),
++  ]);
++  if (userRows.data.length !== 1) return { code: -1, message: "用户记录异常，请重新登录或联系管理员" };
++  if (poolRows.data.length > 1) return { code: -1, message: "成长池记录重复，请联系管理员" };
++  const userId = userRows.data[0]._id;
++  const legacyPool = poolRows.data[0];
++  const poolId = legacyPool ? legacyPool._id : 'pool:' + openid;
++  const settlement = await checkinDb.runTransaction(async tx => {
++    const task = (await tx.collection("tasks").doc(data.task_id).get()).data;
++    if (!task || task._openid !== openid) return { code: -1, message: "任务不存在" };
++    if (task.date && task.date > new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10)) return { code: -1, message: "未来任务请到当天再打卡" };
++    if (task.completed) return { success: true, already_completed: true, xp_earned: 0, message: "任务已完成" };
++    const user = (await tx.collection("users").doc(userId).get()).data;
++    const pool = (await tx.collection("user_growth_pool").doc(poolId).get()).data;
++    if (!user || user._openid !== openid) throw new Error("用户记录已变更，请刷新后重试");
++    if ((pool && pool._openid !== openid) || (legacyPool && !pool)) throw new Error("成长池记录已变更，请刷新后重试");
++    const xpReward = task.xp_reward || 10;
++    if (!Number.isFinite(xpReward) || xpReward < 0) throw new Error("任务奖励异常");
++    const now = Date.now();
++    const updateOne = async (name, id, patch) => {
++      const res = await tx.collection(name).doc(id).update({ data: patch });
++      if (!res.stats || res.stats.updated !== 1) throw new Error("结算记录未更新: " + name);
++    };
++    await updateOne("tasks", task._id, { completed: true, completed_at: now, updated_at: now });
++    await updateOne("users", userId, { total_xp: _.inc(xpReward), updated_at: now });
++    // wx-server-sdk 只转交 options.data，自定义 _id 必须在 data 内。
++    await tx.collection("growth_logs").add({ data: {
++      _id: 'checkin-log:' + task._id, _openid: openid, xp_change: xpReward,
++      reason: '完成任务: ' + task.title, source: "task", created_at: now, updated_at: now,
++    }});
++    if (pool) {
++      await updateOne("user_growth_pool", poolId, {
++        growth_pool: _.inc(xpReward), total_earned: _.inc(xpReward), updated_at: now,
++      });
++    } else {
++      await tx.collection("user_growth_pool").add({ data: {
++        _id: poolId, _openid: openid, growth_pool: xpReward, total_earned: xpReward,
++        created_at: now, updated_at: now,
++      }});
++    }
++    return { success: true, xp_earned: xpReward, goal_id: task.goal_id, date: task.date };
++  });
++  if (!settlement.success || settlement.already_completed) return settlement;
++  // 兼容已发布旧版：仅核心结算复用新版事务，原目标天数派生逻辑保持不变。
++  const task = { goal_id: settlement.goal_id };
+   // 【V10.2】打卡后检查该目标今日任务是否全部完成，是则累计+1天
+   try {
+     if (task.goal_id) {
+@@ -373,18 +413,7 @@
+     }
+   } catch(e) { console.warn('[TASK-CHECKIN] 更新目标天数失败（非致命）:', e.message); }
+ 
+-  // 【V8.5修复】任务打卡经验也进入成长池，用户可自行分配给宠物
+-  try {
+-    var pool = await safeQuery("user_growth_pool", { _openid: openid });
+-    var poolRecord = pool[0];
+-    if (!poolRecord) {
+-      await safeAdd("user_growth_pool", { _openid: openid, growth_pool: xpReward, total_earned: xpReward, created_at: Date.now(), updated_at: Date.now() });
+-    } else {
+-      await safeUpdate("user_growth_pool", { _openid: openid }, { growth_pool: _.inc(xpReward), total_earned: _.inc(xpReward), updated_at: Date.now() });
+-    }
+-  } catch(e) { console.warn('[TASK-CHECKIN] 入池失败（非致命）:', e.message); }
+-
+-  return { success: true, xp_earned: xpReward };
++  return { success: true, xp_earned: settlement.xp_earned };
+ }
+ 
+ /**
+@@ -2594,26 +2623,15 @@
+ async function checkAdmin(openid) {
+   if (!openid) return false;
+   try {
+-    // 方式1：按 openid 查找
+     const res = await db.collection("users").where({ _openid: openid }).get();
+     if (res.data && res.data.length > 0) {
+-      // 遍历所有匹配记录（同openid可能有多个），任一为admin即通过
+       const adminRecord = res.data.find(u => u.role === 'admin');
+       if (adminRecord) {
+         console.log('[checkAdmin] ✅ 通过(openid)', adminRecord.username);
+         return true;
+       }
+-      // 打印所有匹配记录便于排查
+       console.log('[checkAdmin] ❌ openid匹配但无admin, 用户列表:', res.data.map(u => u.username + '(' + u.role + ')'));
+     }
+-
+-    // 【V8.3兜底】方式2：按 username 查找（兼容 Local 模式多账号同openid场景）
+-    const byName = await db.collection("users").where({ username: 'lzk' }).get();
+-    if (byName.data && byName.data[0] && byName.data[0].role === 'admin') {
+-      console.log('[checkAdmin] ✅ 通过(username兜底)');
+-      return true;
+-    }
+-
+     console.warn('[checkAdmin] 权限校验失败，openid:', (openid || '').substring(0, 10) + '...');
+     return false;
+   } catch (e) {
