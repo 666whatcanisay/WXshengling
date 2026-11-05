@@ -22,7 +22,9 @@ getApp().checkCloudConnection()
 
 预期functions为app-node24/login-node24、cachedOffline=false、loginVerified=true、tasksReadable=true。此诊断通过真实cloudApi读取当前身份/今日任务，不调用注册、init、宠物或模型，不输出openid/密码。cachedOffline=true表示当前缓存是旧离线展示状态，不能据此验收页面。
 
-随后只读查看首页、目标列表、任一目标详情切换日期、AI规划师和“我的→成长日志”。正常应读出原有数据，日期切换不报错；空日期显示空列表，不要求一定有任务。本轮先不新增/打卡/生成模型。当前编译与页面检查结果待用户返回；手机端和普通微信身份仍未验收。
+用户已返回编译后诊断：环境/函数名符合预期，lzk/admin，cachedOffline=false，loginVerified/tasksReadable均true；确认实际编译入口已连接Node24。用户在AI规划师内寻找成长日记，已澄清入口是底部“我的→成长日志”，页面标题“成长足迹”，与AI对话历史无关；计划中的主动复盘新流程尚未实现。
+
+其余只读页面检查尚未得到逐项确认：目标列表/详情切日期、首页、AI规划师、成长日志。正常应读出原有数据，空日期允许无任务；本轮不新增/打卡/生成模型。编译连接通过不等于全部页面或手机端/普通身份已验收。
 
 ## 回退与旧版兼容
 

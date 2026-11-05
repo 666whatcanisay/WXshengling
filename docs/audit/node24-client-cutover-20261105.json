@@ -62,7 +62,7 @@
   },
   "userReportsAlreadyPublished": true,
   "uploadOrPublishPerformed": false,
-  "nativeCompiledClientVerified": false,
+  "nativeCompiledClientVerified": true,
   "localVerification": {
     "node": "v24.22.2",
     "npmVerifyAssertions": 531,
@@ -70,5 +70,23 @@
     "productionJsSyntaxFiles": 38,
     "cloudWrites": false,
     "notes": "Legacy-name offline test checks name selection only; does not simulate the deployed old API surface"
+  },
+  "nativeCompiledClientEvidence": {
+    "reportedOn": "2026-11-05",
+    "evidence": "User pasted checkCloudConnection output from WeChat DevTools Console",
+    "env": "cloud1-d5gz9j6zh654f4b36",
+    "functions": {
+      "app": "app-node24",
+      "login": "login-node24"
+    },
+    "username": "lzk",
+    "role": "admin",
+    "cachedOffline": false,
+    "loginVerified": true,
+    "tasksReadable": true
+  },
+  "pageVerification": {
+    "allRequestedPagesConfirmed": false,
+    "note": "User looked for growth journal inside AI planner; clarified actual entry is Mine > Growth logs, page title Growth footprint. Remaining page rendering not confirmed."
   }
 }

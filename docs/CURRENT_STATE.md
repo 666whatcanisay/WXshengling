@@ -1,11 +1,11 @@
 # 当前实现与核查边界
 
 更新日期：2026-11-05
-依据：本地源码、录像、隔离复现、云端配置、用户返回的微信开发者工具结果及管理端精确核账/清理。Node24限量联调已通过；本地正常入口已切换、编译与页面待用户确认，手机端未验收。最新证据见audit/node24-client-cutover-20261105.json及audit/node24-cloud-rollout-20261105.json。
+依据：本地源码、录像、隔离复现、云端配置、用户返回的微信开发者工具结果及管理端精确核账/清理。Node24限量联调和本地编译后真实连接通过，其余页面及手机端未完整验收。最新证据见audit/node24-client-cutover-20261105.json及audit/node24-cloud-rollout-20261105.json。
 
 ## 状态说明
 
-- 2026-11-05 前端入口（D024）：用户确认已正式发布，小程序发布版本号/源码未核实。本地新增cloudConfig统一env与app/login映射，所有云API经同一适配层调用Node24副本，显式config.env，重试不混后端；App新增只读checkCloudConnection，输出目标函数/身份摘要/离线缓存标志。未改页面模板/样式、产品SDK、线上旧函数、权限或发布包。35项客户端→实际handler→SDK离线调用检查通过，加原496项共531项。已请用户编译并只读查看首页/目标详情/AI/成长日志，结果待返回。
+- 2026-11-05 前端入口（D024）：用户确认已正式发布，版本号/源码未核实。本地cloudConfig统一env与app/login映射，cloudApi固定Node24副本、显式config.env，重试不混后端；App只读诊断输出身份摘要/离线缓存标志。531项本地检查及38份生产JS语法通过。用户编译后返回真实Node24入口/lzk/admin/cachedOffline=false/loginVerified=true/tasksReadable=true，连接检查通过；页面未逐项确认。成长日志入口已核实为“我的→成长日志→成长足迹”，不在AI规划师，非聊天后才出现；计划中的主动复盘新流程尚未实现。未改模板/样式、SDK、旧函数、权限或发布包。
 - 再核旧版边界：原app/login仍Active且客户端可用；旧app的管理员username兜底、非原子打卡未因数据库ADMINONLY自动修复。新前端publishAiPlan旧app不支持，改回旧名只能应急选择旧接口，不代表完整版本回退。登录页仍存在超时离线管理员/默认经验模板，验收需排除离线假成功。新版发布、旧端兼容补丁及普通账号/真机仍待明确。
 - 2026-11-05 Node24云端执行（D023）：用户批准具体方案，已创建三个Nodejs24.11副本（Active）；六集合改ADMINONLY，保留原函数通配规则并只增加init-node24调用拒绝。原app/login/init仍16.13，日常前端仍调用原名。Node24在线装依赖失败，改为本地打包原锁定wx-server-sdk2.4.0，InstallDependency=FALSE；没有升级产品SDK。管理连接经现有本机代理解决超时，没有更改系统网络配置。
 - 用户在开发者工具运行只读脚本返回：lzk/admin；login-node24、原app、新app全部ok:true；directClientReadDenied:true。证据属于用户返回的真实微信联调结果，不是助手控屏观察或手机验收。未调用init、模型或宠物；普通账号隔离尚未验证，旧函数仍保留，不能宣称整体安全问题已闭环。
