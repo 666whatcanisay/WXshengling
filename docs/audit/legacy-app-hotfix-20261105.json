@@ -34,5 +34,41 @@
     "tamperedSourcesRejected": true,
     "outsideTwoFunctionsBytePreserved": true,
     "testOnlyStructuredCloneShim": "Node16 test harness only; uses v8 serialize/deserialize; not included in uploaded code"
-  }
+  },
+  "approval": {
+    "approvedOn": "2026-11-05",
+    "userReply": "现在更新旧 app",
+    "action": "incremental-index-update"
+  },
+  "deployed": true,
+  "deploymentStatus": "code-and-config-verified",
+  "requestId": "86beba8c-c2ab-4b2e-a1c8-ddac63b7d69e",
+  "verifiedAt": "2026-11-05T04:45:57.557Z",
+  "unchangedOtherFiles": 3750,
+  "nativeWechatReadonly": {
+    "passed": true,
+    "reportedOn": "2026-11-05",
+    "evidence": "User pasted DevTools Console output",
+    "identityOk": true,
+    "username": "lzk",
+    "role": "admin",
+    "checks": [
+      {
+        "name": "app",
+        "action": "listTasks",
+        "ok": true
+      },
+      {
+        "name": "app",
+        "action": "adminDashboard",
+        "ok": true
+      },
+      {
+        "name": "app-node24",
+        "action": "listTasks",
+        "ok": true
+      }
+    ]
+  },
+  "nativeCheckinWritesTested": false
 }

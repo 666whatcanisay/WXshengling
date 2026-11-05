@@ -4,6 +4,7 @@
 
 ## 已落实
 
+- 旧入口兼容收尾（D025）：用户批准后只更新原app的index.js两函数，管理员校验/打卡核心事务修正，Node16及其余3750文件/配置不变。微信旧app任务/管理概览、新Node24任务读取均通过；未发布小程序，不代表旧函数runtime已升级。见LEGACY_APP_HOTFIX.md。
 - 最新前端执行（D024）：cloudConfig统一env及app-node24/login-node24，App提供只读连接诊断；531项本地检查、38份JS语法及用户编译后真实连接检查通过，其余页面未逐项确认。用户确认已正式发布，旧app/login继续可用；本轮未上传或发布，旧入口兼容及完整版本回退另定。见NODE24_CLIENT_CUTOVER.md。
 - 最新执行（2026-11-05，D023）：用户批准具体范围，0545996业务源码部署到app-node24/login-node24/init-node24（Active/Nodejs24.11）。因云在线装依赖失败，改为本地打包原锁定依赖并禁在线安装，没有升级产品SDK。六核心集合ADMINONLY，init-node24客户端调用拒绝；真实微信读取、重复发布、并发打卡/明日拒绝及精确清理均通过，净奖励变化复核为0。原三函数和正常映射保持原样。当前npm verify共496项通过，含72项清理断言，详见NODE24_CLOUD_PREFLIGHT.md。
 - 最新业务联调准备（2026-11-04，D022）：从0545996固定Git对象另生成`.migration/node24-business-0545996`，14文件，见NODE24_CLOUD_PREFLIGHT.md。只读发现六核心集合PRIVATE，配套权限方案与账号测试范围已列出，未应用；没有用新版覆盖下面的旧线上基线材料。
