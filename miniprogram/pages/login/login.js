@@ -1,33 +1,22 @@
 const cloudApi = require('../../utils/cloudApi')
 
-// ===== 管理员账号完整数据模板 =====
-function buildAdminUserInfo(baseInfo) {
-  const now = Date.now()
-  return {
-    ...baseInfo,
-    id: baseInfo.id || ('admin_' + now),
-    openid: baseInfo.openid || '',
-    username: baseInfo.username || 'lzk',
-    nickname: baseInfo.nickname || 'lzk',
-    avatar: baseInfo.avatar || '',
-    level: baseInfo.level || 5,
-    total_xp: baseInfo.total_xp || 2680,
-    streak_days: baseInfo.streak_days || 7,
-    role: 'admin',
-    is_new: baseInfo.is_new || false,
-    created_at: baseInfo.created_at || now,
-    // 扩展字段（供管理后台使用）
-    _isLocalAdmin: true,
-  }
+const { parseUserSession } = require('../../utils/userSession')
+
+function saveCloudSession(result) {
+  const user = parseUserSession(result)
+  const app = getApp()
+  app.clearUserSession()
+  app.setUserInfo(user)
+  return user
 }
 
-// ===== 普通用户数据模板 =====
-function buildNormalUserInfo(baseInfo) {
-  return {
-    ...baseInfo,
-    role: baseInfo.role || 'user',
-    _isLocalAdmin: false,
+function errorMessage(error, fallback, registration = false) {
+  const raw = typeof error === 'string' ? error : error && (error.errMsg || error.message)
+  const message = typeof raw === 'string' && raw.trim() ? raw : fallback
+  if (/timeout|超时|-504003/i.test(message)) {
+    return registration ? '请求超时，注册结果未确认，请先尝试登录' : '请求超时，请重试'
   }
+  return message
 }
 
 Page({
@@ -82,201 +71,61 @@ Page({
   onRegPassword2Input(e) { this.setData({ regPassword2: e.detail.value }) },
   onRegNicknameInput(e) { this.setData({ regNickname: e.detail.value.trim() }) },
 
-  // ===== 账号密码登录 =====
+  // 三个入口都只接受云端完整身份；失败不保存新会话、不跳转。
   async handleAccountLogin() {
+    if (this.data.loading || this.data.regLoading || this.data.wxLoginLoading) return
     const { username, password, agreed } = this.data
-
     if (!agreed) return wx.showToast({ title: '请先同意用户协议', icon: 'none' })
     if (!username) return wx.showToast({ title: '请输入用户名', icon: 'none' })
     if (!password) return wx.showToast({ title: '请输入密码', icon: 'none' })
-
     this.setData({ loading: true })
-
     try {
-      let userInfo = await cloudApi.accountLogin({ username, password })
-
-      if (userInfo) {
-        // 管理员账号：补全本地数据
-        if (userInfo.role === 'admin' || username === 'lzk') {
-          userInfo = buildAdminUserInfo(userInfo)
-        } else {
-          userInfo = buildNormalUserInfo(userInfo)
-        }
-
-        const app = getApp()
-        app.clearUserSession() // 【安全修复】切换用户前清除所有旧缓存
-        app.globalData.userInfo = userInfo
-        app.setUserInfo(userInfo) // 【V8.3修复】确保 currentOpenid 被正确设置
-        wx.setStorageSync('cloud_userInfo', userInfo)
-
-        wx.showToast({
-          title: (userInfo.role === 'admin' ? '👑 管理员，' : '') + '欢迎回来，' + (userInfo.nickname || userInfo.username || '') + ' 🌿',
-          icon: 'success',
-        })
-        setTimeout(() => {
-          wx.switchTab({ url: '/pages/home/home' })
-        }, 800)
-      }
-    } catch (err) {
-      console.error('[Login] 账号登录失败:', err)
-      const msg = typeof err === 'string' ? err : (err.message || '登录失败')
-
-      // 云端超时时，如果是 lzk 则用本地管理员数据放行
-      if ((msg.indexOf('timeout') >= 0 || msg.indexOf('超时') >= 0) && username === 'lzk') {
-        console.warn('[Login] 云端超时，使用本地管理员模式（仅UI展示，不操作数据库）')
-        const localInfo = buildAdminUserInfo({ username: 'lzk', nickname: 'lzk' })
-        // 【安全修复】标记为离线模式，前端应避免数据库操作
-        localInfo._offlineMode = true
-        const app = getApp()
-        app.clearUserSession() // 先清除旧用户所有缓存
-        app.globalData.userInfo = localInfo
-        app.setUserInfo(localInfo) // 【V8.3修复】离线模式也设置
-        wx.setStorageSync('cloud_userInfo', localInfo)
-        wx.showToast({ title: '👑 管理员模式（离线）', icon: 'success' })
-        setTimeout(() => { wx.switchTab({ url: '/pages/home/home' }) }, 800)
-        return
-      }
-
-      const displayMsg = msg.indexOf('timeout') >= 0 ? '请求超时，请确认云函数已部署' : msg
-      wx.showToast({ title: displayMsg, icon: 'none' })
+      const user = saveCloudSession(await cloudApi.accountLogin({ username, password }))
+      this.setData({ password: '' })
+      wx.showToast({ title: (user.role === 'admin' ? '👑 管理员，' : '') + '欢迎回来，' + (user.nickname || user.username || '') + ' 🌿', icon: 'success' })
+      setTimeout(() => wx.switchTab({ url: '/pages/home/home' }), 800)
+    } catch (error) {
+      wx.showToast({ title: errorMessage(error, '登录失败，请重试'), icon: 'none' })
     } finally {
       this.setData({ loading: false })
     }
   },
 
-  // ===== 账号注册 =====
   async handleAccountRegister() {
+    if (this.data.loading || this.data.regLoading || this.data.wxLoginLoading) return
     const { regUsername, regPassword, regPassword2, regNickname, agreed } = this.data
-
     if (!agreed) return wx.showToast({ title: '请先同意用户协议', icon: 'none' })
     if (!regUsername) return wx.showToast({ title: '请设置用户名', icon: 'none' })
     if (regUsername.length < 2) return wx.showToast({ title: '用户名至少2个字符', icon: 'none' })
     if (!regPassword) return wx.showToast({ title: '请设置密码', icon: 'none' })
     if (regPassword.length < 6) return wx.showToast({ title: '密码至少6位', icon: 'none' })
     if (regPassword !== regPassword2) return wx.showToast({ title: '两次密码不一致', icon: 'none' })
-
     this.setData({ regLoading: true })
-
     try {
-      let userInfo = await cloudApi.accountRegister({
-        username: regUsername,
-        password: regPassword,
-        nickname: regNickname || regUsername,
-      })
-
-      if (userInfo) {
-        // 【V12】只检查 role，不滥用 is_new（所有新用户的 is_new 都是 true）
-        // lzk 已经是管理员，新注册的用户都是普通用户
-        if (userInfo.role === 'admin' || regUsername === 'lzk') {
-          userInfo = buildAdminUserInfo(userInfo)
-        } else {
-          userInfo = buildNormalUserInfo(userInfo)
-        }
-
-        const app = getApp()
-        app.clearUserSession() // 【安全修复】切换用户前清除所有旧缓存
-        app.globalData.userInfo = userInfo
-        app.setUserInfo(userInfo) // 【V8.3修复】确保 currentOpenid 被正确设置
-        wx.setStorageSync('cloud_userInfo', userInfo)
-
-        const roleTag = userInfo.role === 'admin' ? '（管理员）🎉' : ' 🌿'
-        wx.showToast({
-          title: (userInfo.is_new ? '注册成功！' : '欢迎回来') + roleTag,
-          icon: 'success',
-        })
-        setTimeout(() => {
-          wx.switchTab({ url: '/pages/home/home' })
-        }, 800)
-      }
-    } catch (err) {
-      console.error('[Login] 注册失败:', err)
-      const msg = typeof err === 'string' ? err : (err.message || '注册失败')
-
-      // 云端超时时，如果是 lzk 注册 → 本地创建管理员
-      if ((msg.indexOf('timeout') >= 0 || msg.indexOf('超时') >= 0) && regUsername === 'lzk') {
-        console.warn('[Login] 云端超时，本地创建管理员账号（仅UI展示）')
-        const localInfo = buildAdminUserInfo({
-          username: 'lzk', nickname: regNickname || 'lzk', is_new: true,
-        })
-        localInfo._offlineMode = true
-        const app = getApp()
-        app.clearUserSession() // 先清除旧用户所有缓存
-        app.globalData.userInfo = localInfo
-        app.setUserInfo(localInfo) // 【V8.3修复】离线模式也设置
-        wx.setStorageSync('cloud_userInfo', localInfo)
-        wx.showToast({ title: '🎉 注册成功！（管理员·离线模式）', icon: 'success' })
-        setTimeout(() => { wx.switchTab({ url: '/pages/home/home' }) }, 800)
-        return
-      }
-
-      wx.showToast({ title: msg, icon: 'none' })
+      const user = saveCloudSession(await cloudApi.accountRegister({ username: regUsername, password: regPassword, nickname: regNickname || regUsername }))
+      this.setData({ regPassword: '', regPassword2: '' })
+      wx.showToast({ title: (user.is_new ? '注册成功！' : '欢迎回来') + (user.role === 'admin' ? '（管理员）🎉' : ' 🌿'), icon: 'success' })
+      setTimeout(() => wx.switchTab({ url: '/pages/home/home' }), 800)
+    } catch (error) {
+      wx.showToast({ title: errorMessage(error, '注册失败，请重试', true), icon: 'none' })
     } finally {
       this.setData({ regLoading: false })
     }
   },
 
-  // ===== 微信一键登录（V12：wx.login + 云函数直取 openid，不依赖已废弃的 getUserProfile）=====
   async handleWechatLoginQuick() {
-    if (!this.data.agreed) {
-      return wx.showToast({ title: '请先同意用户协议', icon: 'none' })
-    }
-
+    if (this.data.loading || this.data.regLoading || this.data.wxLoginLoading) return
+    if (!this.data.agreed) return wx.showToast({ title: '请先同意用户协议', icon: 'none' })
     this.setData({ wxLoginLoading: true })
-
     try {
-      // Step 1: 调用 wx.login 获取临时 code，确保微信身份可信
-      const loginRes = await new Promise((resolve, reject) => {
-        wx.login({
-          success: resolve,
-          fail: reject
-        })
-      })
-
-      if (!loginRes.code) {
-        this.setData({ wxLoginLoading: false })
-        return wx.showToast({ title: '微信登录失败，请重试', icon: 'none' })
-      }
-
-      console.log('[Login] wx.login 成功，调用云函数 authLogin')
-
-      // Step 2: 调用云函数 authLogin（云函数通过 WXContext 获取 openid）
-      const userInfo = await cloudApi.authLogin({
-        nickname: '森林伙伴',
-        avatar: '',
-      })
-
-      if (!userInfo) {
-        this.setData({ wxLoginLoading: false })
-        return wx.showToast({ title: '登录失败，请重试', icon: 'none' })
-      }
-
-      // Step 3: 根据角色构建用户数据
-      if (userInfo.role === 'admin') {
-        var finalInfo = buildAdminUserInfo(userInfo)
-      } else {
-        var finalInfo = buildNormalUserInfo(userInfo)
-      }
-
-      // Step 4: 保存用户会话
-      const app = getApp()
-      app.clearUserSession()
-      app.globalData.userInfo = finalInfo
-      app.setUserInfo(finalInfo)
-      wx.setStorageSync('cloud_userInfo', finalInfo)
-
-      const welcomeMsg = userInfo.is_new
-        ? '欢迎加入AI自律森林！🎉'
-        : (finalInfo.role === 'admin' ? '👑 管理员，欢迎回来 🌿' : '欢迎回来 🌿')
-      wx.showToast({ title: welcomeMsg, icon: 'success' })
-
-      setTimeout(() => {
-        wx.switchTab({ url: '/pages/home/home' })
-      }, 800)
-
-    } catch (err) {
-      console.error('[Login] 微信一键登录失败:', err)
-      const msg = typeof err === 'string' ? err : (err.message || '登录失败，请重试')
-      wx.showToast({ title: msg, icon: 'none' })
+      const login = await new Promise((resolve, reject) => wx.login({ success: resolve, fail: reject }))
+      if (!login.code) throw new Error('微信登录失败，请重试')
+      // 微信身份继续由云函数getWXContext确认，前端不传入openid/role。
+      const user = saveCloudSession(await cloudApi.authLogin({ nickname: '森林伙伴', avatar: '' }))
+      wx.showToast({ title: user.is_new ? '欢迎加入AI自律森林！🎉' : (user.role === 'admin' ? '👑 管理员，欢迎回来 🌿' : '欢迎回来 🌿'), icon: 'success' })
+      setTimeout(() => wx.switchTab({ url: '/pages/home/home' }), 800)
+    } catch (error) {
+      wx.showToast({ title: errorMessage(error, '登录失败，请重试'), icon: 'none' })
     } finally {
       this.setData({ wxLoginLoading: false })
     }
@@ -284,7 +133,7 @@ Page({
 
   // ===== 旧版兼容：保留但不作为主要入口 =====
   handleWechatLogin() {
-    this.handleWechatLoginQuick()
+    return this.handleWechatLoginQuick()
   },
 
   // ===== 协议相关 =====

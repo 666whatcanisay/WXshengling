@@ -1,5 +1,6 @@
 const cloudApi = require("./utils/cloudApi");
 const cloudConfig = require("./utils/cloudConfig");
+const { parseUserSession } = require("./utils/userSession");
 
 App({
   globalData: {
@@ -33,10 +34,13 @@ App({
     // 仅从本地缓存恢复（用于展示已登录状态，不做数据加载）
     const cached = wx.getStorageSync("cloud_userInfo");
     if (cached) {
-      this.globalData.userInfo = cached;
-      // 恢复缓存的openid
-      if (cached.openid) {
-        this.globalData.currentOpenid = cached.openid;
+      try {
+        const user = parseUserSession(cached);
+        this.globalData.userInfo = user;
+        this.globalData.currentOpenid = user.openid;
+      } catch (error) {
+        // 旧离线/管理员模板可能有虚构数值，不能继续恢复为已登录状态。
+        this.clearUserSession();
       }
     }
   },
@@ -79,19 +83,12 @@ App({
    * @param {object} userInfo - 用户信息对象
    */
   setUserInfo(userInfo) {
-    if (!userInfo) return;
-
-    this.globalData.userInfo = userInfo;
-
-    // 存储openid供后续校验使用
-    if (userInfo.openid) {
-      this.globalData.currentOpenid = userInfo.openid;
-    }
-
-    // 持久化到本地
-    wx.setStorageSync('cloud_userInfo', userInfo);
-
-    console.log('[App] setUserInfo: 用户已设置', userInfo.nickname || userInfo.username, 'openid:', userInfo.openid || '(未提供)');
+    const user = parseUserSession(userInfo);
+    // 缓存写入失败时不留下一个新全局会话，更不跳转成登录成功。
+    wx.setStorageSync('cloud_userInfo', user);
+    this.globalData.userInfo = user;
+    this.globalData.currentOpenid = user.openid;
+    console.log('[App] setUserInfo: 用户已设置', user.nickname || user.username);
   },
 
   updateToken() {},
@@ -116,7 +113,7 @@ App({
 
   get isLoggedIn() { return !!this.globalData.userInfo; },
 
-  /** 判断是否为离线模式（云函数超时时使用的本地管理员模式） */
+  /** 兼容旧页面的状态检查；新版不再创建离线管理员会话。 */
   get isOfflineMode() {
     return !!(this.globalData.userInfo && this.globalData.userInfo._offlineMode);
   },

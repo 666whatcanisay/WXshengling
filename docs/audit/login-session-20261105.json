@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-05",
+  "scope": "Local login Page and App cache/session handling only",
+  "localNode": "v24.22.2",
+  "npmVerifyAssertions": 899,
+  "newLoginAssertions": 368,
+  "loginScenarios": 61,
+  "productionJsSyntaxFiles": 39,
+  "removed": [
+    "lzk username-based client admin promotion",
+    "offline admin success after timeout",
+    "invented identity/level/XP/streak defaults"
+  ],
+  "behaviors": [
+    "All three login entrances validate server identity before storage/navigation",
+    "Real zero values and custom numeric values preserved",
+    "Legacy offline/admin-template caches invalidated on launch",
+    "Malformed responses and storage failure do not become login success"
+  ],
+  "nativeWechatLogin": {
+    "status": "pending-user-result"
+  },
+  "cloudFunctionsUpdated": false,
+  "miniProgramUploaded": false,
+  "miniProgramPublished": false,
+  "automatedCloudWrites": false
+}

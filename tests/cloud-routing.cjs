@@ -68,7 +68,8 @@ async function run(selected, rollback = false) {
     let application;
     vm.runInNewContext(fs.readFileSync(path.join(root, 'miniprogram/app.js'), 'utf8'), {
       App(value) { application = value; }, wx, console: quiet, Date,
-      require: name => name.endsWith('/cloudApi') ? api : selected });
+      require: name => name.endsWith('/cloudApi') ? api : name.endsWith('/userSession')
+        ? require('../miniprogram/utils/userSession') : selected });
     application.onLaunch(); eq(initializations[0].env, config.env);
     const info = await application.checkCloudConnection();
     eq(info.functions, config.functions); eq(info.cachedOffline, false);
