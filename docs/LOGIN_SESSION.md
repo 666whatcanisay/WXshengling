@@ -20,6 +20,6 @@ Node24下npm run verify共899项通过，39份生产JS语法通过；证据audit
 
 随后执行tools/login-session-manual-readonly.js。预期nativeIdentityOk/cachedIdentityMatches/cachedNumbersMatch/legacyFlagsAbsent全true、cachedOffline=false。脚本只读已有云端身份和本地会话，不输出openid/密码/具体余额。正常微信登录本身可能更新云端last_login_at/updated_at；不新增目标、任务或奖励。
 
-已请用户编译检查，真实结果待返回。失败/超时分支已本地验证，尚未在真实网络中断下手动验收；正式已发布包保持原前端逻辑，需后续发版才获得本轮修复。
+用户编译并重新登录后返回：lzk/admin，nativeIdentityOk/cachedIdentityMatches/cachedNumbersMatch/legacyFlagsAbsent全true、cachedOffline=false，真实身份与本地会话对照通过。失败/超时分支已本地验证，尚未在真实网络中断下手动验收；正式已发布包保持原前端逻辑，需后续发版才获得本轮修复。
 
 本轮结束后建议集中讨论LangGraph单目标协作的管理/规划/审核职责、模型供给和最小完成标准，再按确认范围接入；正式小程序发布、普通身份与手机验收另定。

@@ -18,7 +18,16 @@
     "Malformed responses and storage failure do not become login success"
   ],
   "nativeWechatLogin": {
-    "status": "pending-user-result"
+    "status": "passed-user-reported",
+    "reportedOn": "2026-11-05",
+    "evidence": "User pasted compiled-client login session comparison from WeChat DevTools Console",
+    "nativeIdentityOk": true,
+    "cachedIdentityMatches": true,
+    "cachedNumbersMatch": true,
+    "legacyFlagsAbsent": true,
+    "username": "lzk",
+    "role": "admin",
+    "cachedOffline": false
   },
   "cloudFunctionsUpdated": false,
   "miniProgramUploaded": false,
