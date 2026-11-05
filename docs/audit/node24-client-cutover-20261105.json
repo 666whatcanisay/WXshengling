@@ -1,0 +1,74 @@
+{
+  "observedAt": "2026-11-05T04:24:29.466Z",
+  "envId": "cloud1-d5gz9j6zh654f4b36",
+  "functions": [
+    {
+      "name": "app",
+      "runtime": "Nodejs16.13",
+      "status": "Active",
+      "modifiedAt": "2026-06-26 10:59:15"
+    },
+    {
+      "name": "login",
+      "runtime": "Nodejs16.13",
+      "status": "Active",
+      "modifiedAt": "2026-06-23 20:13:22"
+    },
+    {
+      "name": "init",
+      "runtime": "Nodejs16.13",
+      "status": "Active",
+      "modifiedAt": "2026-06-23 22:01:55"
+    },
+    {
+      "name": "app-node24",
+      "runtime": "Nodejs24.11",
+      "status": "Active",
+      "modifiedAt": "2026-11-05 11:41:59"
+    },
+    {
+      "name": "login-node24",
+      "runtime": "Nodejs24.11",
+      "status": "Active",
+      "modifiedAt": "2026-11-05 11:51:41"
+    },
+    {
+      "name": "init-node24",
+      "runtime": "Nodejs24.11",
+      "status": "Active",
+      "modifiedAt": "2026-11-05 12:01:14"
+    }
+  ],
+  "functionRules": {
+    "*": {
+      "invoke": "auth != null && auth.loginType != 'ANONYMOUS'"
+    },
+    "init-node24": {
+      "invoke": false
+    }
+  },
+  "collections": {
+    "users": "ADMINONLY",
+    "goals": "ADMINONLY",
+    "tasks": "ADMINONLY",
+    "ai_plans": "ADMINONLY",
+    "growth_logs": "ADMINONLY",
+    "user_growth_pool": "ADMINONLY"
+  },
+  "configurationMutations": false,
+  "normalClientSourceTarget": {
+    "app": "app-node24",
+    "login": "login-node24"
+  },
+  "userReportsAlreadyPublished": true,
+  "uploadOrPublishPerformed": false,
+  "nativeCompiledClientVerified": false,
+  "localVerification": {
+    "node": "v24.22.2",
+    "npmVerifyAssertions": 531,
+    "routingAssertions": 35,
+    "productionJsSyntaxFiles": 38,
+    "cloudWrites": false,
+    "notes": "Legacy-name offline test checks name selection only; does not simulate the deployed old API surface"
+  }
+}

@@ -1,8 +1,9 @@
 const cloudApi = require("./utils/cloudApi");
+const cloudConfig = require("./utils/cloudConfig");
 
 App({
   globalData: {
-    env: "cloud1-d5gz9j6zh654f4b36",
+    env: cloudConfig.env,
     apiBase: "",
     userInfo: null,
     cloudReady: false,
@@ -94,6 +95,19 @@ App({
   },
 
   updateToken() {},
+
+  // 开发者工具 Console：getApp().checkCloudConnection().then(console.log)
+  // 只查询现有身份/今日任务，不登录注册、不写业务数据，不输出 openid。
+  async checkCloudConnection() {
+    const user = await cloudApi.login();
+    if (!user || !user.id || !user.openid) throw new Error('云端身份尚未确认');
+    const date = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
+    const tasks = await cloudApi.tasks({ date });
+    if (!Array.isArray(tasks)) throw new Error('任务读取返回格式异常');
+    return { env: cloudConfig.env, functions: cloudConfig.functions,
+      username: user.username, role: user.role,
+      cachedOffline: this.isOfflineMode, loginVerified: true, tasksReadable: true };
+  },
   
   /** 旧接口兼容：调用 clearUserSession */
   clearSession() {

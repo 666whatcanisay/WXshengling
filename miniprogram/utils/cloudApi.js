@@ -4,6 +4,7 @@
  * 内置重试机制，解决网络不稳定问题
  */
 
+const cloudConfig = require('./cloudConfig');
 const MAX_RETRIES = 2;
 const RETRY_DELAY = 800; // ms
 
@@ -25,16 +26,19 @@ function checkNetwork() {
 
 /**
  * 调用云函数（带重试机制）
- * @param {string} name 云函数名
+ * @param {string} service 逻辑入口（app / login）
  * @param {string} action 操作名
  * @param {object} data 参数
  * @param {number} retryCount 当前重试次数（内部用）
  */
-function callCloud(name, action, data, retryCount) {
+function callCloud(service, action, data, retryCount) {
+  const name = cloudConfig.functions[service];
   const attempt = retryCount || 0;
   return new Promise((resolve, reject) => {
+    if (!name) return reject('未知云函数入口: ' + service);
     wx.cloud.callFunction({
       name,
+      config: { env: cloudConfig.env },
       data: { action, data },
       success: (res) => {
         const result = res.result || {};
@@ -97,7 +101,7 @@ function callCloud(name, action, data, retryCount) {
           wx.showToast({ title: '网络波动，重试中...', icon: 'none', duration: 1500 });
 
           setTimeout(() => {
-            callCloud(name, action, data, attempt + 1)
+            callCloud(service, action, data, attempt + 1)
               .then(resolve)
               .catch(reject);
           }, RETRY_DELAY * (attempt + 1));
