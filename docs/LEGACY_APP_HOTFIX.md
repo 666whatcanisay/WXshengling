@@ -8,7 +8,7 @@
 - checkAdmin移除username=lzk兜底，必须按真实微信调用者自己的users.role验证；空身份、查不到或读取异常都拒绝。管理员14入口继续走原校验函数。
 - taskCheckin核心复用固定提交0545996已验收的事务：完成任务、用户XP、日志、成长池一起结算；事务内重读任务，重复返回already_completed/xp_earned=0。拒绝北京日期的未来任务，保持旧请求字段和成功回执；冲突失败可用同任务ID重试。
 - 旧目标天数派生段原样保留在事务后，原repairGoalDays及全局UTC日期函数不变；没有捆入新版排程/发布/宠物业务。历史完成任务不会重算XP，旧前端的额外hatchProgress/显示兜底仍未统一，不能据此宣称宠物奖励和目标统计已全部修复。
-- 复现构建器tools/prepare-legacy-app.cjs仅接受白名单基线哈希与固定Git源码；证明除checkAdmin/taskCheckin两函数外原文件字节不变。评审差异见migration/legacy-app/index.patch；原index回退文件位于忽略目录。
+- 复现构建器tools/prepare-legacy-app.cjs仅接受白名单基线哈希与固定Git源码；证明除checkAdmin/taskCheckin两函数外原文件字节不变。零上下文评审差异见migration/legacy-app/index.patch，部署使用构建器生成文件，不直接往工作区套patch；原index回退文件位于忽略目录。
 
 ## 验证与云端核对
 

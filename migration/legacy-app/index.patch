@@ -1,9 +1,6 @@
 --- a/index.js
 +++ b/index.js
-@@ -338,18 +338,58 @@
- }
- 
- async function taskCheckin(openid, data) {
+@@ -341,12 +341,52 @@
 -  if (!data.task_id) return { code: -1, message: "缺少任务ID" };
 -  // 【安全修复】查询必须绑定 _openid，防止跨用户操作
 -  const tasks = await safeQuery("tasks", { _id: data.task_id, _openid: openid });
@@ -68,13 +65,7 @@
 +  if (!settlement.success || settlement.already_completed) return settlement;
 +  // 兼容已发布旧版：仅核心结算复用新版事务，原目标天数派生逻辑保持不变。
 +  const task = { goal_id: settlement.goal_id };
-   // 【V10.2】打卡后检查该目标今日任务是否全部完成，是则累计+1天
-   try {
-     if (task.goal_id) {
-@@ -373,18 +413,7 @@
-     }
-   } catch(e) { console.warn('[TASK-CHECKIN] 更新目标天数失败（非致命）:', e.message); }
- 
+@@ -376,12 +416 @@
 -  // 【V8.5修复】任务打卡经验也进入成长池，用户可自行分配给宠物
 -  try {
 -    var pool = await safeQuery("user_growth_pool", { _openid: openid });
@@ -88,25 +79,13 @@
 -
 -  return { success: true, xp_earned: xpReward };
 +  return { success: true, xp_earned: settlement.xp_earned };
- }
- 
- /**
-@@ -2594,26 +2623,15 @@
- async function checkAdmin(openid) {
-   if (!openid) return false;
-   try {
+@@ -2597 +2625,0 @@
 -    // 方式1：按 openid 查找
-     const res = await db.collection("users").where({ _openid: openid }).get();
-     if (res.data && res.data.length > 0) {
+@@ -2600 +2627,0 @@
 -      // 遍历所有匹配记录（同openid可能有多个），任一为admin即通过
-       const adminRecord = res.data.find(u => u.role === 'admin');
-       if (adminRecord) {
-         console.log('[checkAdmin] ✅ 通过(openid)', adminRecord.username);
-         return true;
-       }
+@@ -2606 +2632,0 @@
 -      // 打印所有匹配记录便于排查
-       console.log('[checkAdmin] ❌ openid匹配但无admin, 用户列表:', res.data.map(u => u.username + '(' + u.role + ')'));
-     }
+@@ -2609,8 +2634,0 @@
 -
 -    // 【V8.3兜底】方式2：按 username 查找（兼容 Local 模式多账号同openid场景）
 -    const byName = await db.collection("users").where({ username: 'lzk' }).get();
@@ -115,6 +94,3 @@
 -      return true;
 -    }
 -
-     console.warn('[checkAdmin] 权限校验失败，openid:', (openid || '').substring(0, 10) + '...');
-     return false;
-   } catch (e) {
