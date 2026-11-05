@@ -57,7 +57,8 @@ function offlineCloudbase(seed, hooks = {}) {
           const row = tx.rows[name].find(r => r._id === id);
           rows[name] ||= [];
           const index = rows[name].findIndex(r => r._id === id);
-          if (index >= 0) rows[name][index] = clone(row);
+          if (!row) { if (index >= 0) rows[name].splice(index, 1); }
+          else if (index >= 0) rows[name][index] = clone(row);
           else rows[name].push(clone(row));
           bump(name, id);
         }
@@ -105,6 +106,15 @@ function offlineCloudbase(seed, hooks = {}) {
           if (!tx) bump(name, row._id);
         }
         return { data: { insertedIds: ids } };
+      }
+      if (command === 'database.removeDocument') {
+        const selected = (store[name] || []).filter(row => matches(row, query));
+        for (const row of selected) {
+          if (tx) tx.writes.add(readKey(tx, name, row._id));
+          store[name].splice(store[name].findIndex(r => r._id === row._id), 1);
+          if (!tx) bump(name, row._id);
+        }
+        return { data: { deleted: selected.length } };
       }
       throw new Error('Network disabled; unsupported request: ' + command);
     }

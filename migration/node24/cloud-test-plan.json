@@ -1,6 +1,7 @@
 {
   "version": 1,
-  "status": "proposal-awaiting-cloud-write-scope-confirmation",
+  "status": "approved-copies-deployed-native-readonly-business-tests-and-exact-cleanup-passed-awaiting-normal-entry-switch",
+  "approvedOn": "2026-11-05",
   "envId": "cloud1-d5gz9j6zh654f4b36",
   "region": "ap-shanghai",
   "sourceCommit": "05459962d725361661d156699779d2bff8c434e3",
@@ -16,7 +17,7 @@
   },
   "functionPermissionMerge": {"init-node24": {"invoke": false}},
   "preserveExistingFunctionRules": true,
-  "testAccountProposal": "lzk; verify native caller identity before any business write",
+  "testAccountProposal": "lzk; native silent login verified by user in WeChat DevTools on 2026-11-05",
   "testLimits": {
     "newGoals": 1,
     "newTasks": 3,
@@ -39,7 +40,8 @@
   "cleanup": {
     "selector": "Exact manifest IDs plus verified caller ownership; never prefix-only or collection-wide deletion",
     "rewardReversal": "Only the actual verified test reward increments; do not restore whole-user snapshots",
-    "onUncertainState": "Stop cleanup and report; no guessed balance correction"
+    "onUncertainState": "Stop cleanup and report; no guessed balance correction",
+    "publicationReceipt": "Retain the same record as publication_cleaned with draft=null to block stale-script replay; no additional record"
   },
   "excluded": [
     "Invoke init or init-node24",

@@ -92,10 +92,15 @@ const db = {
 const appFile = path.join(root, 'cloudfunctions/app/index.js');
 const appRequire = createRequire(appFile);
 const quiet = { log() {}, warn() {}, error() {} };
+// The handler and its date helper must share the same fixture clock. Loading
+// taskRules with host require left Date.now() real, causing next-day failures.
+const ruleContext = vm.createContext({ module: { exports: {} }, Date: AuditDate });
+vm.runInContext(fs.readFileSync(path.join(root, 'cloudfunctions/app/lib/taskRules.js'), 'utf8'), ruleContext);
 const context = vm.createContext({
   require(name) {
     if (name === 'wx-server-sdk') return { init() {}, database: () => db, getWXContext: () => ({ OPENID: 'owner' }) };
     if (name === 'https') return { request() { throw new Error('Network disabled'); } };
+    if (name === './lib/taskRules') return ruleContext.module.exports;
     return appRequire(name);
   },
   exports: {}, Date: AuditDate, console: quiet, Buffer, setTimeout, clearTimeout,

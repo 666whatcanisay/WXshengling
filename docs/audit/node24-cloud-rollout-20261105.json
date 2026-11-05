@@ -1,0 +1,146 @@
+{
+  "observedAt": "2026-11-05T04:17:42.859Z",
+  "envId": "cloud1-d5gz9j6zh654f4b36",
+  "sourceCommit": "05459962d725361661d156699779d2bff8c434e3",
+  "functions": [
+    {
+      "name": "app",
+      "runtime": "Nodejs16.13",
+      "status": "Active",
+      "codeSize": 10654257,
+      "timeout": 30,
+      "memory": 256,
+      "installDependency": "TRUE"
+    },
+    {
+      "name": "login",
+      "runtime": "Nodejs16.13",
+      "status": "Active",
+      "codeSize": 10613649,
+      "timeout": 3,
+      "memory": 256,
+      "installDependency": "TRUE"
+    },
+    {
+      "name": "init",
+      "runtime": "Nodejs16.13",
+      "status": "Active",
+      "codeSize": 10612199,
+      "timeout": 3,
+      "memory": 256,
+      "installDependency": "TRUE"
+    },
+    {
+      "name": "app-node24",
+      "runtime": "Nodejs24.11",
+      "status": "Active",
+      "codeSize": 12362813,
+      "timeout": 30,
+      "memory": 256,
+      "installDependency": "FALSE"
+    },
+    {
+      "name": "login-node24",
+      "runtime": "Nodejs24.11",
+      "status": "Active",
+      "codeSize": 9400480,
+      "timeout": 3,
+      "memory": 256,
+      "installDependency": "FALSE"
+    },
+    {
+      "name": "init-node24",
+      "runtime": "Nodejs24.11",
+      "status": "Active",
+      "codeSize": 9398734,
+      "timeout": 3,
+      "memory": 256,
+      "installDependency": "FALSE"
+    }
+  ],
+  "collections": {
+    "users": "ADMINONLY",
+    "goals": "ADMINONLY",
+    "tasks": "ADMINONLY",
+    "ai_plans": "ADMINONLY",
+    "growth_logs": "ADMINONLY",
+    "user_growth_pool": "ADMINONLY"
+  },
+  "functionRules": {
+    "*": {
+      "invoke": "auth != null && auth.loginType != 'ANONYMOUS'"
+    },
+    "init-node24": {
+      "invoke": false
+    }
+  },
+  "bundledSourceFilesVerified": 12,
+  "packaging": {
+    "installDependency": false,
+    "bundledSdk": "wx-server-sdk@2.4.0",
+    "reason": "Node24 online dependency build failed; bundled original locked runtime dependencies"
+  },
+  "nativeReadonly": {
+    "passed": true,
+    "evidence": "User pasted WeChat DevTools Console result in this conversation",
+    "reportedOn": "2026-11-05",
+    "identityOk": true,
+    "username": "lzk",
+    "role": "admin",
+    "checks": [
+      {
+        "name": "login-node24",
+        "ok": true,
+        "code": 0
+      },
+      {
+        "name": "app",
+        "ok": true,
+        "code": 0
+      },
+      {
+        "name": "app-node24",
+        "ok": true,
+        "code": 0
+      }
+    ],
+    "directClientReadDenied": true
+  },
+  "normalFrontendMappingChanged": false,
+  "initInvoked": false,
+  "businessTest": {
+    "prepared": true,
+    "userReported": {
+      "reportedOn": "2026-11-05",
+      "publicationRepeats": 20,
+      "sameReceipt": true,
+      "concurrentRequests": 20,
+      "concurrentSuccess": 20,
+      "concurrentFailures": 0,
+      "futureRejected": true,
+      "xpDelta": 30,
+      "evidence": "User pasted DevTools Console output"
+    },
+    "cleaned": true,
+    "cleanup": {
+      "dryRun": false,
+      "removed": 6,
+      "reversedXp": 30,
+      "completedTasks": 2,
+      "futureTaskUntouched": true,
+      "publicationMarkerRetained": true
+    },
+    "postCleanup": {
+      "verifiedAt": "2026-11-05T04:16:24.235Z",
+      "netRewardDelta": {
+        "xp": 0,
+        "pool": 0,
+        "earned": 0
+      },
+      "linkedGoals": 0,
+      "linkedTasks": 0,
+      "exactLogsAbsent": true,
+      "publicationMarkerRetained": true
+    }
+  }
+}

@@ -7,7 +7,7 @@
   },
   "scripts": {
     "check:node": "node -e \"if(process.versions.node.split('.')[0] !== '24'){console.error('Use Node.js 24.x; current: '+process.version);process.exit(1)}console.log(process.version)\"",
-    "test": "node tests/single-goal-regression.cjs && node tests/checkin-reliability.cjs && node tests/ai-publication-reliability.cjs",
+    "test": "node tests/single-goal-regression.cjs && node tests/checkin-reliability.cjs && node tests/ai-publication-reliability.cjs && node tests/node24-cleanup.cjs",
     "prepare:node24": "node tools/prepare-node24.cjs",
     "prepare:node24-business": "node tools/prepare-node24-business.cjs",
     "verify": "npm run check:node && npm test"
