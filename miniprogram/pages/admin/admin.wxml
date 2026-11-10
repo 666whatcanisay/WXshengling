@@ -4,7 +4,12 @@
     <view class="admin-inner">
 
       <!-- 无权限 -->
-      <view wx:if="{{!isAdmin && !loading}}" class="no-permission">
+      <view wx:if="{{adminLoadError && !loading}}" class="no-permission">
+        <text class="no-title">管理数据加载失败</text>
+        <text class="no-desc">{{adminLoadError}}</text>
+        <button class="btn-back" bindtap="loadAdminData">重试</button>
+      </view>
+      <view wx:elif="{{!isAdmin && !loading}}" class="no-permission">
         <text class="no-icon">🔒</text>
         <text class="no-title">无管理员权限</text>
         <text class="no-desc">仅管理员可访问此页面</text>
@@ -65,7 +70,7 @@
         <!-- 平台总XP -->
         <view class="platform-xp-bar">
           <text class="xp-label">🏆 平台累计经验值：</text>
-          <text class="xp-value">{{formatXp(stats.totalPlatformXp)}}</text>
+          <text class="xp-value">{{totalPlatformXpText}}</text>
         </view>
 
         <!-- ========== Tab 切换栏 ========== -->
@@ -95,7 +100,7 @@
               <text wx:else class="mini-avatar-letter">{{item.nickname[0] || '?'}}</text>
               <view class="mini-info">
                 <text class="mini-name">{{item.nickname || item.username}}</text>
-                <text class="mini-meta">Lv.{{item.level || 1}} · {{fmtTime(item.created_at)}}</text>
+                <text class="mini-meta">Lv.{{item.level || 1}} · {{item.created_atStr}}</text>
               </view>
               <view class="role-tag role-{{item.role}}">
                 <text>{{item.role === 'admin' ? '管理' : '用户'}}</text>
@@ -171,7 +176,7 @@
                   </view>
                 </view>
                 <text class="user-meta">@{{item.username}} · Lv.{{item.level || 1}} · {{item.total_xp || 0}} XP · 连续{{item.streak_days || 0}}天</text>
-                <text class="user-time">注册于 {{fmtTime(item.created_at)}}</text>
+                <text class="user-time">注册于 {{item.created_atStr}}</text>
               </view>
               <!-- 操作按钮组 -->
               <view wx:if="{{item.id !== currentUserId}}" class="user-actions">
@@ -187,15 +192,17 @@
                   class="action-btn btn-status {{item.status === 'banned' ? 'btn-unban' : 'btn-ban'}}"
                   data-user-id="{{item.id}}"
                   data-status="{{item.status}}"
+                  data-cleanup-ready-at="{{item.cleanupReadyAt}}"
+                  wx:if="{{!item.cleanupInBatch}}"
                   catchtap="toggleUserStatus"
                 >
-                  <text>{{item.status === 'banned' ? '解封' : '封禁'}}</text>
+                  <text>{{item.cleanupReadyAt ? '取消清理' : item.status === 'banned' ? '解封' : '封禁'}}</text>
                 </view>
                 <view class="action-btn btn-pwd" data-user-id="{{item.id}}" catchtap="resetUserPassword">
                   <text>重置密码</text>
                 </view>
-                <view class="action-btn btn-delete" data-user-id="{{item.id}}" data-username="{{item.username || item.nickname}}" catchtap="deleteUser">
-                  <text>删除</text>
+                <view wx:if="{{!item.cleanupInBatch}}" class="action-btn btn-delete" data-user-id="{{item.id}}" data-username="{{item.username || item.nickname}}" data-cleanup-ready-at="{{item.cleanupReadyAt}}" catchtap="deleteUser">
+                  <text>{{item.cleanupReadyAt ? '完成删除' : '删除'}}</text>
                 </view>
               </view>
             </view>
@@ -221,19 +228,19 @@
           <view wx:if="{{petList.length > 0}}" class="pet-list">
             <view wx:for="{{petList}}" wx:key="id" class="pet-card">
               <view class="pet-emoji-wrap">
-                <text class="pet-emoji">{{getStageEmoji(item.stage)}}</text>
+                <text class="pet-emoji">{{item.stageEmoji}}</text>
                 <text class="pet-lv">Lv.{{item.level || 1}}</text>
               </view>
               <view class="pet-info">
                 <text class="pet-name">{{item.name}}</text>
                 <text class="pet-owner">主人：{{item.ownerName || '未知'}}</text>
                 <view class="pet-tags">
-                  <text class="stage-tag stage-{{item.stage}}">{{getStageLabel(item.stage)}}</text>
-                  <text class="status-tag status-{{item.mood || item.status}}">{{getMoodLabel(item.mood || item.status)}}</text>
+                  <text class="stage-tag stage-{{item.stage}}">{{item.stageLabel}}</text>
+                  <text class="status-tag status-{{item.mood || item.status}}">{{item.moodLabel}}</text>
                 </view>
                 <text class="pet-exp">经验值: {{item.experience || 0}}</text>
               </view>
-              <view class="pet-edit-btn" data-id="{{item.id}}" catchtap="editPetStage">
+              <view wx:if="{{!item.deleted_at}}" class="pet-edit-btn" data-id="{{item.id}}" catchtap="editPetStage">
                 <text>编辑</text>
               </view>
             </view>
@@ -269,7 +276,7 @@
                 <view wx:if="{{item.resolved}}" class="fb-resolved-tag">
                   <text>✓ 已处理</text>
                 </view>
-                <text class="fb-time">{{fmtTime(item.created_at)}}</text>
+                <text class="fb-time">{{item.created_at_str}}</text>
               </view>
               <text class="fb-title">{{item.title}}</text>
               <text class="fb-desc">{{item.description}}</text>
@@ -325,7 +332,7 @@
               <view class="snap-item"><text class="snap-label">反馈数</text><text class="snap-val">{{stats.totalFeedbacks || 0}}</text></view>
               <view class="snap-item"><text class="snap-label">今日签到</text><text class="snap-val">{{stats.todaySignins || 0}}</text></view>
               <view class="snap-item"><text class="snap-label">今日任务</text><text class="snap-val">{{stats.activeToday || 0}}</text></view>
-              <view class="snap-item snap-full"><text class="snap-label">平台总经验</text><text class="snap-val">{{formatXp(stats.totalPlatformXp)}}</text></view>
+              <view class="snap-item snap-full"><text class="snap-label">平台总经验</text><text class="snap-val">{{totalPlatformXpText}}</text></view>
             </view>
             <view class="tool-btn-row">
               <button class="tool-refresh-btn" size="mini" bindtap="refreshData">🔄 刷新数据</button>
@@ -344,10 +351,13 @@
               <button
                 class="danger-btn cleanup-btn"
                 bindtap="cleanupNonAdmin"
+                data-new-batch="{{cleanupCanStartNext}}"
                 loading="{{cleaningUp}}"
+                disabled="{{cleaningUp}}"
               >
-                {{cleaningUp ? '清理中...' : '执行清理'}}
+                {{cleaningUp ? '清理中...' : cleanupCanStartNext ? '新建清理批次' : '查看或执行清理'}}
               </button>
+              <button class="danger-btn" bindtap="cleanupNonAdmin" data-cancel="{{true}}" disabled="{{cleaningUp}}">取消待确认批次</button>
               <text wx:if="{{cleanupResult}}" class="cleanup-result">
                 {{cleanupResult}}
               </text>
@@ -377,7 +387,7 @@
         <view class="detail-row"><text class="dl-label">连续签到</text><text class="dl-value">{{detailUser.user.streak_days}} 天</text></view>
         <view class="detail-row"><text class="dl-label">角色</text><text class="dl-value role-txt role-{{detailUser.user.role}}">{{detailUser.user.role === 'admin' ? '管理员' : '普通用户'}}</text></view>
         <view class="detail-row"><text class="dl-label">状态</text><text class="dl-value status-txt status-{{detailUser.user.status}}">{{detailUser.user.status === 'banned' ? '已封禁' : '正常'}}</text></view>
-        <view class="detail-row"><text class="dl-label">注册时间</text><text class="dl-value">{{fmtTime(detailUser.user.created_at)}}</text></view>
+        <view class="detail-row"><text class="dl-label">注册时间</text><text class="dl-value">{{detailUser.user.created_atStr}}</text></view>
         <view class="detail-divider"></view>
         <view class="detail-stats">
           <text class="ds-item">🎯 目标: {{detailUser.goalCount || 0}}</text>
@@ -393,6 +403,9 @@
           </view>
         </view>
       </scroll-view>
+      <view wx:elif="{{detailUser.error}}" class="modal-body modal-loading">
+        <text>{{detailUser.error}}</text>
+      </view>
       <view wx:else class="modal-body modal-loading">
         <text>加载中...</text>
       </view>
@@ -409,8 +422,8 @@
       <view class="modal-body">
         <view class="edit-field">
           <text class="edit-label">阶段</text>
-          <picker mode="selector" range="{{stageOptions}}" value="{{editPetStageIdx}}" bindchange="onPetStageChange">
-            <view class="edit-picker">{{stageOptions[editPetStageIdx]}} ▾</view>
+          <picker mode="selector" range="{{stageOptions}}" value="{{editPetStageIdx}}" disabled="{{stageOptions.length < 2}}" bindchange="onPetStageChange">
+            <view class="edit-picker">{{stageOptions[editPetStageIdx]}}{{stageOptions.length > 1 ? ' ▾' : ''}}</view>
           </picker>
         </view>
         <view class="edit-field">
@@ -427,7 +440,7 @@
             <view class="edit-picker">{{moodOptions[editPetMoodIdx]}} ▾</view>
           </picker>
         </view>
-        <button class="tool-submit-btn" style="margin-top:24rpx;" bindtap="savePetEdit" loading="{{savingPet}}">保存修改</button>
+        <button class="tool-submit-btn" style="margin-top:24rpx;" bindtap="savePetEdit" disabled="{{savingPet}}" loading="{{savingPet}}">保存修改</button>
       </view>
     </view>
   </view>

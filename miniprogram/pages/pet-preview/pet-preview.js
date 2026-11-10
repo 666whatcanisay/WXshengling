@@ -10,6 +10,7 @@ var PetAssetService = require('../../utils/pet_assets_config')
 Page({
   data: {
     loading: true,
+    lynxVisible: false,
     // 分类数据: [{ category, categoryName, categoryIcon, species: [...] }]
     categories: [],
     // 当前选中的分类索引
@@ -28,6 +29,14 @@ Page({
 
   onLoad: function() {
     this._buildPreviewData()
+  },
+
+  onShow: function() {
+    this.setData({ lynxVisible: true })
+  },
+
+  onHide: function() {
+    this.setData({ lynxVisible: false })
   },
 
   _buildPreviewData: function() {

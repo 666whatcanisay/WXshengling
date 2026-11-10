@@ -1,0 +1,22 @@
+{
+  "inspectedAt": "2026-11-06T09:57:07.857Z",
+  "readOnly": true,
+  "goalsRead": 27,
+  "hasGoal": true,
+  "adjustmentPeriod": [
+    "2026-11-07",
+    "2026-11-13"
+  ],
+  "complete": true,
+  "futureTasks": 0,
+  "eligible": false,
+  "blockedReason": "该目标已结束，请选择进行中的目标",
+  "sourceHasCurrentCoachReport": false,
+  "hasRun": false,
+  "status": "",
+  "isCurrent": null,
+  "revision": null,
+  "functionInvocations": false,
+  "modelCalls": false,
+  "businessWrites": false
+}

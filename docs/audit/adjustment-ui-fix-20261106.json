@@ -1,0 +1,114 @@
+{
+  "date": "2026-11-06",
+  "status": "user-confirmed-native-compile",
+  "rootCause": "Global app.wxss .section-title cream color inherited on cream card; prior approximate HTML preview omitted global stylesheet",
+  "changes": [
+    "Distinct dark title class and stronger body/label contrast",
+    "Larger clearly labelled editable name field",
+    "Collapse requirements/completed steps after generation",
+    "Restore unsaved requirements expanded after re-entry"
+  ],
+  "verification": {
+    "fullLocalAssertions": 1660,
+    "clientAssertions": 36,
+    "compiledRender": {
+      "checks": 45,
+      "states": [
+        "ready",
+        "empty",
+        "ended",
+        "capped",
+        "loading",
+        "done",
+        "dirty",
+        "stale",
+        "running",
+        "failed",
+        "conflict",
+        "error",
+        "noGoal"
+      ]
+    },
+    "combinedGlobalAndPageStyles": true,
+    "layouts": {
+      "includesGlobalAppWxss": true,
+      "approximateHtml": true,
+      "checks": [
+        {
+          "state": "ready",
+          "contentWidth": 320,
+          "overflow": false,
+          "headingColor": "rgb(47, 73, 50)",
+          "headingContrast": 8.54,
+          "nameInputTopWithinCard": "none"
+        },
+        {
+          "state": "done",
+          "contentWidth": 320,
+          "overflow": false,
+          "headingColor": "rgb(47, 73, 50)",
+          "headingContrast": 8.54,
+          "nameInputTopWithinCard": "413"
+        },
+        {
+          "state": "dirty",
+          "contentWidth": 320,
+          "overflow": false,
+          "headingColor": "rgb(47, 73, 50)",
+          "headingContrast": 8.54,
+          "nameInputTopWithinCard": "461"
+        },
+        {
+          "state": "conflict",
+          "contentWidth": 320,
+          "overflow": false,
+          "headingColor": "rgb(47, 73, 50)",
+          "headingContrast": 8.54,
+          "nameInputTopWithinCard": "461"
+        },
+        {
+          "state": "ready",
+          "contentWidth": 375,
+          "overflow": false,
+          "headingColor": "rgb(47, 73, 50)",
+          "headingContrast": 8.54,
+          "nameInputTopWithinCard": "none"
+        },
+        {
+          "state": "done",
+          "contentWidth": 375,
+          "overflow": false,
+          "headingColor": "rgb(47, 73, 50)",
+          "headingContrast": 8.54,
+          "nameInputTopWithinCard": "413"
+        },
+        {
+          "state": "dirty",
+          "contentWidth": 375,
+          "overflow": false,
+          "headingColor": "rgb(47, 73, 50)",
+          "headingContrast": 8.54,
+          "nameInputTopWithinCard": "461"
+        },
+        {
+          "state": "conflict",
+          "contentWidth": 375,
+          "overflow": false,
+          "headingColor": "rgb(47, 73, 50)",
+          "headingContrast": 8.54,
+          "nameInputTopWithinCard": "461"
+        }
+      ]
+    },
+    "screenshotInspected": "D:/Temp/adjustment-ui-fixed-375.png"
+  },
+  "cloudDeployment": false,
+  "modelCalls": false,
+  "businessWrites": false,
+  "nativeVisualVerified": true,
+  "nativeAcceptance": {
+    "userResponse": "一切顺利",
+    "developerTools": true,
+    "phone": false
+  }
+}

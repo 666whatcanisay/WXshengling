@@ -7,10 +7,12 @@
   },
   "scripts": {
     "check:node": "node -e \"if(process.versions.node.split('.')[0] !== '24'){console.error('Use Node.js 24.x; current: '+process.version);process.exit(1)}console.log(process.version)\"",
-    "test": "node tests/single-goal-regression.cjs && node tests/checkin-reliability.cjs && node tests/ai-publication-reliability.cjs && node tests/node24-cleanup.cjs && node tests/cloud-routing.cjs && node tests/login-session.cjs",
+    "test": "node tools/sync-planner-context.cjs --check && node tools/build-steward.cjs --check && node tests/single-goal-regression.cjs && node tests/checkin-reliability.cjs && node tests/ai-publication-reliability.cjs && node tests/node24-cleanup.cjs && node tests/cloud-routing.cjs && node tests/login-session.cjs && node tests/forest-steward.cjs && node tests/ai-partner-workspaces.cjs && node tests/ai-provider-config.cjs && node tests/planner-draft-reliability.cjs && node tests/planner-review-reliability.cjs && node tests/steward-workflow.cjs && node tests/steward-client.cjs && node tests/coach-reliability.cjs && node tests/coach-client.cjs && node tests/adjustment-reliability.cjs && node tests/adjustment-client.cjs && node tests/adjustment-application.cjs && node tests/adjustment-application-client.cjs && node tests/adjustment-manual-scripts.cjs && node tests/adjustment-replay-script.cjs && node tests/adjustment-submit-script.cjs && node tests/adjustment-guided-flow.cjs && node tests/fixture-clock.cjs && node tests/workspace-lifecycle.cjs && node tests/ui-verifier.cjs && node --test tests/forest-toolbox.cjs tests/core-maintenance.cjs tests/pet-chat.cjs",
+    "build:steward": "node agents/forest-steward/node_modules/typescript/bin/tsc --noEmit -p agents/forest-steward/tsconfig.json && node tools/build-steward.cjs",
     "prepare:node24": "node tools/prepare-node24.cjs",
     "prepare:node24-business": "node tools/prepare-node24-business.cjs",
-    "verify": "npm run check:node && npm test"
+    "verify": "npm run check:node && npm test",
+    "verify:ui": "node tools/verify-ui.cjs"
   },
   "devDependencies": {
     "pngjs": "^7.0.0"

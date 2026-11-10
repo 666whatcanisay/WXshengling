@@ -1,0 +1,366 @@
+{
+  "date": "2026-11-06",
+  "status": "local-validation-passed-deployed-source-verified-awaiting-wechat",
+  "node": "v24.22.2",
+  "assertions": 1499,
+  "newBackendAssertions": 81,
+  "newClientAssertions": 43,
+  "syntaxChecks": 15,
+  "unapprovedApplyGuardVerified": true,
+  "preparedPatchMatchesLocal": true,
+  "wxmlCompiled": [
+    "ai",
+    "forest-steward"
+  ],
+  "wxssCompiled": [
+    "ai",
+    "forest-steward"
+  ],
+  "compiledRender": [
+    {
+      "checks": 56,
+      "states": [
+        "choose",
+        "loading",
+        "ready",
+        "done",
+        "dirty",
+        "running",
+        "failed",
+        "conflict",
+        "unknown",
+        "empty",
+        "capped",
+        "error"
+      ]
+    },
+    {
+      "checks": 20,
+      "states": [
+        "noGoal",
+        "loading",
+        "ready",
+        "done",
+        "running",
+        "failed",
+        "error",
+        "capped"
+      ]
+    }
+  ],
+  "layouts": {
+    "approximateHtml": true,
+    "checks": [
+      {
+        "page": "coach",
+        "state": "choose",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "loading",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "ready",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "done",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "dirty",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "running",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "failed",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "conflict",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "unknown",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "empty",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "capped",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "error",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "page": "coach-manager",
+        "state": "noGoal",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "page": "coach-manager",
+        "state": "loading",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "page": "coach-manager",
+        "state": "ready",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "page": "coach-manager",
+        "state": "done",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "page": "coach-manager",
+        "state": "running",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "page": "coach-manager",
+        "state": "failed",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "page": "coach-manager",
+        "state": "error",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "page": "coach-manager",
+        "state": "capped",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "choose",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "loading",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "ready",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "done",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "dirty",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "running",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "failed",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "conflict",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "unknown",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "empty",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "capped",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "page": "coach",
+        "state": "error",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "page": "coach-manager",
+        "state": "noGoal",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "page": "coach-manager",
+        "state": "loading",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "page": "coach-manager",
+        "state": "ready",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "page": "coach-manager",
+        "state": "done",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "page": "coach-manager",
+        "state": "running",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "page": "coach-manager",
+        "state": "failed",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "page": "coach-manager",
+        "state": "error",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "page": "coach-manager",
+        "state": "capped",
+        "width": 375,
+        "overflow": false
+      }
+    ]
+  },
+  "cloudReadonlyPreflight": {
+    "inspectedAt": "2026-11-06T05:07:45.215Z",
+    "readOnly": true,
+    "goalsRead": 27,
+    "goalsComplete": true,
+    "hasGoal": true,
+    "period": [
+      "2026-10-31",
+      "2026-11-06"
+    ],
+    "complete": true,
+    "pastTasks": 0,
+    "completed": 0,
+    "todayPending": 0,
+    "feedbackRevision": 0,
+    "reportStatus": "",
+    "latestStoredReportStatus": "",
+    "latestReportIsCurrent": false,
+    "observations": null,
+    "suggestions": null,
+    "functionInvocations": false,
+    "modelCalls": false,
+    "businessWrites": false
+  },
+  "securityReview": {
+    "nativeOpenidOnly": true,
+    "ownerAndGoalChecked": true,
+    "existingCollection": "ai_plans",
+    "feedbackCASAndRequestReceipts": true,
+    "modelOutsideTransaction": true,
+    "keysExcludedFromState": true,
+    "coachAnalysisNotPlanResult": true,
+    "noNewPermissionsOrDependencies": true
+  },
+  "realCloudBusinessWrites": false,
+  "realModelCalls": false,
+  "wechatRuntimeVerified": false,
+  "miniProgramPublished": false,
+  "deployment": {
+    "status": "deployed-and-source-verified",
+    "verifiedAt": "2026-11-06T05:19:44.911Z",
+    "changedFiles": [
+      "index.js",
+      "lib/coachFacts.js",
+      "lib/coachService.js"
+    ],
+    "preservedFiles": 3785,
+    "totalFiles": 3788,
+    "configurationUnchanged": true
+  },
+  "wechatNativeReadonly": {
+    "source": "user-returned Console",
+    "result": {
+      "ok": true,
+      "goalsRead": 27,
+      "goalsComplete": true,
+      "hasGoal": true,
+      "period": [
+        "2026-10-31",
+        "2026-11-06"
+      ],
+      "complete": true,
+      "pastTasks": 0,
+      "completed": 0,
+      "todayPending": 0,
+      "feedbackRevision": 0,
+      "reportStatus": ""
+    },
+    "feedbackAndModelVerified": false
+  }
+}

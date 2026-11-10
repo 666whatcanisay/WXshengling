@@ -33,12 +33,14 @@
         placeholder="📝 写下此刻的想法..."
         placeholder-class="note-placeholder"
         value="{{note}}"
+        maxlength="140"
+        disabled="{{savingMood}}"
         bindinput="onNoteInput"
       />
     </view>
 
     <!-- 提交按钮 -->
-    <button class="btn-leaf submit-mood-btn" bindtap="submitEmotion">✨ 记录心情</button>
+    <button class="btn-leaf submit-mood-btn" bindtap="submitEmotion" loading="{{savingMood}}" disabled="{{savingMood}}">✨ 记录心情</button>
   </view>
 
   <!-- 情绪日历热力图 -->

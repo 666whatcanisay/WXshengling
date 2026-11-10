@@ -69,7 +69,11 @@ async function rejects(promise, regex) { await assert.rejects(promise, regex); c
   });
   await scenario(seed(), { beforeRequest(cmd, args) {
     if (cmd === 'database.getDocument' && args.collectionName === 'users') throw new Error('READ_FAILED');
-  } }, async (env, api) => { eq(await api.call('checkAdmin'), false, 'admin query failure denies'); });
+  } }, async (env, api) => {
+    const result = await api.route({ action: 'adminDashboard' });
+    eq(result.code, -1, 'admin query failure denies');
+    eq(result.message.includes('READ_FAILED'), true, 'admin query failure stays distinguishable from denied permission');
+  });
 
   await scenario(seed(), {}, async (env, api) => {
     const r = await api.call('taskCheckin', { task_id: 't' });
@@ -192,31 +196,35 @@ async function rejects(promise, regex) { await assert.rejects(promise, regex); c
     eq(env.rows.tasks[0].completed, false); balances(env, 0, 0, 0);
   });
 
-  // Exercise page methods, preserving existing first-checkin pet behavior.
-  for (const [file, method, expectedFirstHatch] of [
-    ['home', 'quickCheckin', 1], ['record', 'completeTask', 0],
-    ['goals', 'toggleTodayTask', 1], ['goal-detail', 'checkinTask', 0],
+  // The three main task entry points share pet growth; the legacy record page keeps its original behavior.
+  for (const [file, method, expectsGrowth] of [
+    ['home', 'quickCheckin', true], ['record', 'completeTask', false],
+    ['goals', 'toggleTodayTask', true], ['goal-detail', 'checkinTask', true],
   ]) {
     for (const response of [{ success: true, already_completed: true, xp_earned: 0 }, { success: true, xp_earned: 0 }, { success: true, xp_earned: 10 }]) {
-      let page, hatches = 0;
+      let page, checkin;
       const toasts = [];
       const pageFile = path.join(root, 'miniprogram/pages', file, file + '.js');
       const localRequire = createRequire(pageFile);
-      const api = { taskCheckin: async () => response, hatchProgress: async () => { hatches++; } };
+      const api = { taskCheckin: async input => { checkin = input; return response; },
+        dashboard: async () => ({ todayTasks: [{ id: 't', completed: true }], todayGrowth: { xp: 0 } }),
+        pets: async () => [] };
+      const application = { globalData: { currentOpenid: 'owner', userInfo: { id: 'account', openid: 'owner' } } };
       const context = vm.createContext({
         Page(value) { page = value; }, require: name => name.endsWith('/cloudApi') ? api : localRequire(name),
-        getApp: () => ({ globalData: {} }),
+        getApp: () => application,
         wx: new Proxy({}, { get: (_, key) => key === 'showToast' ? value => toasts.push(value.title) : () => {} }),
         console: quiet, setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {},
       });
       vm.runInContext(fs.readFileSync(pageFile, 'utf8'), context);
       page.data = JSON.parse(JSON.stringify(page.data));
       page.setData = patch => Object.assign(page.data, patch);
+      if (file === 'home') await page.loadDashboard();
       const entry = { id: 't', completed: false, xp_reward: 99 };
-      Object.assign(page.data, { tasks: [entry], todayTasks: [entry], todayGrowth: { xp: 0 }, selectedDate: '2026-01-01', goals: [{ id: 'g', todayTasks: [{ id: 't', done: false }] }] });
+      Object.assign(page.data, { tasks: [entry], todayTasks: [entry], todayGrowth: { xp: 0 }, loading: false,
+        selectedDate: '2026-01-01', goals: [{ id: 'g', todayTasks: [{ id: 't', done: false }] }] });
       await page[method]({ currentTarget: { dataset: { id: 't', taskid: 't', goalid: 'g' } } });
-      const awarded = !response.already_completed && response.xp_earned > 0;
-      eq(hatches, awarded ? expectedFirstHatch : 0, file + ' pet side effects');
+      eq(checkin?.pet_growth === true, expectsGrowth, file + ' asks the server to settle the existing pet reward');
       if (file === 'home') eq(page.data.todayGrowth.xp, response.xp_earned);
       if (file === 'record') eq(page.data.checkinResult.xp_added, response.xp_earned);
       if (file === 'goal-detail') eq(page.data.result && page.data.result.xp_added, response.already_completed ? null : response.xp_earned);

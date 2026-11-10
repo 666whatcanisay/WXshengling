@@ -1,4 +1,5 @@
 const DAY_MS = 86400000;
+const MAX_TASK_XP = 1000;
 
 function businessDate(timestamp) {
   return new Date((timestamp === undefined ? Date.now() : timestamp) + 8 * 3600000).toISOString().slice(0, 10);
@@ -20,4 +21,9 @@ function positiveInteger(value) {
   return Number.isSafeInteger(number) && number > 0 ? number : null;
 }
 
-module.exports = { businessDate, validDate, addDays, positiveInteger };
+function taskExperience(value) {
+  const amount = typeof value === 'string' && /^\d+$/.test(value.trim()) ? Number(value) : value;
+  return Number.isSafeInteger(amount) && amount >= 0 && amount <= MAX_TASK_XP ? amount : null;
+}
+
+module.exports = { businessDate, validDate, addDays, positiveInteger, MAX_TASK_XP, taskExperience };

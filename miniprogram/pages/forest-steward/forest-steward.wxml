@@ -1,0 +1,299 @@
+<template name="steward-section-toggle">
+  <button class="steward-disclosure" data-section="{{section}}" bindtap="toggleStewardSection" aria-expanded="{{expanded}}">
+    <text>{{title}}</text><text class="steward-disclosure-action">{{expanded ? '收起 −' : '展开 +'}}</text>
+  </button>
+</template>
+<view class="steward-page">
+  <view class="welcome">
+    <view class="welcome-copy">
+      <text class="eyebrow">一件事，陪你做下去</text>
+      <text class="page-title">森林管家</text>
+      <text class="welcome-caption">让规划、执行与复盘，接得上。</text>
+    </view>
+    <view class="steward-avatar" aria-hidden="true">🌲<view class="avatar-leaf">🌱</view></view>
+  </view>
+
+  <view class="goal-strip" bindtap="toggleGoals" role="button" aria-label="选择当前目标">
+    <view class="goal-copy">
+      <text class="label">当前关注的目标</text>
+      <text class="goal-title">{{loading ? '正在读取目标…' : (currentGoal ? currentGoal.title : '选择一件想继续的事')}}</text>
+      <text wx:if="{{currentGoal}}" class="goal-stage">{{currentGoal.statusLabel}} · 一次专注一个目标</text>
+    </view>
+    <text class="switch-goal">选择 / 切换 ›</text>
+  </view>
+  <view wx:if="{{error}}" class="notice error-notice">
+    <text>{{error}}</text>
+    <button wx:if="{{loggedIn}}" class="text-button" bindtap="reload">重新读取</button>
+    <button wx:else class="text-button" bindtap="openLogin">去登录</button>
+  </view>
+
+  <view class="conversation">
+    <view class="collaboration-card">
+      <view class="collaboration-heading"><text class="section-title">这次一起做什么</text><text class="small-tag">规划 · 审核 · 确认</text></view>
+      <text class="collaboration-copy">新想法可写在页面下方；也可以直接检查已保存的云端草案。</text>
+      <text wx:if="{{stewardHasDraft}}" class="collaboration-source">当前草案：{{stewardDraftTitle}} · 第 {{stewardBaseRevision}} 版</text>
+      <text class="collaboration-note">开始协作可能产生模型费用。</text>
+      <view class="collaboration-actions">
+        <button class="primary-button" bindtap="startNewSteward" disabled="{{!stewardAvailable || !!stewardBusy || stewardUncertain || stewardRun && (stewardRun.status === 'ready' || stewardRun.status === 'running')}}">按下方需求开始协作</button>
+        <button class="outline-button" bindtap="startDraftSteward" disabled="{{!stewardAvailable || !stewardHasDraft || !!stewardBusy || stewardUncertain || stewardRun && (stewardRun.status === 'ready' || stewardRun.status === 'running')}}">检查当前云端草案</button>
+      </view>
+      <text wx:if="{{stewardBusy}}" class="collaboration-copy">{{stewardBusy}}…</text>
+      <text wx:if="{{stewardError}}" class="storage-warning">{{stewardError}}</text>
+      <view wx:if="{{stewardRun}}" class="collaboration-run">
+        <view class="collaboration-heading"><text class="section-title">本次协作</text><text class="small-tag">{{stewardRun.statusLabel}}</text></view>
+        <text class="collaboration-copy">{{stewardRun.note}}</text>
+        <text wx:if="{{stewardRun.error}}" class="storage-warning">{{stewardRun.error}}</text>
+        <text wx:if="{{stewardRun.status === 'failed'}}" class="collaboration-note">“核对并继续”会复用原请求及结果；若模型已明确失败，修好配置后请开始新的协作。</text>
+        <view wx:if="{{stewardRun.publication_receipt}}" class="collaboration-actions">
+          <text class="collaboration-source">{{stewardRun.draft_title}} · 已发布 {{stewardRun.publication_receipt.created_count}} 项任务</text>
+          <button class="primary-button" bindtap="openStewardPublishedGoal">查看目标 ›</button>
+        </view>
+        <button wx:elif="{{stewardRun.status === 'publication_pending'}}" class="primary-button" bindtap="openStewardDraft">核对原发布确认 ›</button>
+        <text wx:elif="{{stewardRun.draft_revision && !stewardRun.is_current}}" class="storage-warning">草案已有变化，旧运行结果不作为当前结论；请刷新后针对最新稿开始。</text>
+        <block wx:if="{{stewardRun.is_current}}">
+          <text class="collaboration-source">{{stewardRun.draft_title}} · 第 {{stewardRun.draft_revision}} 版</text>
+          <text wx:if="{{stewardRun.rules}}" class="collaboration-copy">规则检查：{{stewardRun.rules.rules.error_count}} 项字段/日期问题，{{stewardRun.rules.rules.warning_count}} 项安排提醒。</text>
+          <text wx:if="{{stewardRun.review && stewardRun.review.status === 'done'}}" class="collaboration-copy">审核师：{{stewardRun.review.semantic.summary}}</text>
+          <button class="primary-button" bindtap="openStewardDraft" disabled="{{!!stewardBusy}}">查看草案与建议 / 返回修改 ›</button>
+        </block>
+        <view wx:if="{{stewardRun.status === 'ready' || stewardRun.can_recover}}" class="collaboration-actions">
+          <button class="outline-button" bindtap="continueSteward" disabled="{{!!stewardBusy || stewardUncertain}}">{{stewardRun.can_recover ? '核对并继续' : '继续协作'}}</button>
+        </view>
+        <view class="steward-fold">
+          <template is="steward-section-toggle" data="{{section: 'run', title: '本次分工与审核明细', expanded: stewardSections.run}}" />
+          <view wx:if="{{stewardSections.run}}">
+            <view wx:for="{{stewardRun.steps}}" wx:key="name" class="collaboration-step collaboration-step-{{item.status}}"><text>{{index + 1}}</text><text class="collaboration-role">{{item.label}}</text><text>{{item.statusLabel}}</text></view>
+            <block wx:if="{{stewardRun.is_current}}">
+              <view wx:for="{{stewardRun.review.semantic.findings}}" wx:key="code" class="collaboration-finding"><text>{{item.task_title ? item.task_date + ' ' + item.task_title : '整体计划'}}</text><text>{{item.message}}</text><text>建议：{{item.suggestion}}</text></view>
+            </block>
+            <button wx:if="{{stewardRun.status !== 'cancelled' && stewardRun.status !== 'publication_pending' && stewardRun.status !== 'published'}}" class="text-button" bindtap="cancelSteward">取消后续协作</button>
+          </view>
+        </view>
+      </view>
+      <button class="text-button collaboration-refresh" bindtap="refreshSteward" disabled="{{!!stewardBusy}}">刷新协作状态（不调用模型）</button>
+      <view class="steward-fold">
+        <template is="steward-section-toggle" data="{{section: 'guide', title: '使用说明与费用', expanded: stewardSections.guide}}" />
+        <view wx:if="{{stewardSections.guide}}">
+          <view class="journey" aria-label="目标成长循环示意，并非执行进度">
+            <view class="journey-step"><text>01</text><text>计划</text></view><text class="journey-line">›</text>
+            <view class="journey-step"><text>02</text><text>执行</text></view><text class="journey-line">›</text>
+            <view class="journey-step"><text>03</text><text>反馈</text></view><text class="journey-line">›</text>
+            <view class="journey-step"><text>04</text><text>复盘</text></view><text class="journey-return">↺</text>
+          </view>
+          <view class="speaker"><text class="speaker-icon">🌲</text><text>森林管家</text><text class="small-tag">工作区提示</text></view>
+          <view class="greeting">
+            <text wx:if="{{currentGoal}}">我们接着「{{currentGoal.title}}」往下走。先看看今天的安排，再决定下一步。</text>
+            <text wx:else>想从哪件事开始？可以选择已有目标继续，也可以先把一个新想法交给规划师。</text>
+            <text class="connection-note">管家按步骤组织规划与审核，最后由你确认草案；目标执行记录可在「今日安排」查看。</text>
+          </view>
+          <text class="collaboration-note">新需求最多调用两次模型，检查已有草案最多一次；已有审核会复用，按当前模型配置计费。页面关闭后暂停后续步骤，回来可继续；当前一步可能仍会完成。</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="result-card">
+      <view class="result-tabs">
+        <button class="result-tab {{resultTab === 'today' ? 'selected' : ''}}" data-tab="today" bindtap="setResultTab">今日安排</button>
+        <button class="result-tab {{resultTab === 'review' ? 'selected' : ''}}" data-tab="review" bindtap="setResultTab">计划审核</button>
+        <button class="result-tab {{resultTab === 'summary' ? 'selected' : ''}}" data-tab="summary" bindtap="setResultTab">复盘调整</button>
+      </view>
+
+      <block wx:if="{{resultTab === 'today'}}">
+        <view wx:if="{{loading || taskLoading}}" class="empty-state"><text class="empty-symbol">🌿</text><text>正在读取你的真实记录…</text></view>
+        <view wx:elif="{{error}}" class="empty-state"><text>目标读取成功后，这里会显示今日安排。</text></view>
+        <view wx:elif="{{!currentGoal}}" class="empty-state">
+          <text class="empty-symbol">🎯</text>
+          <text class="empty-title">{{goals.length ? '先选定一个目标' : '还没有目标，从一个想法开始'}}</text>
+          <text>不默认替你选择，也不会自动创建任务。</text>
+          <button wx:if="{{goals.length}}" class="outline-button" bindtap="toggleGoals">选择已有目标</button>
+        </view>
+        <view wx:elif="{{taskError}}" class="empty-state"><text>{{taskError}}</text><button class="outline-button" bindtap="retryTasks">重试今日任务</button></view>
+        <view wx:else class="today-result">
+          <view class="evidence-label"><text class="source-dot"></text><text>来自目标 / 任务记录 · 仅 {{today}}</text></view>
+          <view class="today-stats">
+            <view><text class="stat-number">{{tasks.length}}</text><text class="stat-label">今日任务</text></view>
+            <view><text class="stat-number green-number">{{completed}}</text><text class="stat-label">已完成</text></view>
+            <view><text class="stat-number">{{pending}}</text><text class="stat-label">待完成</text></view>
+          </view>
+          <view wx:if="{{!tasks.length}}" class="no-tasks">今天没有安排任务。可以到目标详情切换日期查看；这不代表整个目标已完成。</view>
+          <view wx:if="{{tasks.length}}" class="steward-fold steward-fold-paper">
+            <template is="steward-section-toggle" data="{{section: 'today', title: '今日任务清单（' + tasks.length + '）', expanded: stewardSections.today}}" />
+            <block wx:if="{{stewardSections.today}}"><view wx:for="{{tasks}}" wx:key="id" class="task-row">
+            <text class="task-mark {{item.completed ? 'task-done' : ''}}">{{item.completed ? '✓' : '·'}}</text>
+            <view class="task-copy"><text class="task-title">{{item.title}}</text><text class="task-meta">{{item.minutesLabel}}</text></view>
+            <text class="task-state">{{item.completed ? '已完成' : '待完成'}}</text>
+            </view></block>
+          </view>
+          <button class="primary-button" bindtap="viewGoal">查看目标与执行任务 ›</button>
+          <view class="data-footer"><text>{{loadedAt}}</text><button class="text-button" bindtap="retryTasks">刷新</button></view>
+        </view>
+      </block>
+
+      <view wx:elif="{{resultTab === 'review'}}" class="pending-capability">
+        <view class="capability-heading"><text>🔍 先检查，再确认</text><text class="small-tag">草案审核</text></view>
+        <text>审核将围绕你确认的要求，检查具体的一版计划草案。</text>
+        <button class="outline-button" bindtap="openReview">到 AI 审核师查看草案 ›</button>
+        <view class="steward-fold steward-fold-paper">
+          <template is="steward-section-toggle" data="{{section: 'review', title: '查看审核范围', expanded: stewardSections.review}}" />
+          <block wx:if="{{stewardSections.review}}">
+            <view class="check-item">① 草案来源与版本是否一致</view>
+            <view class="check-item">② 时间安排是否符合明确要求</view>
+            <view class="check-item">③ 任务是否具体、可执行</view>
+            <text class="pending-note">可在上方开始真实审核；结果绑定具体草案版本。原规划师的编辑和确认发布继续保留。</text>
+          </block>
+        </view>
+      </view>
+
+      <view wx:else class="pending-capability">
+        <view class="capability-heading"><text>📊 从执行里找线索</text><text class="small-tag">AI教练</text></view>
+        <text wx:if="{{!currentGoal}}">先选择一个已有目标，再查看近7天的真实任务和主动复盘。</text>
+        <text wx:elif="{{coachSummaryLoading}}">正在读取近7天记录与已有复盘…</text>
+        <text wx:elif="{{coachSummaryError}}" class="storage-warning">{{coachSummaryError}}</text>
+        <block wx:elif="{{coachSummary}}">
+          <text class="collaboration-source">{{coachSummary.facts.start}} — {{coachSummary.facts.end}}</text>
+          <text>{{coachSummary.facts.complete ? '已结束日期' : '已读取的部分记录'}}：{{coachSummary.facts.past.total}}项安排，登记完成{{coachSummary.facts.past.completed}}项。</text>
+          <text class="pending-note">{{coachSummary.facts.past.rate !== null ? '登记完成比例 ' + coachSummary.facts.past.rate + '%' : '无任务、缺少状态或读取未完整，暂不计算比例'}}；这不代表整个目标达成。</text>
+          <text wx:if="{{coachSummary.facts.today}}" class="pending-note">今日尚未结束：{{coachSummary.facts.today.pending}}项待完成。</text>
+          <block wx:if="{{coachSummary.report && coachSummary.report.status === 'done'}}">
+            <text class="collaboration-copy">教练复盘：{{coachSummary.report.result.summary}}</text>
+            <view wx:if="{{coachSummary.report.result.suggestions.length}}" class="steward-fold steward-fold-paper">
+              <template is="steward-section-toggle" data="{{section: 'coach', title: '教练建议与依据（' + coachSummary.report.result.suggestions.length + '）', expanded: stewardSections.coach}}" />
+              <block wx:if="{{stewardSections.coach}}"><view wx:for="{{coachSummary.report.result.suggestions}}" wx:key="index" class="collaboration-finding"><text>{{item.message}}</text><text>{{item.action}}</text><text wx:for="{{item.evidence}}" wx:for-item="ref" wx:key="id">依据：{{ref.label}}</text><button class="outline-button" data-index="{{index}}" bindtap="useStewardCoachSuggestion" disabled="{{adjustmentLoading || !!adjustmentBusy}}">用于本轮调整</button></view></block>
+            </view>
+          </block>
+          <text wx:elif="{{coachSummary.report && coachSummary.report.status === 'running'}}" class="pending-note">已有复盘处理中或结果待确认，可刷新查询。</text>
+          <text wx:elif="{{coachSummary.report && coachSummary.report.status === 'failed'}}" class="storage-warning">{{coachSummary.report.error}}</text>
+          <text wx:else class="pending-note">当前记录还没有复盘。可以到教练补充反馈，再主动生成建议。</text>
+        </block>
+        <button class="outline-button" bindtap="openCoach">到 AI 教练查看 / 反馈 / 复盘 ›</button>
+        <button wx:if="{{currentGoal}}" class="text-button" bindtap="refreshStewardCoach" disabled="{{coachSummaryLoading}}">刷新记录与复盘（不调用模型）</button>
+        <text class="pending-note">这里读取同一份云端记录与复盘，不自动调用模型或修改任务。</text>
+        <view class="adjustment-section" wx:if="{{currentGoal}}">
+          <text class="adjustment-title">🌱 下一轮怎么安排？</text>
+          <view class="adjustment-context"><view><text class="adjustment-context-label">正在调整这个目标</text><text class="adjustment-context-title">{{currentGoal.title}}</text></view><button class="text-button" bindtap="openAdjustmentGoals">切换目标 ›</button></view>
+          <view class="adjustment-next" aria-live="polite">
+            <view class="adjustment-guide"><text class="{{adjustmentFlow.stage === 0 ? 'guide-current' : ''}}">1 草案</text><text>›</text><text class="{{adjustmentFlow.stage === 1 ? 'guide-current' : ''}}">2 检查</text><text>›</text><text class="{{adjustmentFlow.stage === 2 ? 'guide-current' : ''}}">3 确认</text><text>›</text><text class="{{adjustmentFlow.stage === 3 ? 'guide-current' : ''}}">4 回执</text></view>
+            <text class="adjustment-title">{{adjustmentFlow.title}}</text><text class="pending-note">{{adjustmentFlow.detail}}</text>
+            <button class="primary-button" bindtap="handleAdjustmentNext" disabled="{{adjustmentFlow.disabled}}">{{adjustmentFlow.label}}</button>
+            <view class="adjustment-next-links"><button wx:if="{{adjustmentEdits.length}}" class="text-button" bindtap="scrollAdjustmentComparison">查看任务对照 ↓</button><button wx:if="{{adjustmentFlow.phase === 'retry'}}" class="text-button" bindtap="queryAdjustmentApplication">再查一次回执</button></view>
+          </view>
+          <text wx:if="{{!adjustmentRun}}" class="pending-note">先生成调整草案，再看原安排与建议的区别。只有你确认应用后才修改未来任务。</text>
+          <text wx:else class="pending-note">{{adjustmentPendingApplication ? '本次确认已提交或结果待核对，请以云端回执为准，暂不修改这一版。' : adjustmentRun.application ? '这里保留已应用版本的历史对照，正式任务已按回执更新。' : adjustmentRun.status === 'cancelled' ? '此协作已取消，下方保留原建议供查看。' : '下方建议可直接编辑。保存改稿后旧审核失效，确认应用前正式任务保持原样。'}}</text>
+          <text wx:if="{{adjustmentLoading}}" class="pending-note">正在读取未来任务与调整草案…</text>
+          <text wx:if="{{adjustmentError}}" class="adjustment-error">{{adjustmentError}}</text>
+          <view wx:if="{{adjustmentApplicationReceipt}}" class="adjustment-application-receipt">
+            <text class="adjustment-title">✓ 第{{adjustmentApplicationReceipt.revision}}版已应用</text>
+            <text class="pending-note">已更新{{adjustmentApplicationReceipt.count}}项原目标的未来任务。历史对照与回执已保存，不会重复应用。</text>
+          </view>
+          <view wx:if="{{adjustmentPendingApplication}}" class="adjustment-application-pending">
+            <text class="adjustment-title">应用结果待核对</text>
+            <text class="pending-note">第{{adjustmentPendingApplication.expected_revision}}版确认已保存在本机。先查询回执；重试仅提交同一版本，不调用模型。</text>
+          </view>
+          <block wx:if="{{adjustmentWorkspace}}">
+            <text class="collaboration-source">调整窗口：{{adjustmentWorkspace.snapshot.start}} — {{adjustmentWorkspace.snapshot.end}}</text>
+            <text class="pending-note">{{adjustmentWorkspace.snapshot.tasks.length}}项未来未完成任务{{adjustmentPendingApplication ? ' · 应用结果待核对' : adjustmentRun ? adjustmentRun.application ? ' · 已应用确认版本' : ' · 确认前不修改任务' : adjustmentWorkspace.snapshot.report ? ' · 已带入当前复盘及事实' : ' · 带入真实记录与反馈，当前没有有效复盘'}}。</text>
+            <text wx:if="{{!adjustmentWorkspace.snapshot.eligible}}" class="adjustment-error">{{adjustmentWorkspace.snapshot.blocked_reason}}</text>
+            <text wx:elif="{{!adjustmentWorkspace.snapshot.complete}}" class="adjustment-error">当前目标未来7天的记录超过20项，暂不能开始；不会截取部分任务假装完整。</text>
+            <text wx:elif="{{!adjustmentWorkspace.snapshot.tasks.length}}" class="pending-note">未来7天没有可调整任务。可先在目标中安排任务，本轮不会自动补造。</text>
+            <view wx:if="{{adjustmentRun && !adjustmentShowInputs}}" class="adjustment-requirement-summary"><text>{{adjustmentRun.requirements.daily_minutes === null ? '每日预算未填写' : '每天可用 ' + adjustmentRun.requirements.daily_minutes + ' 分钟'}}</text><button class="text-button" bindtap="toggleAdjustmentInputs">查看 / 修改本轮要求 ▾</button></view>
+            <view id="adjustment-requirements" wx:if="{{!adjustmentRun || adjustmentShowInputs}}">
+            <text class="adjustment-label">本轮想怎么调整？</text>
+            <textarea class="adjustment-input" value="{{adjustmentInstructions}}" maxlength="1200" auto-height placeholder="比如：这周时间少，想把单次任务缩短…" bindinput="onAdjustmentInstructions" disabled="{{!!adjustmentBusy || !!adjustmentPendingApplication || adjustmentLoading || adjustmentRun && (adjustmentRun.status === 'ready' || adjustmentRun.status === 'running')}}" />
+            <view class="adjustment-budget"><text>每天可用</text><input type="number" value="{{adjustmentMinutes}}" placeholder="未知留空" bindinput="onAdjustmentMinutes" disabled="{{!!adjustmentBusy || !!adjustmentPendingApplication || adjustmentLoading || adjustmentRun && (adjustmentRun.status === 'ready' || adjustmentRun.status === 'running')}}" /><text>分钟</text></view>
+            <view wx:if="{{adjustmentSuggestion}}" class="collaboration-finding">
+              <text>{{adjustmentSuggestion.stale ? '教练建议已失效' : '本轮参考的教练建议'}}</text>
+              <text>{{adjustmentSuggestion.action}}</text>
+              <text wx:for="{{adjustmentSuggestion.evidence}}" wx:key="id">依据：{{item.label}}</text>
+              <button class="text-button" bindtap="removeAdjustmentSuggestion" disabled="{{!!adjustmentBusy || !!adjustmentPendingApplication}}">移除引用</button>
+            </view>
+            <text class="pending-note">新草案最多2次模型请求，可能产生费用。保存改稿不调用模型，继续审核最多1次。</text>
+            <button wx:if="{{adjustmentRun}}" class="outline-button" bindtap="startAdjustment" disabled="{{!!adjustmentBusy || !!adjustmentPendingApplication || adjustmentLoading || adjustmentDirty || !adjustmentWorkspace.snapshot.eligible || !adjustmentWorkspace.snapshot.complete || !adjustmentWorkspace.snapshot.tasks.length || adjustmentRun && (adjustmentRun.status === 'ready' || adjustmentRun.status === 'running')}}">按这些要求另生成一份草案（模型）</button>
+            <button wx:if="{{adjustmentRun}}" class="text-button" bindtap="toggleAdjustmentInputs">收起本轮要求 ▴</button>
+            </view>
+          </block>
+          <text wx:if="{{adjustmentBusy}}" class="pending-note">{{adjustmentBusy}}…</text>
+          <view wx:if="{{adjustmentRun}}" class="adjustment-run">
+            <text class="adjustment-title">{{adjustmentRun.statusLabel}} · 第{{adjustmentRun.revision}}版</text>
+            <text wx:if="{{!adjustmentRun.is_current && !adjustmentRun.application}}" class="adjustment-error">原任务、反馈或日期已变化，旧草案不作为当前方案。请刷新后重新开始。</text>
+            <text wx:if="{{adjustmentRun.error}}" class="adjustment-error">{{adjustmentRun.error}}，本次不会自动重调模型。</text>
+            <button wx:if="{{adjustmentRun.status === 'awaiting_review' || adjustmentRun.status === 'cancelled' || adjustmentRun.status === 'applied'}}" class="text-button" bindtap="toggleAdjustmentDetails">{{adjustmentShowDetails ? '收起协作分工 ▴' : '查看协作分工 ▾'}}</button>
+            <block wx:if="{{adjustmentShowDetails || adjustmentRun.status !== 'awaiting_review' && adjustmentRun.status !== 'cancelled' && adjustmentRun.status !== 'applied'}}"><view wx:for="{{adjustmentRun.stepLabels}}" wx:key="name" class="adjustment-step"><text>{{item.label}}</text><text>{{item.status}}</text></view></block>
+            <text wx:if="{{adjustmentDirty || adjustmentConflict}}" class="adjustment-error">本机有未保存修改或版本冲突，旧检查不作为当前结论。修改已保留，请先核对。</text>
+            <view wx:if="{{adjustmentEdits.length}}" class="steward-fold steward-fold-paper">
+              <button class="steward-disclosure" bindtap="toggleAdjustmentComparison" aria-expanded="{{adjustmentShowComparison}}"><text>调整前后对照（{{adjustmentEdits.length}}）</text><text class="steward-disclosure-action">{{adjustmentShowComparison ? '收起 −' : '展开 +'}}</text></button>
+              <view id="adjustment-comparison" wx:if="{{adjustmentShowComparison}}">
+            <text class="adjustment-edit-heading">{{adjustmentPendingApplication ? '确认中的版本 · 暂停编辑' : adjustmentRun.application ? '已应用版本 · 历史对照' : adjustmentRun.status === 'cancelled' || !adjustmentRun.is_current ? '原建议 · 只读对照' : adjustmentRun.status === 'ready' || adjustmentRun.status === 'running' ? '当前版本 · 先完成检查' : '调整前后对照 · 可直接编辑'}}</text>
+            <view wx:for="{{adjustmentEdits}}" wx:key="task_id" class="adjustment-diff">
+              <text class="adjustment-label">原安排：{{adjustmentRun.beforeById[item.task_id].title}}</text><text class="pending-note">{{adjustmentRun.beforeById[item.task_id].date}} · {{adjustmentRun.beforeById[item.task_id].estimated_minutes === null ? '预计用时未知' : adjustmentRun.beforeById[item.task_id].estimated_minutes + '分钟'}}</text>
+              <text class="adjustment-label">{{adjustmentRun.application ? '已应用名称' : adjustmentPendingApplication ? '已确认名称（暂不可修改）' : adjustmentSuggestionChanged || adjustmentRun.status === 'cancelled' || !adjustmentRun.is_current ? '原建议名称（只读）' : adjustmentRun.status === 'ready' || adjustmentRun.status === 'running' ? '当前建议名称（检查中）' : '建议名称（可修改）'}}</text><input class="adjustment-input adjustment-name-input" value="{{item.title}}" maxlength="200" data-index="{{index}}" data-field="title" bindinput="onAdjustmentEdit" disabled="{{adjustmentSuggestionChanged || !!adjustmentBusy || !!adjustmentPendingApplication || !adjustmentRun.is_current || adjustmentRun.status !== 'awaiting_review' && adjustmentRun.status !== 'failed'}}" />
+              <view class="adjustment-budget"><text>建议日期</text><picker mode="date" value="{{item.date}}" start="{{adjustmentWorkspace.snapshot.start}}" end="{{adjustmentWorkspace.snapshot.end}}" data-index="{{index}}" data-field="date" bindchange="onAdjustmentEdit" disabled="{{adjustmentSuggestionChanged || !!adjustmentBusy || !!adjustmentPendingApplication || !adjustmentRun.is_current || adjustmentRun.status !== 'awaiting_review' && adjustmentRun.status !== 'failed'}}"><view>{{item.date}} ▾</view></picker></view>
+              <view class="adjustment-budget"><text>预计分钟</text><input type="number" value="{{item.estimated_minutes}}" data-index="{{index}}" data-field="estimated_minutes" bindinput="onAdjustmentEdit" disabled="{{adjustmentSuggestionChanged || !!adjustmentBusy || !!adjustmentPendingApplication || !adjustmentRun.is_current || adjustmentRun.status !== 'awaiting_review' && adjustmentRun.status !== 'failed'}}" /></view>
+              <text class="adjustment-label">调整理由</text><textarea class="adjustment-input" value="{{item.reason}}" maxlength="400" auto-height data-index="{{index}}" data-field="reason" bindinput="onAdjustmentEdit" disabled="{{adjustmentSuggestionChanged || !!adjustmentBusy || !!adjustmentPendingApplication || !adjustmentRun.is_current || adjustmentRun.status !== 'awaiting_review' && adjustmentRun.status !== 'failed'}}" />
+              <button wx:if="{{!adjustmentRun.application && adjustmentRun.status !== 'cancelled'}}" class="text-button" data-index="{{index}}" bindtap="keepAdjustmentOriginal" disabled="{{adjustmentSuggestionChanged || !!adjustmentBusy || !!adjustmentPendingApplication || !adjustmentRun.is_current || adjustmentRun.status !== 'awaiting_review' && adjustmentRun.status !== 'failed'}}">保留这一项原安排</button>
+            </view>
+              </view>
+            </view>
+            <text wx:if="{{adjustmentRun.changes && !adjustmentRun.changes.length}}" class="pending-note">没有实际变更，可以保留原安排；本轮不再调用AI审核。</text>
+            <block wx:if="{{adjustmentRun.is_current && !adjustmentDirty && !adjustmentConflict}}">
+              <view wx:if="{{adjustmentRun.rules}}"><text class="adjustment-label">规则检查：{{adjustmentRun.rules.error_count}}项问题</text><text wx:for="{{adjustmentRun.rules.findings}}" wx:key="index" class="pending-note">{{item.message}}</text><text wx:for="{{adjustmentRun.rules.daily_loads}}" wx:key="date" class="pending-note">{{item.date}}：已知预计{{item.minutes}}分钟{{item.unknown ? '，部分用时未知' : ''}}</text></view>
+              <view wx:if="{{adjustmentRun.review}}"><text class="adjustment-label">独立AI审核</text><text class="pending-note">{{adjustmentRun.review.summary}}</text><text wx:for="{{adjustmentRun.review.findings}}" wx:key="index" class="pending-note">{{item.message}}</text></view>
+            </block>
+            <view wx:if="{{!adjustmentEdits.length || adjustmentShowComparison}}" class="adjustment-action-footer"><text class="pending-note">{{adjustmentFlow.title}}：{{adjustmentFlow.detail}}</text><button class="primary-button" bindtap="handleAdjustmentNext" disabled="{{adjustmentFlow.disabled}}">{{adjustmentFlow.label}}</button></view>
+          </view>
+          <button wx:if="{{adjustmentFlow.action !== 'refresh'}}" class="text-button" bindtap="loadAdjustment" disabled="{{!!adjustmentBusy || adjustmentLoading}}">刷新调整状态（不调用模型）</button>
+          <button class="text-button" bindtap="toggleAdjustmentMore">{{adjustmentShowMore ? '收起更多操作 ▴' : '更多操作 ▾'}}</button>
+          <view wx:if="{{adjustmentShowMore}}" class="adjustment-more">
+            <text class="pending-note">以下操作不会替代当前确认。模型步骤仅在主动继续时调用。</text>
+            <button wx:if="{{adjustmentRun && (adjustmentRun.status === 'ready' || adjustmentRun.can_recover)}}" class="outline-button" bindtap="continueAdjustment" disabled="{{!!adjustmentBusy || adjustmentDirty || !adjustmentRun.is_current || !!adjustmentPendingApplication}}">继续规划 / AI审核（可能收费）</button>
+            <button wx:if="{{adjustmentRun && adjustmentWorkspace.applicationSupported && adjustmentRun.is_current && adjustmentRun.changes.length && !adjustmentRun.application && adjustmentRun.status !== 'cancelled' && adjustmentRun.status !== 'running'}}" class="outline-button" bindtap="checkAdjustmentRules" disabled="{{!!adjustmentBusy || adjustmentLoading || adjustmentDirty || adjustmentConflict || !!adjustmentPendingApplication}}">仅检查规则（不调用模型）</button>
+            <button wx:if="{{adjustmentRun && adjustmentRun.status !== 'cancelled' && adjustmentRun.status !== 'applied'}}" class="text-button" bindtap="cancelAdjustment" disabled="{{adjustmentDirty || !!adjustmentBusy}}">{{adjustmentPendingApplication ? '停止此次确认并核对结果' : '取消后续调整协作'}}</button>
+            <button wx:if="{{adjustmentDirty || adjustmentConflict}}" class="text-button" bindtap="readAdjustmentCloud" disabled="{{!!adjustmentBusy || !!adjustmentPendingApplication}}">备份本机稿并读取云稿</button>
+            <button wx:if="{{adjustmentBackup}}" class="text-button" bindtap="restoreAdjustmentBackup" disabled="{{!!adjustmentBusy || !!adjustmentPendingApplication}}">找回本机副本</button>
+          </view>
+          <text wx:if="{{adjustmentWorkspace && !adjustmentWorkspace.applicationSupported}}" class="pending-note">当前云端只支持调整草案，确认应用功能尚未更新。</text>
+          <text class="pending-note">只调整已有未来任务的名称、日期、预计分钟；今天、历史、已完成任务与奖励不在范围。应用前会再次核对来源，变化时整批拒绝。</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="team-section">
+    <button class="team-toggle" bindtap="toggleTeam" aria-expanded="{{teamExpanded}}">
+      <view><text class="section-title">协作分工</text><text class="team-caption">认识伙伴 · 查看各自职责</text></view>
+      <text class="expand-symbol">{{teamExpanded ? '−' : '+'}}</text>
+    </button>
+    <view wx:if="{{teamExpanded}}" class="team-body">
+      <text class="team-intro">管家统筹，专业伙伴各司其职；宠物保持独立陪伴。以下展示职责与接入状态。</text>
+      <view wx:for="{{roles}}" wx:key="key" class="role-row">
+        <text class="role-icon">{{item.icon}}</text>
+        <view class="role-copy"><text class="role-name">{{item.name}}</text><text class="role-duty">{{item.duty}}</text><text class="role-state {{item.available ? 'role-available' : ''}}">{{item.state}}</text></view>
+        <button wx:if="{{item.key === 'planner'}}" class="text-button" bindtap="openPlanner">打开 ›</button>
+        <button wx:elif="{{item.key === 'critic'}}" class="text-button" bindtap="openReview">打开 ›</button>
+        <button wx:elif="{{item.key === 'analyst'}}" class="text-button" bindtap="openCoach">打开 ›</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="demand-card">
+    <view class="demand-heading"><text class="section-title">从一个新计划开始</text><text class="small-tag">本机需求草稿</text></view>
+    <text class="demand-description">写明你的目标、可用时间和当前基础，可交给管家规划与审核；想先聊清楚，也能单独打开规划师。</text>
+    <textarea class="demand-input" value="{{demand}}" maxlength="1200" placeholder="我想每天阅读 20 分钟，先坚持两周…" placeholder-class="input-placeholder" bindinput="onDemandInput" bindblur="onDemandBlur" auto-height adjust-position cursor-spacing="32" />
+    <view class="input-footer"><text>{{demand.length}} / 1200</text><button wx:if="{{demand}}" class="text-button" bindtap="clearDemand">清空文字</button></view>
+    <button class="primary-button" bindtap="startNewSteward" disabled="{{!stewardAvailable || !!stewardBusy || stewardUncertain || stewardRun && (stewardRun.status === 'ready' || stewardRun.status === 'running')}}">开始规划与审核 ›</button>
+    <text class="demand-boundary">协作会保存新的云端草案并按当前配置调用模型，旧版本保留；不会自动发布或修改已有正式目标。</text>
+    <button class="outline-button" bindtap="openPlanner">{{demand ? '只把需求填入原规划师 ›' : '打开 AI 规划师聊聊 ›'}}</button>
+    <text wx:if="{{storageWarning}}" class="storage-warning">{{storageWarning}}</text>
+  </view>
+  <text class="page-footnote">先把一件事做好，再走向下一轮。</text>
+
+  <view wx:if="{{goalPickerOpen}}" class="sheet-mask" bindtap="closeGoals"></view>
+  <view wx:if="{{goalPickerOpen}}" class="goal-sheet">
+    <view class="sheet-heading"><view><text class="section-title">这次想继续哪件事？</text><text class="team-caption">一次只关注一个目标</text></view><button class="text-button" bindtap="closeGoals">关闭</button></view>
+    <scroll-view scroll-y class="goal-list">
+      <view wx:for="{{goals}}" wx:key="id" class="goal-option {{currentGoal.id === item.id ? 'goal-option-selected' : ''}}" data-id="{{item.id}}" bindtap="selectGoal" role="button">
+        <view><text class="option-title">{{item.title}}</text><text class="task-meta">{{item.statusLabel}}</text></view><text>{{currentGoal.id === item.id ? '✓' : '›'}}</text>
+      </view>
+      <view wx:if="{{!goals.length}}" class="empty-state"><text>还没有目标，可以先到规划师聊聊。</text></view>
+    </scroll-view>
+  </view>
+</view>

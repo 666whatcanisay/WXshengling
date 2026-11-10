@@ -1,8 +1,8 @@
 const cloudApi = require("../../utils/cloudApi");
 const PetConst = require('../../utils/petConstants')
+const { today } = require('../../utils/planSchedule')
 
-function getGreeting() {
-  const h = new Date().getHours()
+function getGreeting(h) {
   if (h < 6) return "凌晨好"
   if (h < 9) return "早上好"
   if (h < 12) return "上午好"
@@ -34,17 +34,17 @@ Page({
   _displayCache: {},
 
   data: {
-    greeting: "", user: {},
+    greeting: "", greetingIcon: "", user: {},
     activePet: null, petEmoji: "", petTalk: "", petStatusClass: "normal", petStatusText: "",
     isEgg: false,
     todayGrowth: { xp: 0, completedTasks: 0, totalTasks: 0, streakDays: 0, completionRate: 0 },
     goals: [],
-    signedIn: false, signInDays: 0,
+    signedIn: false, signInDays: 0, signingIn: false,
     encouragement: null,
-    todayTasks: [],
+    todayTasks: [], tasksExpanded: false,
     achievements: [],
     moods: ["😊 开心", "😐 平静", "😔 低落", "😤 焦虑"],
-    selectedMood: -1, moodSubmitted: false, moodRecorded: "",
+    selectedMood: -1, moodSubmitted: false, moodRecorded: "", moodExpanded: false,
     showTutorial: false, tutorialStep: 0,
     loading: true,
     // 轮播
@@ -54,7 +54,7 @@ Page({
       { title: "欢迎来到AI成长伙伴", desc: "这是一个陪伴你成长、养成好习惯的智能助手", icon: "👋" },
       { title: "创建第一个目标", desc: "设定你的成长目标，AI会帮你生成每日任务", icon: "🎯" },
       { title: "领养宠物伙伴", desc: "完成任务获取经验，让你的宠物一起成长", icon: "🐾" },
-      { title: "开始成长之旅", desc: "完成新手任务，获得100XP奖励！", icon: "🚀" },
+      { title: "开始成长之旅", desc: "从一个目标开始，完成任务积累经验。", icon: "🚀" },
     ],
   },
 
@@ -72,14 +72,60 @@ Page({
     this.loadDashboard()
   },
 
-  async loadDashboard() {
-    this.setData({ loading: true })
-    try {
-      const app = getApp()
-      const greeting = getGreeting()
+  _getHomeContext() {
+    const { currentOpenid: owner, userInfo: session } = getApp().globalData
+    return { owner, session, date: today() }
+  },
 
+  _isCurrentHomeContext(context) {
+    const current = this._getHomeContext()
+    return current.owner === context.owner && current.session === context.session && current.date === context.date
+  },
+
+  _matchesDashboard({ owner, session, date }) {
+    return !this._dashboardDate || (this._dashboardOwner === owner && this._dashboardSession === session && this._dashboardDate === date)
+  },
+
+  async loadDashboard() {
+    const context = this._getHomeContext()
+    const { owner, session, date } = context
+    const request = this._dashboardRequest = {}
+    const isCurrent = () => this._dashboardRequest === request && this._isCurrentHomeContext(context)
+    if (this._dashboardOwner !== owner || this._dashboardSession !== session || this._dashboardDate !== date) {
+      this._dashboardOwner = owner
+      this._dashboardSession = session
+      this._dashboardDate = date
+      this._displayCache = {}
+      this._moodRequest = null
+      this._signInRequest = null
+      this._taskRequests = new Map()
+      this.setData({ user: {}, activePet: null, displayPets: [], homeSwiperIndex: 0, goals: [], todayTasks: [],
+        achievements: [], todayGrowth: {}, signedIn: false, signInDays: 0, signingIn: false, encouragement: null,
+        selectedMood: -1, moodSubmitted: false, moodRecorded: '', moodExpanded: false })
+    }
+    const rewardRevision = this._rewardRevision
+    const moodRevision = this._moodRevision
+    const hour = new Date().getHours()
+    this.setData({
+      loading: true,
+      greeting: getGreeting(hour),
+      greetingIcon: hour < 6 || hour >= 18 ? '🌙' : '☀️',
+    })
+    try {
       // 从云端加载仪表盘数据
       const dash = await cloudApi.dashboard()
+      if (!isCurrent()) return
+      const progress = this._rewardRevision === rewardRevision ? {
+        todayGrowth: dash.todayGrowth || { xp: 0, completedTasks: 0, totalTasks: 0, streakDays: 0, completionRate: 0 },
+        signedIn: !!dash.signedIn,
+        signInDays: dash.user?.streak_days || 0,
+        todayTasks: dash.todayTasks || [],
+      } : {}
+      const moodLabel = dash.todayEmotion?.mood_label || ''
+      const mood = dash.todayEmotion !== undefined && !this._moodRequest && this._moodRevision === moodRevision
+        ? { selectedMood: this.data.moods.findIndex(label => label === moodLabel || label.endsWith(' ' + moodLabel)),
+          moodSubmitted: !!moodLabel, moodRecorded: moodLabel }
+        : {}
 
       const activePet = dash.activePet || null
       // 使用 PetConst 统一映射，支持蛋状态
@@ -123,7 +169,7 @@ Page({
       const showTutorial = !wx.getStorageSync('tutorial_done')
 
       this.setData({
-        greeting, loading: false,
+        loading: false,
         user: dash.user || {},
         activePet,
         petEmoji, petTalk,
@@ -133,22 +179,18 @@ Page({
           return md.name + ' ' + md.emoji
         })() : ''),
         isEgg,
-        todayGrowth: dash.todayGrowth || { xp: 0, completedTasks: 0, totalTasks: 0, streakDays: 0, completionRate: 0 },
         goals: dash.goals || [],
-        signedIn: dash.signedIn || false,
-        signInDays: dash.user?.streak_days || 0,
-        todayTasks: dash.todayTasks || [],
+        ...progress,
         achievements: dash.achievements || [],
         encouragement,
         showTutorial,
+        ...mood,
       })
 
-      // 缓存用户信息
-      app.globalData.userInfo = dash.user || app.globalData.userInfo
-
       // 异步加载所有宠物（轮播图用，不阻塞页面渲染）
-      this._loadAllPetsForCarousel()
+      this._loadAllPetsForCarousel(isCurrent)
     } catch (err) {
+      if (!isCurrent()) return
       console.error('[Home] 加载首页数据失败:', err)
       this.setData({ loading: false })
       wx.showToast({ title: '加载失败，请下拉刷新', icon: 'none' })
@@ -158,9 +200,10 @@ Page({
   // ===== 首页宠物轮播 =====
 
   /** 异步加载所有宠物，构建轮播展示数据 */
-  _loadAllPetsForCarousel: function() {
+  _loadAllPetsForCarousel: function(isCurrent) {
     var self = this
     cloudApi.pets().then(function(petsRaw) {
+      if (!isCurrent()) return
       var petsList = Array.isArray(petsRaw) ? petsRaw : (petsRaw && petsRaw.data ? petsRaw.data : [])
       if (!petsList || petsList.length === 0) return
 
@@ -275,62 +318,106 @@ Page({
   finishTutorial() {
     wx.setStorageSync('tutorial_done', true)
     this.setData({ showTutorial: false })
-    wx.showToast({ title: '新手任务完成 +100XP', icon: 'success' })
+    wx.showToast({ title: '新手引导已结束', icon: 'success' })
   },
 
   // ===== 每日签到 =====
   async dailySignIn() {
+    const context = this._getHomeContext()
+    if (!context.owner) return
+    if (!this._matchesDashboard(context)) return this.loadDashboard()
+    if (this._signInRequest && this._isCurrentHomeContext(this._signInRequest)) return
     if (this.data.signedIn) {
       return wx.showToast({ title: '今天已签到', icon: 'none' })
     }
+    const request = this._signInRequest = context
+    const isCurrent = () => this._signInRequest === request && this._isCurrentHomeContext(request)
+    this.setData({ signingIn: true })
     try {
       const res = await cloudApi.dailyCheckin()
+      if (!isCurrent()) return
+      if (res?.success !== true) throw new Error('签到结果未确认')
+      this._rewardRevision = {}
       if (res.already_signed) {
         this.setData({ signedIn: true })
+        this.loadDashboard()
         return wx.showToast({ title: '今天已签到', icon: 'none' })
       }
-      const newDays = this.data.signInDays + 1
-      const addedXp = res.xp_earned || 10
-      // 签到增加成长值（V6：source=checkin, +10）
-      try { await cloudApi.hatchProgress({ source: 'checkin' }) } catch(e) { /* 无蛋时忽略 */ }
+      const newDays = res.streak_days ?? this.data.signInDays
+      const addedXp = res.xp_earned || 0
+      const previous = this.data.todayGrowth
+      const alreadyRefreshed = this.data.signedIn
       this.setData({
         signedIn: true,
         signInDays: newDays,
-        todayGrowth: { ...this.data.todayGrowth, xp: (this.data.todayGrowth.xp || 0) + addedXp },
+        todayGrowth: { ...previous, streakDays: newDays, xp: (previous.xp || 0) + (alreadyRefreshed ? 0 : addedXp) },
       })
       wx.showToast({ title: `签到成功 +${addedXp}XP 🎁`, icon: 'success' })
       log('签到', '签到成功', { days: newDays, xp: addedXp })
     } catch (err) {
-      wx.showToast({ title: '签到失败', icon: 'error' })
+      if (isCurrent()) wx.showToast({ title: '签到未确认，可再次核对', icon: 'none' })
+    } finally {
+      if (this._signInRequest === request) {
+        this._signInRequest = null
+        const current = this._getHomeContext()
+        if (current.owner === request.owner && current.session === request.session) {
+          if (current.date === request.date) this.setData({ signingIn: false })
+          else this.loadDashboard()
+        }
+      }
     }
   },
+
+  toggleHomeMood() { this.setData({ moodExpanded: !this.data.moodExpanded }) },
+  toggleHomeTasks() { this.setData({ tasksExpanded: !this.data.tasksExpanded }) },
 
   // ===== 心情记录 =====
   async selectMood(e) {
     const idx = Number(e.currentTarget.dataset.mood)
-    const emoji = this.data.moods[idx]
+    const label = this.data.moods[idx]
+    const context = this._getHomeContext()
+    if (!label || !context.owner || (this._moodRequest && this._isCurrentHomeContext(this._moodRequest))) return
+    if (!this._matchesDashboard(context)) return this.loadDashboard()
+    const request = this._moodRequest = context
+    const isCurrent = () => this._moodRequest === request && this._isCurrentHomeContext(request)
     try {
-      await cloudApi.emotions({ mood_index: idx, mood_label: emoji })
-      this.setData({ selectedMood: idx, moodSubmitted: true, moodRecorded: emoji })
+      const receipt = await cloudApi.emotions({ mood_index: idx, mood_label: label })
+      if (!isCurrent()) return
+      if (receipt?.success !== true) throw new Error('未收到心情保存回执')
+      this._moodRevision = {}
+      this.setData({ selectedMood: idx, moodSubmitted: true, moodRecorded: receipt.mood?.mood_label || label })
       wx.showToast({ title: '心情已记录 ✿', icon: 'success' })
-      log('心情', '选择心情', { index: idx, emoji })
     } catch (err) {
-      wx.showToast({ title: '记录失败', icon: 'error' })
+      if (isCurrent()) wx.showToast({ title: (typeof err === 'string' ? err : err?.message) || '记录失败，请重试', icon: 'none' })
+    } finally {
+      if (this._moodRequest === request) this._moodRequest = null
     }
   },
 
   // ===== 快速打卡 =====
   async quickCheckin(e) {
+    const context = this._getHomeContext()
+    if (!context.owner) return
+    if (!this._matchesDashboard(context)) return this.loadDashboard()
     const taskId = e.currentTarget.dataset.id
     const task = this.data.todayTasks.find(t => t.id === taskId)
     if (!task) return
     if (task.completed) return wx.showToast({ title: '该任务已完成', icon: 'none' })
+    const pending = this._taskRequests ||= new Map()
+    const previousRequest = pending.get(taskId)
+    if (previousRequest && this._isCurrentHomeContext(previousRequest)) return
+    pending.set(taskId, context)
+    const isCurrent = () => this._taskRequests === pending && pending.get(taskId) === context && this._isCurrentHomeContext(context)
 
     try {
-      const res = await cloudApi.taskCheckin({ task_id: taskId })
-      // 仅首次成功结算才触发宠物成长，避免重复/已完成场景又写一次
-      if (!res.already_completed && res.xp_earned > 0) {
-        try { await cloudApi.hatchProgress({ source: 'complete_goal' }) } catch(e) { /* 无蛋时忽略 */ }
+      const res = await cloudApi.taskCheckin({ task_id: taskId, pet_growth: true })
+      if (!isCurrent()) return
+      if (res?.success !== true) throw new Error('打卡结果未确认')
+      this._rewardRevision = {}
+      const currentTask = this.data.todayTasks.find(t => t.id === taskId)
+      if (!currentTask) {
+        this.loadDashboard()
+        return
       }
 
       const tasks = this.data.todayTasks.map(t =>
@@ -344,12 +431,16 @@ Page({
 
       this.setData({
         todayTasks: tasks,
-        todayGrowth: { ...this.data.todayGrowth, completedTasks: completedCount, completionRate, xp: (this.data.todayGrowth.xp || 0) + addedXp },
+        todayGrowth: { ...this.data.todayGrowth, completedTasks: completedCount, completionRate,
+          xp: (this.data.todayGrowth.xp || 0) + (currentTask.completed ? 0 : addedXp) },
       })
+      if (res.already_completed && !currentTask.completed) this.loadDashboard()
       wx.showToast({ title: res.already_completed ? '任务已完成' : ('打卡成功 +' + addedXp + 'XP ⭐'), icon: 'success' })
       log('打卡', res.already_completed ? '重复打卡（后端已结算）' : '打卡成功', { taskId, xp: addedXp })
     } catch (err) {
-      wx.showToast({ title: '打卡失败', icon: 'error' })
+      if (isCurrent()) wx.showToast({ title: '打卡未确认，可再次核对', icon: 'none' })
+    } finally {
+      if (pending.get(taskId) === context) pending.delete(taskId)
     }
   },
 

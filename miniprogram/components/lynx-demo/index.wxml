@@ -1,0 +1,18 @@
+<view class="lynx-card">
+  <view class="lynx-heading">
+    <text class="lynx-kicker">森林营地 · 动态样片</text>
+    <text class="lynx-title">成年猞猁</text>
+  </view>
+
+  <pet-portrait active="{{active}}" theme="{{selected.id}}" />
+
+  <view class="lynx-choices">
+    <button wx:for="{{themes}}" wx:key="id" class="lynx-choice {{selected.id === item.id ? 'lynx-choice-selected' : ''}}"
+      aria-label="{{item.grade}} {{item.name}}" aria-pressed="{{selected.id === item.id}}"
+      data-id="{{item.id}}" bindtap="selectTheme">
+      <text class="lynx-grade">{{item.grade}}</text>
+      <text>{{item.name}}</text>
+    </button>
+  </view>
+  <text class="lynx-help">轻点猞猁 · {{selected.description}}</text>
+</view>

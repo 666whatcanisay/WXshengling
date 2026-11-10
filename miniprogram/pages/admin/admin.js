@@ -14,32 +14,6 @@ function formatXp(xp) {
   return String(xp)
 }
 
-// ===== 本地模拟数据（云端不可用时使用） =====
-const MOCK_STATS = {
-  totalUsers: 6,
-  activeGoals: 12,
-  totalPets: 8,
-  totalFeedbacks: 3,
-  todayCheckins: 4,
-  todayTasksCompleted: 15,
-  platformTotalXp: 18650,
-}
-const MOCK_RECENT_USERS = [
-  { id: 'u1', username: 'lzk', nickname: 'lzk', avatar: '', level: 5, total_xp: 2680, streak_days: 7, role: 'admin', status: 'active', created_at: Date.now() - 86400000 },
-  { id: 'u2', username: 'xiaoming', nickname: '小明同学', avatar: '', level: 3, total_xp: 850, streak_days: 3, role: 'user', status: 'active', created_at: Date.now() - 172800000 },
-  { id: 'u3', username: 'xiaohong', nickname: '小红花', avatar: '', level: 4, total_xp: 1420, streak_days: 5, role: 'user', status: 'active', created_at: Date.now() - 259200000 },
-]
-const MOCK_PETS = [
-  { id: 'p1', name: '小宝贝', species: 'forest_cat', stage: 'YOUTH', level: 8, experience: 1200, mood: 'happy', owner_name: 'lzk' },
-  { id: 'p2', name: '旺财', species: 'forest_dog', stage: 'BABY', level: 3, experience: 300, mood: 'normal', owner_name: 'xiaoming' },
-  { id: 'p3', name: '皮皮', species: 'wild_hamster', stage: 'EGG', level: 1, experience: 50, mood: 'happy', owner_name: 'xiaohong' },
-]
-const MOCK_FEEDBACKS = [
-  { id: 'f1', type: 'suggestion', title: '希望增加宠物互动功能', content: '希望能让宠物之间可以互动玩耍', contact: '微信：test01', created_at: Date.now() - 3600000, resolved: false },
-  { id: 'f2', type: 'bug', title: '签到后XP没变化', content: '今天签到成功但是经验值没有增加', contact: '', created_at: Date.now() - 7200000, resolved: false },
-  { id: 'f3', type: 'other', title: '很棒的小程序', content: '用了一周了，体验很好，继续加油！', contact: '', created_at: Date.now() - 86400000, resolved: true },
-]
-
 // V7 阶段映射（与主系统 petConstants.js 一致：EGG→BABY→YOUTH→ADULT→PERFECT）
 const STAGE_MAP = {
   EGG:    { emoji: '🥚', label: '蛋' },
@@ -54,13 +28,14 @@ const STAGE_OPTIONS = ['蛋', '幼体', '青年', '成年', '完全体']
 // 宠物心情映射（与主系统一致）
 const MOOD_MAP = {
   happy:    '开心',
-  normal:   '普通',
+  normal:   '平静',
   sad:      '难过',
   excited:  '兴奋',
-  calm:     '平静',
+  sleepy:   '困倦',
+  bored:    '无聊',
 }
-const MOOD_KEYS = ['happy', 'normal', 'sad', 'excited', 'calm']
-const MOOD_OPTIONS = ['开心', '普通', '难过', '兴奋', '平静']
+const MOOD_KEYS = Object.keys(MOOD_MAP)
+const MOOD_OPTIONS = Object.values(MOOD_MAP)
 
 // ===== 页面定义 =====
 Page({
@@ -68,6 +43,7 @@ Page({
     // 基础状态
     loading: true,
     isAdmin: false,
+    adminLoadError: '',
     activeTab: 'overview',
 
     // Tab 配置
@@ -118,6 +94,7 @@ Page({
     // 清理操作
     cleaningUp: false,
     cleanupResult: '',
+    cleanupCanStartNext: false,
 
     // 弹窗
     showDetailModal: false,
@@ -128,16 +105,11 @@ Page({
     editPetLevel: 1,
     editPetExp: 0,
     editPetMoodIdx: 0,
-    stageOptions: STAGE_OPTIONS,
+    editPetStageKeys: [],
+    stageOptions: [],
     moodOptions: MOOD_OPTIONS,
     savingPet: false,
   },
-
-  // WXML 模板方法
-  fmtTime, formatXp,
-  getStageEmoji(stage) { return (STAGE_MAP[stage] || STAGE_MAP.EGG).emoji },
-  getStageLabel(stage) { return (STAGE_MAP[stage] || STAGE_MAP.EGG).label },
-  getMoodLabel(mood) { return MOOD_MAP[mood] || mood },
 
   onLoad() {
     this.setData({ currentUserId: (wx.getStorageSync('cloud_userInfo') || {}).id || '' })
@@ -146,78 +118,26 @@ Page({
 
   // ========== 核心数据加载 ==========
   async loadAdminData() {
-    this.setData({ loading: true })
-    const cached = wx.getStorageSync('cloud_userInfo') || {}
-    const isLocalAdmin = (cached.role === 'admin' || cached._isLocalAdmin)
-
-    // 本地有管理员标识 → 直接放行（不依赖云端校验）
-    if (!isLocalAdmin) {
-      this.setData({ isAdmin: false, loading: false })
-      return
-    }
-
-    // 标记为管理员，先渲染界面
-    this.setData({ isAdmin: true })
-
-    let gotCloudData = false
-
+    this.setData({ loading: true, isAdmin: false, adminLoadError: '' })
     try {
       const res = await cloudApi.adminDashboard()
-
-      // 云端返回了有效数据 → 使用
-      if (res && res.code !== -1 && res.stats) {
-        const stats = res.stats || {}
-        const recentUsers = (res.recentUsers || []).map(u => ({ ...u, created_atStr: fmtTime(u.created_at) }))
-        const feedbacks = (res.pendingFeedbacks || []).map(f => ({
-          ...f, created_at_str: fmtTime(f.created_at),
-        }))
-
-        this.setData({
-          stats,
-          recentUsers,
-          feedbackList: feedbacks,
-          allPets: res.allPets || [],
-        })
-        gotCloudData = true
-      }
-    } catch (err) {
-      console.warn('[Admin] Dashboard加载异常(使用本地数据):', err)
-    }
-
-    // 云端无数据 → 使用本地模拟数据
-    if (!gotCloudData) {
-      console.log('[Admin] 使用本地模拟数据')
-      const recentUsers = MOCK_RECENT_USERS.map(u => ({ ...u, created_atStr: fmtTime(u.created_at) }))
-      const feedbacks = MOCK_FEEDBACKS.map(f => ({ ...f, created_at_str: fmtTime(f.created_at) }))
+      if (!res?.stats) throw new Error('未收到有效的管理数据')
       this.setData({
-        stats: { ...MOCK_STATS },
-        recentUsers,
-        feedbackList: feedbacks,
-        allPets: MOCK_PETS,
+        isAdmin: true,
+        stats: res.stats,
+        totalPlatformXpText: formatXp(res.stats.totalPlatformXp),
+        recentUsers: (res.recentUsers || []).map(u => ({ ...u, created_atStr: fmtTime(u.created_at) })),
+        feedbackList: (res.pendingFeedbacks || []).map(f => ({ ...f, created_at_str: fmtTime(f.created_at) })),
       })
+      await Promise.all([this.loadUserList(1), this.loadPetList(1), this.loadFeedbacks('all')])
+      return true
+    } catch (err) {
+      const message = typeof err === 'string' ? err : err.message
+      if (message !== '无管理员权限') this.setData({ adminLoadError: message || '无法加载管理数据' })
+      return false
+    } finally {
+      this.setData({ loading: false })
     }
-
-    // 无论dashboard是否成功，都尝试加载子列表（云端失败时用模拟数据兜底）
-    this.setData({ loading: false })
-
-    Promise.all([
-      this.loadUserList(1).catch(() => {
-        // 用户列表云端失败 → 用模拟数据
-        this.setData({
-          userList: MOCK_RECENT_USERS.map(u => ({ ...u, created_atStr: fmtTime(u.created_at) })),
-          userListTotal: MOCK_RECENT_USERS.length,
-          totalUserPages: 1,
-        })
-      }),
-      this.loadPetList(1).catch(() => {
-        this.setData({ petList: MOCK_PETS, petListTotal: MOCK_PETS.length })
-      }),
-      this.loadFeedbacks('all').catch(() => {
-        this.setData({
-          feedbackList: MOCK_FEEDBACKS.map(f => ({ ...f, created_at_str: fmtTime(f.created_at) })),
-        })
-      }),
-    ])
   },
 
   // ========== Tab 切换 ==========
@@ -280,23 +200,23 @@ Page({
 
     try {
       wx.showLoading({ title: '处理中...' })
-      await cloudApi.adminSetRole({ userId, role: newRole })
+      const result = await cloudApi.adminSetRole({ userId, role: newRole })
+      if (result?.success !== true) throw new Error('未收到有效的角色变更回执')
       wx.hideLoading()
-      // 更新本地列表
-      const list = this.data.userList.map(u => u.id === userId ? { ...u, role: newRole } : u)
+      const userList = this.data.userList.map(u => u.id === userId ? { ...u, role: result.role || newRole } : u)
       this.setData({ userList })
       wx.showToast({ title: `${actionText}成功`, icon: 'success' })
     } catch (err) {
       wx.hideLoading()
-      wx.showToast({ title: '操作失败', icon: 'none' })
+      wx.showToast({ title: (typeof err === 'string' ? err : err?.message) || '操作失败', icon: 'none' })
     }
   },
 
   // 封禁/解封
   async toggleUserStatus(e) {
-    const { userId, status } = e.currentTarget.dataset
-    const newStatus = status === 'banned' ? 'active' : 'banned'
-    const actionText = newStatus === 'banned' ? '封禁该用户' : '解除封禁'
+    const { userId, status, cleanupReadyAt } = e.currentTarget.dataset
+    const newStatus = cleanupReadyAt ? 'cancelCleanup' : status === 'banned' ? 'active' : 'banned'
+    const actionText = cleanupReadyAt ? '取消待清理' : newStatus === 'banned' ? '封禁该用户' : '解除封禁'
 
     const ok = await new Promise(resolve => {
       wx.showModal({ title: '确认操作', content: `确定要${actionText}吗？`, confirmColor: '#c0392b', success: r => resolve(r.confirm) })
@@ -305,9 +225,9 @@ Page({
 
     try {
       wx.showLoading({ title: '处理中...' })
-      await cloudApi.adminSetUserStatus({ userId, status: newStatus })
+      const result = await cloudApi.adminSetUserStatus({ userId, status: newStatus })
       wx.hideLoading()
-      const list = this.data.userList.map(u => u.id === userId ? { ...u, status: newStatus } : u)
+      const userList = this.data.userList.map(u => u.id === userId ? { ...u, status: result.status || newStatus, cleanupReadyAt: 0 } : u)
       this.setData({ userList })
       wx.showToast({ title: `${actionText}成功`, icon: 'success' })
     } catch (err) {
@@ -344,20 +264,23 @@ Page({
   // 查看用户详情
   async showUserDetail(e) {
     const userId = e.currentTarget.dataset.id
+    const request = this._userDetailRequest = {}
     this.setData({ showDetailModal: true, detailUser: {} })
 
     try {
       const res = await cloudApi.adminGetUserDetail(userId)
-      if (res.code === 0) {
-        this.setData({ detailUser: res.data })
-      } else {
-        this.setData({ detailUser: { error: res.message } })
-      }
+      if (this._userDetailRequest !== request) return
+      if (!res?.user) throw new Error('未收到用户详情')
+      this.setData({ detailUser: { ...res, user: { ...res.user, created_atStr: fmtTime(res.user.created_at) } } })
     } catch (err) {
-      this.setData({ detailUser: { error: err.message || '加载失败' } })
+      if (this._userDetailRequest !== request) return
+      this.setData({ detailUser: { error: typeof err === 'string' ? err : err.message || '加载失败' } })
     }
   },
-  closeDetailModal() { this.setData({ showDetailModal: false }) },
+  closeDetailModal() {
+    this._userDetailRequest = null
+    this.setData({ showDetailModal: false })
+  },
 
   // ========== 宠物管理 ==========
   async loadPetList(page) {
@@ -365,7 +288,11 @@ Page({
       const res = await cloudApi.adminListPets({ page, pageSize: this.data.petPageSize })
       if (res.code === -1) return
       this.setData({
-        petList: res.list || [],
+        petList: (res.list || []).map(pet => {
+          const stage = STAGE_MAP[pet.stage] || STAGE_MAP.EGG
+          const mood = pet.mood || pet.status
+          return { ...pet, stageEmoji: stage.emoji, stageLabel: stage.label, moodLabel: MOOD_MAP[mood] || '平静' }
+        }),
         petListTotal: res.total || 0,
         petPage: page,
       })
@@ -374,29 +301,37 @@ Page({
     }
   },
   prevPetPage() { if (this.data.petPage > 1) this.loadPetList(this.data.petPage - 1) },
-  nextPetPage() { this.loadPetList(this.data.petPage + 1) },
+  nextPetPage() {
+    if (this.data.petPage * this.data.petPageSize < this.data.petListTotal) this.loadPetList(this.data.petPage + 1)
+  },
 
   // 编辑宠物弹窗
   editPetStage(e) {
     const id = e.currentTarget.dataset.id
     const pet = this.data.petList.find(p => p.id === id)
-    if (!pet) return
+    if (!pet || pet.deleted_at || this.data.savingPet) return
 
-    var stageIdx = STAGE_KEYS.indexOf(pet.stage)
-    if (stageIdx < 0) stageIdx = 0
-    var moodIdx = MOOD_KEYS.indexOf(pet.mood || pet.status)
-    if (moodIdx < 0) moodIdx = 0
+    const hatched = pet.is_hatched ?? pet.stage !== 'EGG'
+    const stageKeys = hatched ? STAGE_KEYS.slice(1) : STAGE_KEYS.slice(0, 1)
+    const stageIdx = Math.max(0, stageKeys.indexOf(pet.stage))
+    const moodIdx = MOOD_KEYS.indexOf(pet.mood || pet.status)
+    const selectedMoodIdx = moodIdx < 0 ? MOOD_KEYS.indexOf('normal') : moodIdx
 
     this.setData({
       showPetEditModal: true,
       editPetId: id,
+      editPetStageKeys: stageKeys,
+      stageOptions: hatched ? STAGE_OPTIONS.slice(1) : STAGE_OPTIONS.slice(0, 1),
       editPetStageIdx: stageIdx,
       editPetLevel: pet.level || 1,
       editPetExp: pet.experience || 0,
-      editPetMoodIdx: moodIdx,
+      editPetMoodIdx: selectedMoodIdx,
     })
+    this._petEditStart = { stage: stageKeys[stageIdx], mood: MOOD_KEYS[selectedMoodIdx], level: pet.level || 1, experience: pet.experience || 0 }
   },
-  closePetModal() { this.setData({ showPetEditModal: false }) },
+  closePetModal() {
+    if (!this.data.savingPet) this.setData({ showPetEditModal: false })
+  },
 
   onPetStageChange(e) { this.setData({ editPetStageIdx: parseInt(e.detail.value) }) },
   onPetLevelInput(e) { this.setData({ editPetLevel: parseInt(e.detail.value) || 1 }) },
@@ -404,21 +339,22 @@ Page({
   onPetMoodChange(e) { this.setData({ editPetMoodIdx: parseInt(e.detail.value) }) },
 
   async savePetEdit() {
+    if (this.data.savingPet || !this._petEditStart) return
+    const { editPetId, editPetStageKeys, editPetStageIdx, editPetMoodIdx, editPetLevel, editPetExp } = this.data
+    const fields = { stage: editPetStageKeys[editPetStageIdx], mood: MOOD_KEYS[editPetMoodIdx],
+      level: Math.min(99, Math.max(1, editPetLevel)), experience: Math.max(0, editPetExp) }
+    const changes = Object.fromEntries(Object.entries(fields).filter(([key, value]) => value !== undefined && value !== this._petEditStart[key]))
+    if (!Object.keys(changes).length) return this.closePetModal()
     try {
       this.setData({ savingPet: true })
-      await cloudApi.adminEditPet({
-        petId: this.data.editPetId,
-        stage: STAGE_KEYS[this.data.editPetStageIdx],
-        level: Math.min(99, Math.max(1, this.data.editPetLevel)),
-        experience: Math.max(0, this.data.editPetExp),
-        mood: MOOD_KEYS[this.data.editPetMoodIdx],
-      })
+      const receipt = await cloudApi.adminEditPet({ petId: editPetId, ...changes })
+      if (!receipt?.success) throw new Error('保存结果未确认')
       this.setData({ savingPet: false, showPetEditModal: false })
       wx.showToast({ title: '保存成功', icon: 'success' })
       this.loadPetList(this.data.petPage)
     } catch (err) {
       this.setData({ savingPet: false })
-      wx.showToast({ title: '保存失败', icon: 'none' })
+      wx.showToast({ title: typeof err === 'string' ? err : err.message || '保存失败', icon: 'none' })
     }
   },
 
@@ -496,17 +432,22 @@ Page({
 
   refreshData() {
     wx.showLoading({ title: '刷新中...' })
-    this.loadAdminData().then(() => { wx.hideLoading(); wx.showToast({ title: '数据已更新', icon: 'success' }) })
+    this.loadAdminData().then(ok => {
+      wx.hideLoading()
+      if (ok) wx.showToast({ title: '数据已更新', icon: 'success' })
+    })
   },
 
   // ========== 删除用户 ==========
   async deleteUser(e) {
-    const { userId, username } = e.currentTarget.dataset
+    const { userId, username, cleanupReadyAt } = e.currentTarget.dataset
     const ok = await new Promise(resolve => {
       wx.showModal({
         title: '⚠️ 删除用户',
-        content: `确定要删除用户「${username}」吗？\n将同时删除其宠物、经验池、成长日志等所有数据，不可恢复！`,
-        confirmText: '确认删除',
+        content: cleanupReadyAt
+          ? `确认删除「${username}」及其关联数据库记录？此操作不可恢复。`
+          : `先暂停「${username}」的账号，约 60 秒后可再次确认删除。等待期间可以取消。`,
+        confirmText: cleanupReadyAt ? '确认删除' : '暂停账号',
         confirmColor: '#c0392b',
         success: r => resolve(r.confirm),
       })
@@ -515,54 +456,90 @@ Page({
 
     try {
       wx.showLoading({ title: '删除中...' })
-      await cloudApi.adminDeleteUser({ userId })
+      const result = await cloudApi.adminDeleteUser({ userId })
+      if (result?.deletedUsers !== 1) throw new Error('未收到新版删除回执，请刷新列表核对')
       wx.hideLoading()
       wx.showToast({ title: '已删除', icon: 'success' })
       this.loadUserList(this.data.userPage)
       this.refreshData()
     } catch (err) {
       wx.hideLoading()
-      wx.showToast({ title: '删除失败: ' + (err.message || ''), icon: 'none' })
+      wx.showToast({ title: (typeof err === 'string' ? err : err?.message) || '删除失败，请刷新后重试', icon: 'none' })
+      this.loadUserList(this.data.userPage)
     }
   },
 
   // ========== 一键清理非管理员 ==========
-  async cleanupNonAdmin() {
-    const ok = await new Promise(resolve => {
-      wx.showModal({
-        title: '⚠️ 危险操作确认',
-        content: '此操作将删除所有非管理员账号及其关联数据（宠物/经验池/日志），仅保留管理员账号。\n\n确定执行吗？',
-        confirmText: '确认清理',
-        confirmColor: '#c0392b',
-        success: r => resolve(r.confirm),
-      })
-    })
-    if (!ok) return
-
-    this.setData({ cleaningUp: true, cleanupResult: '' })
-
+  async cleanupNonAdmin(e) {
+    if (this.data.cleaningUp) return
+    const cancel = e?.currentTarget?.dataset?.cancel === true
+    const newBatch = e?.currentTarget?.dataset?.newBatch === true
+    this.setData({ cleaningUp: true })
     try {
-      const res = await cloudApi.adminCleanupNonAdmin()
-      const d = res.data || {}
-      const text = [
-        '✅ 清理完成',
+      const batch = await cloudApi.adminCleanupNonAdmin({ phase: 'status' })
+      if (!['idle', 'pending', 'done', 'cancelled'].includes(batch?.status)) throw new Error('未收到有效的清理批次')
+      const pending = batch.status === 'pending'
+      if (cancel && !pending) {
+        this.setData({ cleanupResult: '当前没有待确认批次' })
+        return
+      }
+      let d = batch
+      if ((batch.status !== 'done' || newBatch) && !(newBatch && pending)) {
+        const phase = cancel ? 'cancel' : pending ? 'finish' : 'prepare'
+        const confirmations = {
+          cancel: { content: `取消本批 ${batch.targetCount} 个账号的清理，并恢复原账号状态？`, label: '取消批次' },
+          finish: { content: `确认删除首次选定的 ${batch.targetCount} 个账号及其关联记录？等待期间注册的账号不在本批内。`, label: '确认删除' },
+          prepare: { content: '先暂停当前非管理员账号并保存名单。约 60 秒后可确认删除本批，也可以取消并恢复账号。', label: '暂停本批' },
+        }
+        const confirmation = confirmations[phase]
+        const ok = await new Promise(resolve => {
+          wx.showModal({ title: '清理账号确认', content: confirmation.content, confirmText: confirmation.label,
+            confirmColor: '#c0392b', success: r => resolve(r.confirm), fail: () => resolve(false) })
+        })
+        if (!ok) return
+        d = await cloudApi.adminCleanupNonAdmin({ phase, batchId: batch.batchId })
+      }
+      if (d?.noTargets) {
+        this.setData({ cleanupResult: '当前没有需要清理的非管理员账号' })
+        return
+      }
+      if (d?.status === 'pending') {
+        const seconds = Math.ceil((d.readyAt - Date.now()) / 1000)
+        const ready = seconds > 0 ? `约 ${seconds} 秒后可再次确认删除` : '现在可再次确认删除'
+        this.setData({ cleanupCanStartNext: false, cleanupResult: `本批 ${d.targetCount} 个账号已暂停，${ready}。` })
+        this.loadUserList(this.data.userPage)
+        return
+      }
+      if (d?.status === 'cancelled') {
+        this.setData({ cleanupCanStartNext: false, cleanupResult: '已取消本批清理并恢复账号状态' })
+        this.loadUserList(this.data.userPage)
+        return
+      }
+      if (d?.status !== 'done' || !Number.isInteger(d.deletedUsers) || !Array.isArray(d.keptUsers)) throw new Error('未收到有效的清理结果')
+      const errors = Array.isArray(d.errors) ? d.errors : []
+      let text = [
+        errors.length ? '⚠️ 清理未全部完成' : '✅ 清理完成',
         '删除用户: ' + (d.deletedUsers || 0),
         '删除宠物: ' + (d.deletedPets || 0),
         '删除经验池: ' + (d.deletedPools || 0),
         '删除日志: ' + (d.deletedLogs || 0),
-        '保留账号: ' + (d.keptUsers || []).join(', ') || '(无)',
+        '保留账号: ' + (d.keptUsers.join(', ') || '(无)'),
       ].join('\n')
 
-      if (d.errors && d.errors.length > 0) {
-        text += '\n\n⚠️ 部分失败:\n' + d.errors.join('\n')
+      if (errors.length > 0) {
+        text += '\n\n⚠️ 部分失败:\n' + errors.join('\n')
       }
 
-      this.setData({ cleaningUp: false, cleanupResult: text })
+      this.setData({ cleanupCanStartNext: true, cleanupResult: text })
       // 刷新列表
       this.loadUserList(1)
       this.refreshData()
     } catch (err) {
-      this.setData({ cleaningUp: false, cleanupResult: '❌ 清理失败: ' + (err.message || '') })
+      const message = (typeof err === 'string' ? err : err?.message) || '请刷新后重试'
+      this.setData({ cleanupCanStartNext: false, cleanupResult: message })
+      this.loadUserList(this.data.userPage)
+    } finally {
+      this.setData({ cleaningUp: false })
     }
   },
 

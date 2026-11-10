@@ -13,4 +13,11 @@ function parseUserSession(value) {
   delete user._isLocalAdmin;
   return user;
 }
-module.exports = { parseUserSession };
+function accountScope(data) {
+  const info = data?.userInfo;
+  const openid = data?.currentOpenid || info?.openid || info?._openid || '';
+  if (!openid || typeof info?.id !== 'string' || !info.id.trim() || (info.openid && info.openid !== openid)) return '';
+  return JSON.stringify([openid, info.id]);
+}
+
+module.exports = { parseUserSession, accountScope };

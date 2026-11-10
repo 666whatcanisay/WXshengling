@@ -1,0 +1,9 @@
+.portrait-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 260rpx;
+  height: 260rpx;
+  margin: 12rpx auto 16rpx;
+  font-size: 120rpx;
+}

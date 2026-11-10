@@ -433,3 +433,7 @@
   margin: 30rpx 0 16rpx;
   padding-left: 10rpx;
 }
+.task-card.task-focused {
+  outline: 2rpx solid #d1b873;
+  outline-offset: -2rpx;
+}

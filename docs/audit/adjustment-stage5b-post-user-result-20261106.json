@@ -1,0 +1,26 @@
+{
+  "readOnly": true,
+  "runStatus": "applied",
+  "revision": 1,
+  "hasApplication": true,
+  "receiptMatchesOriginal": true,
+  "taskMinutes": [
+    10,
+    10
+  ],
+  "taskTimeMatches": true,
+  "goalTimeMatches": true,
+  "goalExists": true,
+  "balances": [
+    {
+      "collection": "users",
+      "fullRecordSame": false,
+      "balanceSame": true
+    },
+    {
+      "collection": "user_growth_pool",
+      "fullRecordSame": true,
+      "balanceSame": true
+    }
+  ]
+}

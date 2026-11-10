@@ -1,0 +1,11 @@
+{
+  "readOnly": true,
+  "modelCalls": false,
+  "businessWrites": false,
+  "parallel": {
+    "ok": true
+  },
+  "serial": {
+    "ok": true
+  }
+}

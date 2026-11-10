@@ -25,7 +25,7 @@ module.exports = {
 
     // === 家园系 canine（犬科）— 由家园蛋孵化 ===
     { id: 'husky',         name: '哈士奇',     category: 'canine', icon: '🐕', asset: '' },
-    { id: 'wolf',          name: '狼',         category: 'canine', icon: '�', asset: '' },
+    { id: 'wolf',          name: '狼',         category: 'canine', icon: '🐺', asset: '' },
     { id: 'corgi',         name: '柯基',       category: 'canine', icon: '🐕', asset: '' },
     { id: 'golden_retriever', name: '金毛',   category: 'canine', icon: '🐕', asset: '' },
     { id: 'shiba',         name: '柴犬',       category: 'canine', icon: '🐕', asset: '' },

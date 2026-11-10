@@ -41,34 +41,49 @@ Page({
     selectedMood: -1,
     selectedMoodLabel: "",
     note: "",
+    savingMood: false,
   },
 
   recordMood(e) {
-    const idx = e.currentTarget.dataset.index
-    const label = this.data.moodOptions[idx].label
+    if (this.data.savingMood) return
+    const idx = Number(e.currentTarget.dataset.index)
+    const label = this.data.moodOptions[idx]?.label
+    if (!label) return
     this.setData({ selectedMood: idx, selectedMoodLabel: label })
   },
 
   async submitEmotion() {
-    if (this.data.selectedMood === -1) {
+    if (this.data.savingMood) return
+    const { selectedMood, note } = this.data
+    const mood = this.data.moodOptions[selectedMood]
+    if (!mood) {
       wx.showToast({ title: "请先选择心情", icon: "none" })
       return
     }
-    const mood = this.data.moodOptions[this.data.selectedMood]
+    const app = getApp()
+    const { currentOpenid: owner, userInfo: session } = app.globalData
+    if (!owner) return
+    const isCurrent = () => app.globalData.currentOpenid === owner && app.globalData.userInfo === session
+    this.setData({ savingMood: true })
     try {
-      await cloudApi.emotions({
-        mood_index: this.data.selectedMood,
+      const receipt = await cloudApi.emotions({
+        mood_index: selectedMood,
         mood_label: mood.label,
+        ...(note ? { note } : {}),
       })
-      const noteText = this.data.note ? `，备注：${this.data.note}` : ""
-      wx.showToast({ title: `已记录 ${mood.emoji} ${mood.label}${noteText}`, icon: "success" })
+      if (!isCurrent()) return
+      if (receipt?.success !== true) throw new Error('未收到心情保存回执')
+      if (note && receipt.mood?.note !== note) throw new Error('心情已保存，备注未确认，请保留后重试')
+      wx.showToast({ title: `已记录 ${mood.emoji} ${mood.label}`, icon: "success" })
       this.setData({ selectedMood: -1, selectedMoodLabel: "", note: "" })
     } catch (err) {
-      wx.showToast({ title: "记录失败", icon: "error" })
+      if (isCurrent()) wx.showToast({ title: (typeof err === 'string' ? err : err?.message) || '记录失败，请重试', icon: 'none' })
+    } finally {
+      this.setData(isCurrent() ? { savingMood: false } : { savingMood: false, selectedMood: -1, selectedMoodLabel: '', note: '' })
     }
   },
 
   onNoteInput(e) {
-    this.setData({ note: e.detail.value })
+    if (!this.data.savingMood) this.setData({ note: e.detail.value })
   },
 })

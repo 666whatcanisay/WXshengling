@@ -9,6 +9,9 @@
   <!-- 主内容 -->
   <scroll-view wx:else scroll-y class="preview-scroll" enhanced show-scrollbar="{{false}}">
     <view class="preview-inner">
+      <navigator url="/pet-art/gallery/index" class="portrait-gallery-link">查看全部动物的新立绘 ›</navigator>
+
+      <lynx-demo active="{{lynxVisible}}" />
 
       <!-- 头部统计 -->
       <view class="preview-header">

@@ -209,21 +209,29 @@ function _buildHatchedAppearance(pet) {
 
   // V7：阶段由 growth_value 决定（实时计算，不依赖可能过期的 DB stage 字段）
   var gv = pet.growth_value || 0
-  var growthStage = SpeciesConfig.getStageByGrowth(gv)
-
-  // 【V8.5修复】始终以 growth_value 实时计算的阶段为准，不再依赖 DB 中可能过期的 stage 字段
+  var stageGrowth = gv
+  var growthStage = SpeciesConfig.getStageByGrowth(stageGrowth)
+  if (growthStage.key === 'EGG') {
+    // 已孵化的旧记录可能没有成长值，接口会补 0。仅用旧阶段恢复显示。
+    var stages = SpeciesConfig.GROWTH_STAGES
+    growthStage = stages.find(function(s) { return s.key !== 'EGG' && s.key === pet.stage }) || stages[1]
+    stageGrowth = growthStage.minGrowth
+  }
   var stageKey = growthStage.key
   var stageInfo = module.exports.STAGES[stageKey] || module.exports.STAGES.BABY
 
   // V7.1：异色/稀有判定（三档颜色）
-  var isShiny = pet.is_shiny === true
-  var colorTier = pet.color_tier || 'normal'
+  var isShiny = pet.color_tier === 'shiny' || pet.is_shiny === true
+  var colorTier = isShiny ? 'shiny' : (pet.color_tier || 'normal')
   var isRare = colorTier === 'rare'
 
   // V8.0：天赋信息
   var talentValue = pet.talent || 1
   var talentGradeInfo = SpeciesConfig.getTalentGrade(talentValue)
-  var talentStars = SpeciesConfig.getTalentStars(talentValue)
+  if (Number(talentValue) === 1 && pet.talent_grade) {
+    talentGradeInfo = SpeciesConfig.TALENT.grades.find(function(grade) { return grade.key === pet.talent_grade }) || talentGradeInfo
+  }
+  var talentStars = SpeciesConfig.getTalentStars(talentGradeInfo.range[0])
   var isLegendaryTalent = talentGradeInfo.key === 'S'
   var isGeniusTalent = talentGradeInfo.key === 'A' || talentGradeInfo.key === 'S'
 
@@ -320,8 +328,8 @@ function _buildHatchedAppearance(pet) {
     // V7 成长值与阶段信息
     growthValue: gv,
     currentStage: growthStage,
-    nextStage: SpeciesConfig.getNextStage(gv),
-    stageProgress: SpeciesConfig.getStageProgress(gv),
+    nextStage: SpeciesConfig.getNextStage(stageGrowth),
+    stageProgress: SpeciesConfig.getStageProgress(stageGrowth),
 
     containerClass: 'pet-display-hatched rarity-' + (pet.rarity || 'common') +
       ' stage-' + stageKey + ' mood-' + (pet.mood || 'normal') +

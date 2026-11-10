@@ -8,15 +8,31 @@ const { Db } = appRequire('@cloudbase/database');
 const { EJSON } = appRequire('bson');
 const clone = value => structuredClone(value);
 const keyOf = (name, id) => JSON.stringify([name, id]);
+function setPath(row, key, value, increment = false) {
+  const parts = key.split('.');
+  let target = row;
+  for (const part of parts.slice(0, -1)) target = target[part] ||= {};
+  const last = parts.at(-1);
+  target[last] = increment ? (target[last] || 0) + value : value;
+}
 
 function offlineCloudbase(seed, hooks = {}) {
   let rows = clone(seed), serial = 0;
   const versions = new Map(), transactions = new Map();
+  // Opt-in model for this native TransactionBusy incident, not a statement
+  // that every CloudBase transport always rejects overlapping reads.
+  const inFlight = new Set();
   const stats = { starts: 0, commits: 0, conflicts: 0, aborts: 0, wireCalls: 0 };
   const conflict = () => ({ code: 'DATABASE_TRANSACTION_CONFLICT', message: 'database transaction conflict' });
   const matches = (row, query) => Object.entries(query).every(([k, v]) => {
+    if (k === '$and') return v.every(clause => matches(row, clause));
+    if (v && typeof v === 'object' && '$in' in v) return v.$in.includes(row[k]);
+    if (v && typeof v === 'object' && ('$gte' in v || '$lte' in v)) {
+      return (!('$gte' in v) || row[k] >= v.$gte) && (!('$lte' in v) || row[k] <= v.$lte);
+    }
     if (v && typeof v === 'object' && '$eq' in v) return row[k] === v.$eq;
     if (v && typeof v === 'object' && '$ne' in v) return row[k] !== v.$ne;
+    if (v && typeof v === 'object' && '$gt' in v) return row[k] > v.$gt;
     return row[k] === v;
   });
   const bump = (name, id) => {
@@ -35,6 +51,15 @@ function offlineCloudbase(seed, hooks = {}) {
   };
   class OfflineRequest {
     async send(command, args = {}) {
+      const lock = hooks.serialTransactions && args.transactionId;
+      if (lock && inFlight.has(lock)) return { code: 'DATABASE_TRANSACTION_FAIL', message: '[ResourceUnavailable.TransactionBusy] Transaction is busy' };
+      if (lock) inFlight.add(lock);
+      try {
+        if (lock) await new Promise(resolve => setImmediate(resolve));
+        return await this.dispatch(command, args);
+      } finally { if (lock) inFlight.delete(lock); }
+    }
+    async dispatch(command, args = {}) {
       stats.wireCalls++;
       if (hooks.beforeRequest) {
         const override = await hooks.beforeRequest(command, args, { rows, mutate, stats });
@@ -50,6 +75,7 @@ function offlineCloudbase(seed, hooks = {}) {
       if (command === 'database.commitTransaction') {
         if (hooks.commitConflict && hooks.commitConflict(stats)) { stats.conflicts++; return conflict(); }
         for (const [key, version] of tx.reads) {
+          if (hooks.snapshotIsolation && !tx.writes.has(key)) continue;
           if ((versions.get(key) || 0) !== version) { stats.conflicts++; return conflict(); }
         }
         for (const key of tx.writes) {
@@ -73,12 +99,19 @@ function offlineCloudbase(seed, hooks = {}) {
       const store = tx ? tx.rows : rows;
       const name = args.collectionName;
       const query = args.query ? EJSON.parse(args.query) : {};
+      if (command === 'database.calculateDocument') {
+        return { data: { total: (store[name] || []).filter(row => matches(row, query)).length } };
+      }
       if (command === 'database.getDocument') {
         if (tx) {
           if (args.queryType !== 'DOC') throw new Error('Transaction queries must address a document');
           readKey(tx, name, query._id);
         }
         const list = (store[name] || []).filter(row => matches(row, query));
+        if (args.order) {
+          const order = EJSON.parse(args.order);
+          list.sort((a, b) => { for (const [field, direction] of Object.entries(order)) { if (a[field] !== b[field]) return (a[field] < b[field] ? -1 : 1) * direction; } return 0; });
+        }
         return { data: { list: list.slice(args.offset || 0, (args.offset || 0) + (args.limit || 100)).map(r => EJSON.stringify(r)) } };
       }
       if (command === 'database.modifyDocument') {
@@ -87,8 +120,8 @@ function offlineCloudbase(seed, hooks = {}) {
         if (args.merge !== true) throw new Error('Only update is supported by this test transport');
         for (const row of selected) {
           if (tx) tx.writes.add(readKey(tx, name, row._id));
-          for (const [key, value] of Object.entries(patch.$set || {})) row[key] = value;
-          for (const [key, value] of Object.entries(patch.$inc || {})) row[key] = (row[key] || 0) + value;
+          for (const [key, value] of Object.entries(patch.$set || {})) setPath(row, key, value);
+          for (const [key, value] of Object.entries(patch.$inc || {})) setPath(row, key, value, true);
           if (Object.keys(patch).some(k => !['$set', '$inc'].includes(k))) throw new Error('Unsupported update operator');
           if (!tx) bump(name, row._id);
         }

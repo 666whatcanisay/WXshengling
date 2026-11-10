@@ -1,12 +1,58 @@
+<template name="planner-review-rules">
+  <view wx:if="{{result && result.rules && !expired}}" class="audit-rules-section">
+    <text class="partner-source">规则检查 · 云端版本 {{result.binding.revision}}</text>
+    <text wx:if="{{!summaryShown}}" class="partner-body-copy">{{result.rules.error_count}} 项字段/日期问题 · {{result.rules.warning_count}} 项安排提醒</text>
+    <text class="partner-footnote">{{result.rules.facts.task_count}} 项任务，安排在 {{result.rules.facts.scheduled_days}} 个日期；{{result.rules.facts.daily_budget_minutes ? '明确每日投入 ' + result.rules.facts.daily_budget_minutes + ' 分钟' : '每日投入尚不明确或无法换算'}}</text>
+    <view wx:for="{{result.rules.facts.daily_loads}}" wx:key="date" class="audit-load-row"><text>{{item.date}}</text><text>已知预计 {{item.estimated_minutes}} 分钟{{!item.complete ? ' · 时长未填全' : item.over_budget ? ' · 超出投入' : ''}}</text></view>
+    <text wx:if="{{!result.rules.findings.length}}" class="partner-footnote">本次规则未发现问题；语义可执行性可继续交给 AI 检查。</text>
+    <view wx:for="{{result.rules.findings}}" wx:key="index" class="audit-finding">
+      <text class="audit-finding-label">{{item.severity === 'error' ? '需核对' : '安排提醒'}} · {{item.task_id ? item.task_date + ' ' + item.task_title : '整体计划'}}</text>
+      <text class="partner-body-copy">{{item.message}}</text><text class="audit-suggestion">建议：{{item.suggestion}}</text>
+      <button wx:if="{{result.is_current}}" class="partner-outline" data-review="{{result.id}}" data-task="{{item.task_id}}" data-field="{{item.field}}" bindtap="openReviewFinding">{{item.task_id ? '修改这项' : '查看计划设置'}}</button>
+      <block wx:if="{{result.is_current}}">
+        <button wx:for="{{item.related_tasks}}" wx:for-item="related" wx:key="id" class="partner-outline" data-review="{{result.id}}" data-task="{{related.id}}" bindtap="openReviewFinding">修改 {{related.title}}</button>
+      </block>
+    </view>
+    <text wx:for="{{result.rules.notes}}" wx:key="*this" class="partner-footnote">{{item}}</text>
+  </view>
+</template>
+<template name="review-rule-summary">
+  <view wx:if="{{!expired && result && result.rules}}" class="review-rule-summary">
+    <button class="review-disclosure" bindtap="toggleReviewRules">
+      <view class="review-disclosure-copy"><text class="review-disclosure-title">规则检查</text><text class="review-disclosure-caption">{{result.rules.error_count}} 项字段/日期问题 · {{result.rules.warning_count}} 项安排提醒</text></view>
+      <text class="review-disclosure-action">{{expanded ? '收起 −' : '展开 +'}}</text>
+    </button>
+    <template wx:if="{{expanded}}" is="planner-review-rules" data="{{result: result, expired: expired, summaryShown: true}}" />
+  </view>
+</template>
+<template name="coach-section-toggle">
+  <button class="partner-disclosure {{paper ? 'partner-disclosure-paper' : ''}}" data-section="{{section}}" bindtap="toggleCoachSection" aria-expanded="{{expanded}}">
+    <view class="review-disclosure-copy"><text class="review-disclosure-title">{{title}}</text><text wx:if="{{caption}}" class="review-disclosure-caption">{{caption}}</text></view>
+    <text class="review-disclosure-action">{{expanded ? '收起 −' : '展开 +'}}</text>
+  </button>
+</template>
+<template name="planner-draft-status">
+  <view wx:if="{{!publicationPending}}" class="planner-draft-status">
+    <text class="planner-draft-heading">{{draftSource === 'local_template' ? '本地规则模板 · 非模型生成' : draftSource === 'model' ? '模型生成 · 可继续编辑' : '计划草案'}}</text>
+    <text class="planner-draft-caption">{{draftCloudState === 'saved' ? '已保存到云端 · 版本 ' + cloudDraftRevision : draftCloudState === 'saving' ? '正在保存，请稍候' : draftCloudState === 'loading' ? '正在读取草案' : draftCloudState === 'dirty' ? '有本机修改，尚未保存到云端' : draftCloudState === 'conflict' ? '版本冲突 · 本机修改已保留' : draftCloudState === 'error' ? '云端状态未确认，请查看提示' : '可恢复云端草案，未发布前不会创建任务'}}</text>
+    <text wx:if="{{draftCloudError}}" class="planner-draft-warning">{{draftCloudError}}</text>
+    <view class="planner-draft-actions">
+      <button wx:if="{{hasDraft}}" bindtap="openPlannerWorkspace">查看草案</button>
+      <button wx:if="{{hasDraft}}" bindtap="savePlannerDraft" disabled="{{draftCloudState === 'saving' || draftCloudState === 'loading'}}">{{draftCloudState === 'saved' ? '再存一版' : '保存草案'}}</button>
+      <button bindtap="recoverCloudPlannerDraft" disabled="{{draftCloudState === 'saving' || draftCloudState === 'loading'}}">恢复云端稿</button>
+      <button wx:if="{{draftBackupAvailable}}" bindtap="recoverPlannerLocalBackup" disabled="{{draftCloudState === 'saving' || draftCloudState === 'loading'}}">恢复本机备份</button>
+    </view>
+  </view>
+</template>
 <view class="page">
-  <scroll-view scroll-y class="page-scroll" enhanced show-scrollbar="{{false}}" scroll-into-view="{{scrollIntoView}}">
+  <scroll-view wx:if="{{mode !== 'chat'}}" scroll-y class="page-scroll" enhanced show-scrollbar="{{false}}" scroll-into-view="{{scrollIntoView}}">
     <view class="page-inner">
 
   <!-- 返回按钮 + 生成计划（规划师模式专用） -->
   <view wx:if="{{mode !== 'menu'}}" class="top-bar-row">
     <view class="back-bar" bindtap="switchMode" data-mode="menu">
       <text class="back-icon">🔙</text>
-      <text class="back-text">返回工具箱</text>
+      <text class="back-text">返回 AI 首页</text>
     </view>
     <view wx:if="{{mode === 'plan'}}" class="plan-gen-top-btn" bindtap="generatePlanTasks">
       <text class="plan-gen-top-icon">🎯</text>
@@ -16,6 +62,11 @@
 
   <!-- ==================== 菜单模式（森林工具箱）==================== -->
   <view wx:if="{{mode === 'menu'}}" class="menu-container">
+    <view class="steward-entry" bindtap="openForestSteward" role="button" aria-label="打开森林管家工作区">
+      <view class="steward-entry-heading"><text class="steward-entry-avatar">🌲</text><view class="steward-entry-copy"><text class="steward-entry-label">你的成长协调伙伴</text><text class="steward-entry-title">森林管家</text></view><text class="steward-entry-arrow">›</text></view>
+      <text class="steward-entry-description">从一个目标开始，把计划与执行接起来。</text>
+      <view class="steward-entry-bottom"><text>规划 · 执行 · 反馈 · 复盘</text><text class="steward-entry-action">进入工作区 ›</text></view>
+    </view>
     <!-- 木纹标题栏 -->
     <view class="wood-title">
       <text class="wood-title-leaf">🌲</text>
@@ -23,22 +74,46 @@
       <text class="wood-title-leaf">🌲</text>
     </view>
 
-    <!-- 黄色标题条 -->
-    <view class="toolbox-header">
-      <text class="toolbox-title">🌲 AI 自律森林工具箱 🌲</text>
-    </view>
-
-    <!-- ===== 成长工具 ===== -->
-    <view class="section-label">🌱 成长工具</view>
-    <view class="ai-grid">
+    <!-- 四个专业伙伴常显，工具箱继续使用原三列布局 -->
+    <view class="ai-grid partner-grid">
       <view class="ai-grid-item" bindtap="switchMode" data-mode="plan">
         <text class="ai-grid-icon">📋</text>
         <text class="ai-grid-name">AI 规划师</text>
+        <text class="partner-description">聊目标，制定计划</text>
+      </view>
+      <view class="ai-grid-item" bindtap="switchMode" data-mode="review">
+        <text class="ai-grid-icon">🔍</text>
+        <text class="ai-grid-name">AI 审核师</text>
+        <text class="partner-description">看草案，检查安排</text>
       </view>
       <view class="ai-grid-item" bindtap="switchMode" data-mode="coach">
         <text class="ai-grid-icon">🏆</text>
         <text class="ai-grid-name">AI 教练</text>
+        <text class="partner-description">看执行，复盘调整</text>
       </view>
+      <view class="ai-grid-item" bindtap="switchMode" data-mode="chat">
+        <text class="ai-grid-icon">🐾</text>
+        <text class="ai-grid-name">宠物聊天</text>
+        <text class="partner-description">聊心情，陪你成长</text>
+      </view>
+    </view>
+
+    <!-- 工具箱和分类默认收起，点击后在原位置向下展开 -->
+    <view class="toolbox-header" bindtap="toggleToolbox" role="button" aria-expanded="{{toolboxExpanded}}" aria-label="AI 自律森林工具箱">
+      <text class="toolbox-title">🌲 AI 自律森林工具箱 🌲</text>
+      <text class="collapse-arrow {{toolboxExpanded ? 'collapse-arrow-open' : ''}}"></text>
+    </view>
+    <view wx:if="{{toolboxExpanded}}" class="toolbox-content expand-content">
+    <button class="toolbox-shortcut" bindtap="openTool" data-tool="{{pomodoroRunning || pomodoroStatus === '已暂停' || pomodoroSeconds === 0 ? 'pomodoro' : 'todoDraw'}}">
+      <text>{{pomodoroRunning || pomodoroStatus === '已暂停' || pomodoroSeconds === 0 ? '🍅 回到本轮计时' : '🎲 抽一项今日待办'}}</text>
+      <text class="toolbox-shortcut-meta">{{pomodoroRunning || pomodoroStatus === '已暂停' || pomodoroSeconds === 0 ? pomodoroFormattedTime + ' ›' : '从我的目标抽取 ›'}}</text>
+    </button>
+    <!-- ===== 自律工具 ===== -->
+    <view class="section-label tool-category-header" bindtap="toggleToolCategory" data-category="discipline" role="button" aria-expanded="{{toolCategoriesExpanded.discipline}}" aria-label="自律工具">
+      <text>💪 自律工具</text>
+      <text class="collapse-arrow {{toolCategoriesExpanded.discipline ? 'collapse-arrow-open' : ''}}"></text>
+    </view>
+    <view wx:if="{{toolCategoriesExpanded.discipline}}" class="ai-grid expand-content">
       <view class="ai-grid-item" bindtap="switchMode" data-mode="goalname">
         <text class="ai-grid-icon">🎯</text>
         <text class="ai-grid-name">目标命名器</text>
@@ -47,11 +122,6 @@
         <text class="ai-grid-icon">🌐</text>
         <text class="ai-grid-name">成长翻译</text>
       </view>
-    </view>
-
-    <!-- ===== 自律工具 ===== -->
-    <view class="section-label">💪 自律工具</view>
-    <view class="ai-grid">
       <view class="ai-grid-item" bindtap="openTool" data-tool="pomodoro">
         <text class="ai-grid-icon">🍅</text>
         <text class="ai-grid-name">番茄钟</text>
@@ -71,8 +141,11 @@
     </view>
 
     <!-- ===== 趣味互动 ===== -->
-    <view class="section-label">✨ 趣味互动</view>
-    <view class="ai-grid">
+    <view class="section-label tool-category-header" bindtap="toggleToolCategory" data-category="fun" role="button" aria-expanded="{{toolCategoriesExpanded.fun}}" aria-label="趣味互动">
+      <text>✨ 趣味互动</text>
+      <text class="collapse-arrow {{toolCategoriesExpanded.fun ? 'collapse-arrow-open' : ''}}"></text>
+    </view>
+    <view wx:if="{{toolCategoriesExpanded.fun}}" class="ai-grid expand-content">
       <view class="ai-grid-item" bindtap="switchMode" data-mode="oracle">
         <text class="ai-grid-icon">📖</text>
         <text class="ai-grid-name">答案之书</text>
@@ -96,8 +169,11 @@
     </view>
 
     <!-- ===== 创意工坊 ===== -->
-    <view class="section-label">🎨 创意工坊</view>
-    <view class="ai-grid">
+    <view class="section-label tool-category-header" bindtap="toggleToolCategory" data-category="creative" role="button" aria-expanded="{{toolCategoriesExpanded.creative}}" aria-label="创意工坊">
+      <text>🎨 创意工坊</text>
+      <text class="collapse-arrow {{toolCategoriesExpanded.creative ? 'collapse-arrow-open' : ''}}"></text>
+    </view>
+    <view wx:if="{{toolCategoriesExpanded.creative}}" class="ai-grid expand-content">
       <view class="ai-grid-item" bindtap="switchMode" data-mode="future">
         <text class="ai-grid-icon">📨</text>
         <text class="ai-grid-name">未来来信</text>
@@ -110,14 +186,11 @@
         <text class="ai-grid-icon">✨</text>
         <text class="ai-grid-name">昵称生成器</text>
       </view>
-      <view class="ai-grid-item" bindtap="switchMode" data-mode="chat">
-        <text class="ai-grid-icon">🐾</text>
-        <text class="ai-grid-name">宠物聊天</text>
-      </view>
       <view class="ai-grid-item" bindtap="switchMode" data-mode="challenge">
         <text class="ai-grid-icon">🎲</text>
         <text class="ai-grid-name">随机挑战</text>
       </view>
+    </view>
     </view>
   </view>
 
@@ -131,6 +204,7 @@
       </view>
     </view>
 
+    <template is="planner-draft-status" data="{{draftCloudState, draftCloudError, draftSource, cloudDraftRevision, draftBackupAvailable, publicationPending, hasDraft: !!plannerState.generatedGoal}}" />
     <!-- 规划信息卡片 -->
     <view wx:if="{{mode === 'plan' && plannerState.goalContext.what}}" class="plan-info-card">
       <view class="plan-info-row">
@@ -147,6 +221,8 @@
     </view>
 
     <!-- 未生成任务时：对话界面 -->
+    <text wx:if="{{plannerAiProvider}}" class="mode-desc">当前模型：{{plannerAiProvider}}</text>
+    <text wx:if="{{plannerAiStatus}}" class="mode-desc">{{plannerAiStatus}}</text>
     <view wx:if="{{!plannerState.generatedTasks || plannerState.generatedTasks.length === 0}}" class="card-solid plan-chat-card">
 
       <!-- 对话消息区 -->
@@ -167,11 +243,14 @@
 
       <!-- 输入区 -->
       <view class="plan-chat-input-row">
-        <input class="wood-chat-input" placeholder="说说你的目标..." value="{{planInput}}" bindinput="onPlanChatInput" confirm-type="send" bindconfirm="sendPlanMessage" disabled="{{plannerState.loading}}" />
+        <input class="wood-chat-input" placeholder="说说你的目标..." value="{{planInput}}" maxlength="1200" bindinput="onPlanChatInput" confirm-type="send" bindconfirm="sendPlanMessage" disabled="{{plannerState.loading}}" />
         <button class="plan-send-btn" bindtap="sendPlanMessage" disabled="{{plannerState.loading || !planInput}}">发送</button>
       </view>
 
       <!-- 生成任务按钮（规划阶段显示） -->
+      <view wx:if="{{generationRecoveryAvailable && !plannerState.loading}}" class="plan-generate-area">
+        <button class="btn-wood plan-generate-btn" bindtap="resumePlannerGeneration">恢复上次生成</button>
+      </view>
       <view wx:if="{{plannerState.readyToGenerate && plannerState.phase !== 'publishing' && !plannerState.generatedTasks}}" class="plan-generate-area">
         <text wx:if="{{planStatus}}" class="plan-generate-status">{{planStatus}}</text>
         <text class="plan-generate-hint">💡 方案确认后，点击下方按钮让 AI 为你生成每日任务！</text>
@@ -182,22 +261,178 @@
     </view>
   </view>
 
-  <!-- ==================== 教练模式 ==================== -->
-  <view wx:elif="{{mode === 'coach'}}" class="mode-container">
-    <view class="wood-title">
-      <text class="wood-title-leaf">🌿</text><text class="wood-title-text">🏆 AI 教练分析</text><text class="wood-title-leaf">🌿</text>
+  <!-- ==================== 审核师：版本化规则检查与按需语义建议 ==================== -->
+  <view wx:elif="{{mode === 'review'}}" class="mode-container partner-workspace review-workspace">
+    <view class="partner-hero review-hero">
+      <view class="partner-hero-icon">🔍</view><view class="partner-hero-copy"><text class="partner-kicker">计划确认前，多看一眼</text><text class="partner-title">AI 审核师</text><text class="partner-subtitle">对照你的要求，检查具体的一份草案。</text></view>
     </view>
-    <view class="card-solid coach-card">
-      <text class="mode-desc">AI 教练根据你的成长记录，分析你的学习节奏和习惯，给出专业的改进建议。</text>
-      <view wx:if="{{coachStats}}" class="stats-row">
-        <view class="stat-item wood-frame"><text class="stat-num">{{coachStats.goalCount || 0}}</text><text class="stat-label">进行中目标</text></view>
-        <view class="stat-item wood-frame"><text class="stat-num">{{coachStats.totalCheckins || 0}}</text><text class="stat-label">累计打卡</text></view>
-        <view class="stat-item wood-frame"><text class="stat-num">{{coachStats.streakDays || 0}}天</text><text class="stat-label">连续打卡</text></view>
+    <view wx:if="{{draftCloudState === 'loading'}}" class="partner-paper"><text class="partner-muted">正在读取你的草案…</text></view>
+    <view wx:elif="{{reviewError}}" class="partner-error"><text>{{reviewError}}</text><button class="partner-link" bindtap="loadReviewDraft">重新读取</button></view>
+    <view wx:elif="{{!reviewDraft}}" class="partner-paper partner-empty">
+      <text class="partner-empty-icon">📋</text><text class="partner-paper-title">先准备一份计划草案</text>
+      <text class="partner-muted">这里读取规划师当前编辑稿，或上次尚待确认的发布原稿。不会自动重新生成计划。</text>
+      <button class="partner-primary" bindtap="openPartnerPlanner">到 AI 规划师准备草案 ›</button>
+      <button class="partner-link" bindtap="loadReviewDraft">刷新草案状态</button>
+    </view>
+    <view wx:else class="partner-paper">
+      <text class="review-eyebrow">当前草案</text>
+      <text class="review-goal-title">{{reviewDraft.title}}</text>
+      <text class="partner-source">{{reviewDraft.source}} · {{reviewDraft.versionLabel}} · {{reviewDraft.count}} 项任务</text>
+      <text wx:if="{{reviewDraft.locked}}" class="partner-inline-note">这份原稿正等待发布结果确认，保持锁定，避免重复创建。</text>
+      <text wx:if="{{!reviewDraft.count}}" class="partner-inline-note">草案里还没有任务，可以先返回规划师补充。</text>
+      <view class="review-draft-actions"><button class="partner-link" bindtap="openPartnerPlanner">{{reviewDraft.locked ? '返回确认原稿' : '返回查看 / 修改'}} ›</button><button class="partner-link" bindtap="refreshReviewWorkspace" disabled="{{!!auditBusy}}">读取最新稿</button></view>
+    </view>
+    <view wx:if="{{reviewDraft}}" class="partner-panel planner-review-panel">
+      <view class="partner-heading"><text class="partner-section-title">审核概况</text><text class="partner-small-label">只检查 · 由你决定修改</text></view>
+      <text wx:if="{{!auditReady}}" class="partner-inline-note">请先在规划师保存当前稿，再检查这一版；待确认发布的原稿先处理发布结果。</text>
+      <text wx:if="{{auditExpired}}" class="partner-inline-note">草案已变化，旧结果已过期。保存并读取最新稿后重新检查。</text>
+      <text wx:if="{{auditBusy}}" class="partner-body-copy">{{auditBusy === 'ai' ? '审核师正在阅读这份草案…' : auditBusy === 'rules' ? '正在检查日期与任务用时…' : '正在读取已有审核结果…'}}</text>
+      <text wx:if="{{auditError}}" class="partner-inline-note">{{auditError}}</text>
+      <view class="review-audit-actions">
+        <button class="partner-primary" bindtap="runPlannerRules" disabled="{{!auditReady || !!auditBusy}}">规则检查 · 不调用模型</button>
+        <button class="partner-link" bindtap="loadSavedPlannerReviews" disabled="{{!auditReady || !!auditBusy}}">刷新审核结果</button>
       </view>
-      <view wx:else class="coach-empty"><text class="coach-empty-text">🌰 还没有成长数据，先完成一些目标吧～</text></view>
-      <button class="btn-wood" bindtap="getCoachAdvice">🏅 获取教练建议</button>
-      <view wx:if="{{coachResult}}" class="quote-card"><text class="quote-card-text">{{coachResult}}</text></view>
+      <template is="review-rule-summary" data="{{result: auditRules || auditAI, expired: auditExpired, expanded: reviewRulesExpanded}}" />
     </view>
+    <view wx:if="{{reviewDraft}}" class="partner-panel planner-review-panel review-fold-panel">
+      <button class="review-disclosure" bindtap="toggleReviewAI">
+        <view class="review-disclosure-copy"><text class="review-disclosure-title">AI 语义建议</text><text class="review-disclosure-caption">{{auditExpired ? '旧结果已过期' : auditAI && auditAI.status === 'done' ? '已有 ' + auditAI.semantic.findings.length + ' 条建议' : auditAI && auditAI.status === 'running' ? '审核处理中' : auditAI && auditAI.status === 'failed' ? '上次审核失败' : '可选 · 可能产生模型费用'}}</text></view>
+        <text class="review-disclosure-action">{{reviewAIExpanded ? '收起 −' : '展开 +'}}</text>
+      </button>
+      <text wx:if="{{auditAI && auditAI.status === 'running'}}" class="partner-inline-note">审核正在处理。若中断，稍后刷新结果即可查看是否能重试。</text>
+      <text wx:elif="{{auditAI && auditAI.status === 'failed'}}" class="partner-inline-note">{{auditAI.error}} {{auditAI.retry_available ? '可检查配置后手动重试。' : '这版草案的失败尝试已达上限。'}}</text>
+      <view wx:if="{{reviewAIExpanded}}" class="audit-model-section">
+        <text class="partner-footnote">点击时使用当前模型配置，可能产生少量费用。同一版本已有结果会直接读取；不自动改稿或发布。</text>
+        <block wx:if="{{auditAI && auditAI.status === 'done' && !auditExpired}}">
+          <text class="partner-source">云端版本 {{auditAI.binding.revision}} · {{auditAI.model.provider}} / {{auditAI.model.name}}</text>
+          <text class="partner-body-copy">{{auditAI.semantic.summary}}</text>
+          <text wx:if="{{!auditAI.semantic.findings.length}}" class="partner-footnote">本次未提出额外语义建议；这不保证现实目标一定达成。</text>
+          <view wx:for="{{auditAI.semantic.findings}}" wx:key="code" class="audit-finding">
+            <text class="audit-finding-label">{{item.severity === 'warning' ? '建议关注' : '补充建议'}} · {{item.task_id ? item.task_date + ' ' + item.task_title : '整体计划'}}</text>
+            <text class="partner-body-copy">{{item.message}}</text><text class="audit-suggestion">建议：{{item.suggestion}}</text>
+            <button wx:if="{{auditAI.is_current}}" class="partner-outline" data-review="{{auditAI.id}}" data-task="{{item.task_id}}" bindtap="openReviewFinding">{{item.task_id ? '修改这项' : '查看计划设置'}}</button>
+          </view>
+        </block>
+        <text wx:elif="{{!auditAI || auditExpired}}" class="partner-body-copy">尚未运行这一版的 AI 审核，没有通过结论或问题评分。</text>
+        <button class="partner-primary" bindtap="runPlannerAIReview" disabled="{{!auditReady || !!auditBusy || auditExpired || auditUncertain || auditAI && (auditAI.status === 'running' || auditAI.status === 'failed' && !auditAI.retry_available)}}">{{auditAI && auditAI.status === 'done' ? '读取已有 AI 建议' : auditAI && auditAI.status === 'failed' ? '手动重试 AI 审核' : '开始 AI 审核'}}</button>
+        <text class="partner-footnote">规则问题与模型建议分开显示；发布仍执行原有校验，最终由你确认。</text>
+      </view>
+    </view>
+    <view class="partner-panel review-fold-panel">
+      <button class="review-disclosure" bindtap="toggleReviewTasks">
+        <view class="review-disclosure-copy"><text class="review-disclosure-title">草案详情与审核依据</text><text class="review-disclosure-caption">{{reviewDraft ? '任务清单（' + reviewDraft.count + '） · 对话要求' : '了解会检查哪些内容'}}</text></view>
+        <text class="review-disclosure-action">{{reviewExpanded ? '收起 −' : '展开 +'}}</text>
+      </button>
+      <view wx:if="{{reviewExpanded}}" class="review-details">
+        <view class="partner-step-row"><text>选择草案</text><text>›</text><text>核对要求</text><text>›</text><text>查看问题</text><text>›</text><text>返回修改</text></view>
+        <view wx:if="{{reviewDraft}}" class="partner-paper review-detail-paper">
+          <text class="partner-paper-title">任务清单（{{reviewDraft.count}}）</text>
+          <text class="partner-source">计划天数 {{reviewDraft.days}} · 开始日期 {{reviewDraft.start}}</text>
+          <view wx:for="{{reviewDraft.tasks}}" wx:key="key" class="partner-task-row"><text class="partner-task-number">{{index + 1}}</text><view class="partner-task-copy"><text class="partner-task-title">{{item.title}}</text><text class="partner-task-meta">{{item.date}} · {{item.minutes}}</text></view></view>
+        </view>
+        <view class="partner-heading"><text class="partner-section-title">审核依据</text><text class="partner-small-label">对话整理 · 待你核对</text></view>
+        <block wx:if="{{reviewDraft && reviewDraft.requirements.length}}"><view wx:for="{{reviewDraft.requirements}}" wx:key="label" class="requirement-row"><text class="requirement-label">{{item.label}}</text><text class="requirement-value">{{item.text}}</text></view></block>
+        <text wx:else class="partner-body-copy">准备草案后，这里会展示规划对话中已经整理的目标、周期和时间投入。未说明的要求会留空。</text>
+        <text wx:if="{{reviewDraft && reviewDraft.requirements.length}}" class="partner-footnote">这些字段从用户消息或主动编辑中提取，仍请核对；模型建议和未明确的信息不作为已确认要求。</text>
+        <view class="review-check-grid"><view><text>时间与周期</text><text>任务是否符合明确的日期与投入要求</text></view><view><text>任务可执行性</text><text>检查具体程度、负担与安排冲突</text></view></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- ==================== 教练：真实执行事实 + 主动反馈草稿 ==================== -->
+  <view wx:elif="{{mode === 'coach'}}" class="mode-container partner-workspace coach-workspace">
+    <view class="partner-hero review-hero"><view class="partner-hero-icon">🏆</view><view class="partner-hero-copy"><text class="partner-kicker">先看发生了什么，再决定怎么调整</text><text class="partner-title">AI 教练</text><text class="partner-subtitle">把真实记录和你的感受放在一起看。</text></view></view>
+    <view class="partner-panel coach-context">
+      <text class="partner-section-title">这次关注哪一个目标？</text>
+      <view wx:if="{{coachGoalsLoading}}" class="partner-body-copy">正在读取目标…</view>
+      <view wx:elif="{{coachGoalsError}}" class="partner-error"><text>{{coachGoalsError}}</text><button class="partner-link" bindtap="loadCoachGoals">重新读取</button></view>
+      <view wx:elif="{{!coachGoals.length}}" class="partner-body-copy">还没有目标，可以先从规划师开始。</view>
+      <picker wx:else mode="selector" range="{{coachGoalLabels}}" value="{{coachGoalIndex >= 0 ? coachGoalIndex : 0}}" disabled="{{coachCloudSaving}}" bindchange="onCoachGoalChange"><view class="coach-picker"><text>{{coachGoalTitle || '请选择一个已有目标'}}</text><text>切换 ›</text></view></picker>
+      <view class="coach-date-row"><text>截至日期 / 当日反馈</text><picker mode="date" value="{{coachDate}}" end="{{coachToday}}" disabled="{{coachGoalsLoading || coachCloudSaving}}" bindchange="onCoachDateChange"><view class="coach-date-value">{{coachDate}} ▾</view></picker></view>
+      <text wx:if="{{!coachGoalListComplete}}" class="partner-inline-note">目标较多，首版只读取前500条，请先选择已显示的目标。</text>
+    </view>
+    <view wx:if="{{coachWindow}}" class="partner-paper coach-window">
+      <view class="partner-heading"><text class="partner-paper-title">近7天执行概况</text><text class="partner-badge">{{coachWindow.start}} — {{coachWindow.end}}</text></view>
+      <text class="partner-source">{{coachWindow.complete ? '来自当前云端任务记录' : '读取未完整 · 以下仅为已读取记录'}} · 有安排的日期 {{coachWindow.scheduled_days}} 天</text>
+      <view class="coach-fact-grid"><view><text class="coach-fact-value">{{coachWindow.past.total}}</text><text>已结束日期任务</text></view><view><text class="coach-fact-value green-value">{{coachWindow.past.completed}}</text><text>登记完成</text></view><view><text class="coach-fact-value">{{coachWindow.past.pending}}</text><text>未登记完成</text></view></view>
+      <text class="coach-window-rate">{{coachWindow.past.rate !== null ? '已结束日期的登记完成比例：' + coachWindow.past.rate + '%' : coachWindow.past.total ? '状态缺失或记录未读全，暂不计算完整比例' : '已结束日期没有任务，不计算完成比例'}}</text>
+      <text wx:if="{{coachWindow.past.unknown}}" class="partner-muted">{{coachWindow.past.unknown}}项完成状态缺失，保留为未知。</text>
+      <text wx:if="{{coachWindow.today}}" class="coach-today-note">今日尚未结束：{{coachWindow.today.total}}项安排，已登记{{coachWindow.today.completed}}项，待完成{{coachWindow.today.pending}}项。</text>
+      <view class="coach-fold">
+        <template is="coach-section-toggle" data="{{section: 'days', title: '逐日记录与统计说明', expanded: coachSections.days, paper: true}}" />
+        <block wx:if="{{coachSections.days}}">
+          <view wx:for="{{coachWindow.daily}}" wx:key="date" class="coach-day-row"><text>{{item.date}}{{item.is_today ? ' · 今日' : ''}}</text><text>{{item.total}}项 · 完成{{item.completed}}{{item.unknown ? ' · 状态缺失' : ''}}</text></view>
+          <text class="partner-muted">{{coachWindow.feedback_days}}天有用户反馈；{{coachWindow.self_reported_minutes !== null ? coachWindow.self_reported_minutes_days + '天自述用时合计' + coachWindow.self_reported_minutes + '分钟，其余未知' : '实际用时尚未自述，不用预计时长代替'}}</text>
+          <text wx:for="{{coachWindow.notes}}" wx:key="*this" class="partner-muted coach-evidence-note">{{item}}</text>
+        </block>
+      </view>
+    </view>
+    <view class="partner-paper">
+      <template is="coach-section-toggle" data="{{section: 'tasks', title: '当日执行记录', caption: coachDate, expanded: coachSections.tasks, paper: true}}" />
+      <view wx:if="{{coachGoalsLoading || coachTasksLoading}}" class="partner-empty"><text>正在读取真实任务记录…</text></view>
+      <view wx:elif="{{coachGoalsError}}" class="partner-empty"><text>目标读取成功后，再查看执行记录。</text></view>
+      <view wx:elif="{{!coachGoalId}}" class="partner-empty"><text class="partner-empty-icon">🌱</text><text class="partner-paper-title">先选一个目标</text><text class="partner-muted">只查看你选择的记录，不自动替你判断表现。</text></view>
+      <view wx:elif="{{coachTasksError}}" class="partner-empty"><text>{{coachTasksError}}</text><button class="partner-outline" bindtap="loadCoachTasks">重试任务读取</button></view>
+      <block wx:elif="{{coachFacts && coachSections.tasks}}">
+        <text class="partner-source">来自目标任务记录 · 仅所选日期</text>
+        <view class="coach-fact-grid"><view><text class="coach-fact-value">{{coachFacts.total}}</text><text>安排任务</text></view><view><text class="coach-fact-value green-value">{{coachFacts.completed}}</text><text>已完成</text></view><view><text class="coach-fact-value">{{coachFacts.pending}}</text><text>待完成记录</text></view></view>
+        <view wx:if="{{coachFacts.total && coachFacts.rate !== null}}" class="coach-progress"><view class="coach-progress-heading"><text>当前登记完成比例</text><text>{{coachFacts.rate}}%</text></view><view class="coach-progress-track"><view class="coach-progress-fill" style="width: {{coachFacts.rate}}%;"></view></view></view>
+        <view wx:elif="{{coachFacts.total}}" class="partner-muted">部分状态缺失或读取未完整，暂不计算比例。</view>
+        <view wx:else class="partner-empty small-empty"><text>这一天没有任务安排，不计算完成比例，也不据此判断你是否自律。</text></view>
+        <view wx:for="{{coachTasks}}" wx:key="key" class="partner-task-row"><text class="coach-task-mark {{item.completed === true ? 'completed-mark' : ''}}">{{item.completed === true ? '✓' : '·'}}</text><text class="partner-task-title partner-task-copy">{{item.title}}</text><text class="partner-task-meta">{{item.completed === true ? '已完成' : item.completed === false ? '待完成' : '状态未记录'}}</text></view>
+        <button class="partner-link coach-refresh" bindtap="loadCoachTasks">刷新这一天的记录</button>
+      </block>
+    </view>
+    <view class="partner-panel coach-feedback-panel">
+      <template is="coach-section-toggle" data="{{section: 'feedback', title: '补充当日反馈', caption: coachCloudConflict ? '反馈版本冲突，待核对' : coachCloudSaving ? '正在同步反馈…' : coachCloudDirty ? '本机反馈待同步' : '主动反馈 · 可不填', expanded: coachSections.feedback}}" />
+      <text wx:if="{{!coachSections.feedback && (coachFeedbackError || coachCloudError)}}" class="partner-feedback-error">{{coachFeedbackError || coachCloudError}}</text>
+      <view hidden="{{!coachSections.feedback}}" class="coach-fold-body">
+      <text class="partner-body-copy">补充{{coachDate}}这一天的感受，作为复盘时的用户自述；可不填，也不会影响奖励。</text>
+      <view wx:if="{{coachGoalId && coachFeedbackReadError}}" class="partner-error"><text>{{coachFeedbackError}}</text><button class="partner-link" bindtap="restoreCoachFeedback">重新读取本机反馈</button></view>
+      <block wx:elif="{{coachGoalId && !coachGoalsError && !coachGoalsLoading}}">
+        <view class="coach-reason-list"><button wx:for="{{coachReasons}}" wx:key="*this" class="coach-reason {{coachReason === item ? 'reason-selected' : ''}}" disabled="{{coachEvidenceLoading || coachCloudSaving}}" data-reason="{{item}}" bindtap="onCoachReason">{{item}}</button></view>
+        <text class="partner-footnote">主观难度</text><view class="coach-reason-list"><button wx:for="{{coachDifficulties}}" wx:key="*this" class="coach-reason {{coachDifficulty === item ? 'reason-selected' : ''}}" disabled="{{coachEvidenceLoading || coachCloudSaving}}" data-difficulty="{{item}}" bindtap="onCoachDifficulty">{{item}}</button></view>
+        <view class="coach-actual-row"><text>这一天自述投入</text><input type="number" value="{{coachActualMinutes}}" disabled="{{coachEvidenceLoading || coachCloudSaving}}" placeholder="未知可留空" bindinput="onCoachActualMinutes" bindblur="saveCoachFeedback" /><text>分钟</text></view>
+        <textarea class="partner-note-input" value="{{coachNote}}" disabled="{{coachEvidenceLoading || coachCloudSaving}}" maxlength="500" placeholder="比如：今天加班，原定 30 分钟只做了 10 分钟…" placeholder-class="partner-input-placeholder" bindinput="onCoachNote" bindblur="saveCoachFeedback" auto-height cursor-spacing="32" />
+        <view class="coach-note-footer"><text>{{coachNote.length}} / 500</text><button class="partner-link" bindtap="saveCoachFeedback">保存到本机</button></view>
+        <text wx:if="{{coachFeedbackStatus}}" class="partner-feedback-state">{{coachFeedbackStatus}}</text>
+        <text wx:if="{{coachFeedbackError}}" class="partner-feedback-error">{{coachFeedbackError}}</text>
+        <view class="partner-action-row"><button class="partner-primary" bindtap="saveCoachCloudFeedback" disabled="{{coachEvidenceLoading || coachCloudSaving || coachCloudRevision === null || coachCloudConflict || coachFeedbackReadError}}">{{coachCloudSaving ? '正在保存…' : '保存反馈到云端'}}</button><button class="partner-outline" bindtap="loadCoachEvidence" disabled="{{coachCloudSaving || coachEvidenceLoading}}">刷新记录</button></view>
+        <text wx:if="{{coachCloudMessage}}" class="partner-feedback-state">{{coachCloudMessage}}</text><text wx:if="{{coachCloudError}}" class="partner-feedback-error">{{coachCloudError}}</text>
+        <view wx:if="{{coachCloudDirty || coachCloudConflict || coachCloudError || coachCloudBackup}}" class="coach-backup-actions"><button class="partner-link" bindtap="restoreCoachCloudFeedback" disabled="{{coachCloudSaving || coachEvidenceLoading}}">备份本机稿并读取云反馈</button><button wx:if="{{coachCloudBackup}}" class="partner-link" bindtap="restoreCoachLocalBackup" disabled="{{coachCloudSaving || coachEvidenceLoading}}">恢复本机副本</button></view>
+      </block>
+      <text wx:else class="partner-footnote">选择目标后再填写，反馈会对应到目标和日期。</text>
+      <text class="partner-footnote">输入先存本机；主动点“保存反馈到云端”才同步。AI只在你发起复盘时读取云端反馈，任务与奖励不会随之改动。</text>
+      </view>
+    </view>
+    <view class="partner-panel coach-feedback-panel">
+      <view class="partner-heading"><text class="partner-section-title">复盘与下一轮建议</text><text class="partner-small-label">主动发起</text></view>
+      <text class="partner-body-copy">按当前模型配置，可能产生少量费用；同一份任务与反馈已有结果会直接读取。</text>
+      <text wx:if="{{coachCloudDirty || coachCloudConflict}}" class="partner-inline-note">本机反馈尚未同步，请先保存或核对云端反馈，避免复盘漏掉你的新想法。</text>
+      <text wx:if="{{coachReportExpired}}" class="partner-inline-note">反馈已有本机修改，旧复盘不作为当前结论。</text>
+      <text wx:if="{{coachReportBusy}}" class="partner-body-copy">教练正在阅读执行记录和反馈…</text>
+      <text wx:if="{{coachReportError}}" class="partner-error">{{coachReportError}}</text>
+      <text wx:if="{{coachReport && coachReport.status === 'running'}}" class="partner-inline-note">复盘正在处理。若中断，稍后刷新记录即可查看是否能重试。</text>
+      <text wx:elif="{{coachReport && coachReport.status === 'failed' && !coachReportExpired}}" class="partner-inline-note">{{coachReport.error}} {{coachReport.retry_hint}} {{coachReport.retry_available ? '可手动重试，可能产生模型费用。' : '相同证据的失败尝试已达上限。'}}</text>
+      <block wx:elif="{{coachReport && coachReport.status === 'done' && !coachReportExpired}}">
+        <text class="partner-body-copy">{{coachReport.result.summary}}</text>
+      </block>
+      <text wx:else class="partner-body-copy">尚未生成当前记录的AI复盘，没有表现评分。</text>
+      <button class="partner-primary" bindtap="runCoachReview" disabled="{{!coachWindow || !coachWindow.complete || !coachWindow.has_evidence || coachCloudDirty || coachCloudConflict || coachEvidenceLoading || coachCloudSaving || coachReportBusy || coachReportUncertain || coachFeedbackReadError || coachReport && (coachReport.status === 'running' || coachReport.status === 'failed' && !coachReport.retry_available)}}">{{coachReport && coachReport.status === 'done' ? '读取已有复盘' : coachReport && coachReport.status === 'failed' ? '手动重试 AI 复盘' : '生成 AI 复盘'}}</button>
+      <button class="partner-link coach-refresh" bindtap="loadCoachEvidence" disabled="{{coachCloudSaving || coachEvidenceLoading || coachReportBusy}}">刷新记录与复盘（不调用模型）</button>
+      <view wx:if="{{coachReport && coachReport.status === 'done' && !coachReportExpired}}" class="coach-fold">
+        <template is="coach-section-toggle" data="{{section: 'report', title: '建议、观察与依据', caption: coachReport.result.suggestions.length + ' 条建议 · ' + coachReport.result.observations.length + ' 条观察', expanded: coachSections.report}}" />
+        <block wx:if="{{coachSections.report}}">
+          <text class="partner-source">{{coachWindow.start}} — {{coachWindow.end}} · {{coachReport.model.provider}} / {{coachReport.model.name}}</text>
+          <view wx:for="{{coachReport.result.observations}}" wx:key="index" class="coach-insight"><text class="coach-insight-title">观察</text><text>{{item.message}}</text><text wx:for="{{item.evidence}}" wx:for-item="ref" wx:key="id" class="coach-citation">依据：{{ref.label}}</text></view>
+          <view wx:for="{{coachReport.result.suggestions}}" wx:key="index" class="coach-insight"><text class="coach-insight-title">可尝试</text><text>{{item.message}}</text><text>{{item.action}}</text><text wx:for="{{item.evidence}}" wx:for-item="ref" wx:key="id" class="coach-citation">依据：{{ref.label}}</text><button class="partner-outline" data-index="{{index}}" bindtap="openCoachInSteward">用于本轮调整 ›</button></view>
+          <text wx:for="{{coachReport.result.uncertainties}}" wx:key="*this" class="partner-footnote">仍不确定：{{item}}</text>
+        </block>
+        <button class="partner-outline coach-steward-link" bindtap="openCoachInSteward">到森林管家查看本次复盘 ›</button>
+      </view>
+      <text class="partner-footnote">复盘对应读取时的记录与云端反馈；记录变化后需重新查看，不自动修改任何任务。</text>
+    </view>
+    <text class="partner-footnote coach-scope-note">统计所选日期及之前6天；反馈对应所选的这一天。今天的待完成记录单列，不把签到当作任务完成。</text>
   </view>
 
   <!-- ==================== 答案之书 ==================== -->
@@ -207,7 +442,7 @@
       <text class="wood-title-leaf">📖</text>
     </view>
     <view class="card-solid oracle-card">
-      <text class="mode-desc">内心纠结不知道怎么办？在心里默念你的问题，然后翻开答案之书，让 AI 给你一个温暖的指引。</text>
+      <text class="mode-desc">写一个低风险的小问题，随机翻一张灵感卡，换个角度想一想。</text>
       <view class="oracle-question-area">
         <text class="oracle-hint">在心中默念你的问题...</text>
         <input class="wood-input oracle-input" placeholder="输入你的问题，例如：我要不要报名这个比赛？" value="{{oracleQuestion}}" bindinput="onOracleInput" />
@@ -225,9 +460,11 @@
       <view wx:if="{{oracleResult && !oracleAnimating}}" class="oracle-result">
         <text class="oracle-q">❝ {{oracleResult.question}}</text>
         <view class="oracle-answer-box">
-          <text class="oracle-answer-label">答案</text>
+          <text class="oracle-answer-label">随机灵感</text>
           <text class="oracle-answer-text" style="color: {{oracleResult.color}}">{{oracleResult.answer}}</text>
         </view>
+        <text class="tool-hint">想试一试？写下一个可撤回、5 分钟内能开始的小动作。</text>
+        <button class="toolbox-action" bindtap="openTool" data-tool="focusOath">写一条专注宣言</button>
         <view class="oracle-explain-box">
           <text class="oracle-explain-label">解释</text>
           <text class="oracle-explain-text">{{oracleResult.explanation}}</text>
@@ -243,7 +480,7 @@
       <text class="wood-title-leaf">🔮</text>
     </view>
     <view class="card-solid fortune-card">
-      <text class="mode-desc">不是玄学，是成长版运势分析！查看今日学习、专注、社交三个维度的运势评分和行动建议。</text>
+      <text class="mode-desc">随机抽一张成长灵感卡，给学习、专注和休息找个小点子。</text>
       <button wx:if="{{!fortuneData}}" class="btn-wood btn-fortune-btn" bindtap="getFortune">🔮 查看今日运势</button>
 
       <view wx:if="{{fortuneData}}" class="fortune-result">
@@ -278,6 +515,7 @@
         </view>
 
         <button class="btn-wood" bindtap="getFortune" style="margin-top:16rpx;">🔄 换一卦</button>
+        <button class="toolbox-action" bindtap="openTool" data-tool="todoDraw">从今日待办选一件</button>
       </view>
     </view>
   </view>
@@ -289,9 +527,9 @@
       <text class="wood-title-leaf">🌐</text>
     </view>
     <view class="card-solid translate-card">
-      <text class="mode-desc">不只是翻译，还有 AI 温暖的鼓励。输入你想说的话，支持中英文，会得到翻译结果和一句加油打气的话。</text>
-      <input class="wood-input" placeholder="输入你想说的话（支持中英文）..." value="{{translateInput}}" bindinput="onTranslateInput" confirm-type="go" bindconfirm="doTranslate" />
-      <button class="btn-leaf" bindtap="doTranslate">🌱 翻译 + 鼓励</button>
+      <text class="mode-desc">写下此刻的感受。森林给你一句鼓励和一个可以尝试的小动作。</text>
+      <input class="wood-input" maxlength="120" placeholder="例如：复习太难，今天有点想放弃" value="{{translateInput}}" bindinput="onTranslateInput" confirm-type="go" bindconfirm="doTranslate" />
+      <button class="btn-leaf" bindtap="doTranslate">🌱 换个说法</button>
 
       <view wx:if="{{translateResult}}" class="translate-result">
         <view class="trans-original">
@@ -299,9 +537,10 @@
           <text class="trans-text">{{translateResult.original}}</text>
         </view>
         <view class="trans-translated">
-          <text class="trans-tag trans-ai">翻译</text>
-          <text class="trans-text">{{translateResult.translated}}</text>
+          <text class="trans-tag trans-ai">可以先试</text>
+          <text class="trans-text">{{translateResult.nextStep}}</text>
         </view>
+        <button class="toolbox-action" bindtap="openTool" data-tool="delayHelp">试试拖延急救</button>
         <view class="trans-encourage quote-card">
           <text class="encourage-icon">💚</text>
           <text class="encourage-text">{{translateResult.encourage}}</text>
@@ -317,9 +556,9 @@
       <text class="wood-title-leaf">✨</text>
     </view>
     <view class="card-solid nickname-card">
-      <text class="mode-desc">输入你的关键词（如技能、爱好、性格特点），AI 为你生成独一无二的酷炫昵称。</text>
+      <text class="mode-desc">用你的技能、爱好或性格关键词，组合几个可复制的森林昵称。</text>
       <text class="nick-hint">输入关键词，用空格或逗号分隔多个词</text>
-      <input class="wood-input" placeholder="如：程序员 英语 AI 运动" value="{{nicknameInput}}" bindinput="onNicknameInput" />
+      <input class="wood-input" maxlength="50" placeholder="如：程序员 英语 AI 运动" value="{{nicknameInput}}" bindinput="onNicknameInput" />
       <button class="btn-leaf" bindtap="generateNickname">✨ 生成昵称</button>
 
       <view wx:if="{{nicknames.length > 0}}" class="nickname-results">
@@ -339,16 +578,17 @@
       <text class="wood-title-leaf">🎯</text>
     </view>
     <view class="card-solid goalname-card">
-      <text class="mode-desc">把"考四级""减肥"这种平淡无奇的目标名，一键改成充满仪式感的酷炫代号，让目标更有动力去完成！</text>
-      <text class="gn-hint">输入平淡无奇的目标名，AI 帮你改得有仪式感</text>
-      <input class="wood-input" placeholder="如：考四六级 / 减肥 / 早起 / 学编程" value="{{goalNameInput}}" bindinput="onGoalNameInput" />
-      <button class="btn-leaf" bindtap="generateGoalName">🎯 一键改名</button>
+      <text class="mode-desc">先写想做的事，选个标题带到目标页。说明和周期可以在新建表单里继续填写。</text>
+      <input class="wood-input" maxlength="35" placeholder="如：考四六级 / 早起 / 学编程" value="{{goalNameInput}}" bindinput="onGoalNameInput" />
+      <button class="btn-leaf" bindtap="generateGoalName">🎯 生成候选</button>
 
       <view wx:if="{{goalNames.length > 0}}" class="goalname-results">
-        <text class="gn-before">原名：{{goalNameInput}}</text>
-        <view wx:for="{{goalNames}}" wx:key="index" class="goalname-item card-solid-sm">
+        <view wx:for="{{goalNames}}" wx:key="*this" class="goalname-item card-solid-sm">
           <text class="gn-name">{{item}}</text>
-          <text class="gn-use" catchtap="useGoalName" data-name="{{item}}">使用这个</text>
+          <view class="toolbox-inline-links">
+            <button class="toolbox-link" catchtap="copyToolText" data-text="{{item}}">复制</button>
+            <button class="toolbox-link" catchtap="useGoalName" data-name="{{item}}">带入目标</button>
+          </view>
         </view>
       </view>
     </view>
@@ -361,7 +601,7 @@
       <text class="wood-title-leaf">📨</text>
     </view>
     <view class="card-solid future-card">
-      <text class="mode-desc">写下你的愿望或目标，AI 会模仿来自三年后成功的你，给你写一封温暖的鼓励信。</text>
+      <text class="mode-desc">写下一个愿望，读一封想象中来自三年后的信，想想今天能迈出哪一步。</text>
       <textarea class="wood-textarea" placeholder="我希望成为..." value="{{futureInput}}" bindinput="onFutureInput" auto-height maxlength="100" />
       <button class="btn-leaf" bindtap="generateFutureLetter">📨 接收来信</button>
 
@@ -373,6 +613,7 @@
         <view class="letter-body card">
           <text class="letter-content">{{futureLetter.content}}</text>
         </view>
+        <button class="toolbox-action" bindtap="copyToolText" data-text="{{futureLetter.content}}">复制来信</button>
       </view>
     </view>
   </view>
@@ -384,10 +625,11 @@
       <text class="wood-title-leaf">⏳</text>
     </view>
     <view class="card-solid capsule-card">
-      <text class="mode-desc">给 30 天后的自己写一封信。把目标、心情或秘密封存起来，30 天后自动解锁，看看自己成长了多少。</text>
+      <text class="mode-desc">给 30 天后的自己写一封信，到期回工具箱打开。</text>
       <view wx:if="{{!capsuleSaved}}">
-        <textarea class="wood-textarea" placeholder="2026年的我，要坚持学AI..." value="{{capsuleText}}" bindinput="onCapsuleInput" auto-height maxlength="200" />
-        <button class="btn-leaf" bindtap="saveCapsule">⏳ 封存胶囊</button>
+        <textarea class="wood-textarea" placeholder="30 天后，我想看看自己坚持了什么…" value="{{capsuleText}}" bindinput="onCapsuleInput" disabled="{{capsuleSaving}}" auto-height maxlength="200" />
+        <button class="btn-leaf" bindtap="saveCapsule" loading="{{capsuleSaving}}" disabled="{{capsuleSaving || capsuleLoading}}">{{capsuleUnconfirmed ? '再次尝试封存' : '⏳ 封存胶囊'}}</button>
+        <text wx:if="{{capsuleUnconfirmed}}" class="tool-hint">上次封存结果待确认，原文已保留。可先刷新列表核对。</text>
       </view>
 
       <view wx:if="{{capsuleSaved}}" class="capsule-saved-view">
@@ -395,19 +637,26 @@
           <text class="sealed-icon">📦</text>
           <text class="sealed-text">胶囊已封存</text>
           <text class="sealed-date">封存日期：{{capsuleDate}}</text>
-          <text class="sealed-open">自动开启：{{capsuleOpenDate}}</text>
+          <text class="sealed-open">{{capsuleOpenDate}} 可打开</text>
         </view>
-        <view wx:if="{{myCapsules.length > 0}}" class="capsule-list">
-          <text class="capsule-list-title">📜 你的时间胶囊</text>
+        <button class="toolbox-action" bindtap="writeAnotherCapsule">再写一封</button>
+      </view>
+      <view class="capsule-list">
+          <button class="toolbox-action" bindtap="toggleCapsuleHistory" aria-expanded="{{capsuleHistoryExpanded}}">{{capsuleHistoryExpanded ? '收起' : '展开'}}我的胶囊 · {{myCapsules.length}} 封</button>
+          <block wx:if="{{capsuleHistoryExpanded}}">
+          <text wx:if="{{capsuleLoading}}" class="tool-hint">正在读取…</text>
+          <button wx:elif="{{capsuleLoadError}}" class="toolbox-action" bindtap="loadCapsules">读取失败 · 重试</button>
+          <text wx:elif="{{!myCapsules.length}}" class="tool-hint">还没有封存的胶囊</text>
+          <button wx:if="{{capsuleUnconfirmed && !capsuleLoading && !capsuleLoadError}}" class="toolbox-link" bindtap="loadCapsules">刷新列表</button>
           <view wx:for="{{myCapsules}}" wx:key="_id" class="capsule-list-item card">
             <text class="capsule-item-icon">📦</text>
             <view class="capsule-item-body">
-              <text class="capsule-item-text">{{item.text}}</text>
+              <text class="capsule-item-text">{{item.can_open ? '已到开启日' : '封存中 · ' + item.open_date + ' 可打开'}}</text>
               <text class="capsule-item-date">封存：{{item.created_date}}</text>
             </view>
             <text wx:if="{{item.can_open}}" class="capsule-item-open" catchtap="openCapsule" data-id="{{item._id}}">打开</text>
           </view>
-        </view>
+          </block>
       </view>
     </view>
   </view>
@@ -420,7 +669,7 @@
       <text class="wood-title-leaf">🎲</text>
     </view>
     <view class="card-solid challenge-card">
-      <text class="mode-desc">抽取今日冷门小任务！完成即可获得 XP 奖励。不用多想，抽到什么就做什么，给生活加点随机性。</text>
+      <text class="mode-desc">抽一件轻量的生活挑战。做完可以在本页记下完成，也可以换一个。</text>
       <button wx:if="{{!challenge}}" class="btn-wood challenge-draw-btn" bindtap="getChallenge">🎲 抽取今日挑战</button>
 
       <view wx:if="{{challenge}}" class="challenge-result">
@@ -428,56 +677,268 @@
         <view wx:if="{{!challengeDone}}" class="challenge-active">
           <text class="challenge-icon-lg">{{challenge.icon}}</text>
           <text class="challenge-task">{{challenge.text}}</text>
-          <view class="challenge-reward">
-            <text class="reward-label">完成奖励</text>
-            <text class="reward-xp">+{{challenge.xp}} XP ⭐</text>
-          </view>
           <button class="btn-leaf challenge-done-btn" bindtap="completeChallenge">✅ 我完成了！</button>
+          <button class="toolbox-action" bindtap="getChallenge">换个挑战</button>
         </view>
 
         <!-- 已完成状态 -->
         <view wx:if="{{challengeDone}}" class="challenge-completed">
           <text class="completed-badge">🎉 挑战完成！</text>
           <text class="completed-task">{{challenge.icon}} {{challenge.text}}</text>
-          <text class="completed-xp">+{{challenge.xp}} XP 已入账</text>
           <button class="btn-wood" bindtap="getChallenge" style="margin-top:20rpx;">🎲 再来一题</button>
         </view>
       </view>
     </view>
   </view>
 
-  <!-- ==================== 聊天模式 ==================== -->
-  <view wx:elif="{{mode === 'chat'}}" class="mode-container chat-mode">
-    <view class="wood-title">
-      <text class="wood-title-leaf">🌿</text><text class="wood-title-text">🐾 和 {{petName}} 聊天</text>
-      <text class="wood-title-leaf">🌿</text>
-    </view>
-    <view class="card-solid chat-card">
-      <text class="mode-desc">和你的宠物伙伴 {{petName}} 聊天吧！虽然只是简单的互动，但每一次对话都会增加你们的亲密度。</text>
-      <view class="chat-area">
-        <scroll-view scroll-y class="chat-messages" enhanced show-scrollbar="{{false}}" scroll-top="{{scrollTop}}">
-          <view wx:for="{{messages}}" wx:key="index"
-                class="msg {{item.role === 'user' ? 'msg-user' : 'msg-ai'}}">
-            <view wx:if="{{item.role === 'ai'}}" class="msg-avatar">{{petEmoji}}</view>
-            <view class="msg-bubble {{item.role === 'user' ? 'bubble-wood' : 'bubble-leaf'}}">{{item.content}}</view>
-          </view>
-          <view wx:if="{{messages.length === 0}}" class="chat-empty">
-            <text class="chat-empty-icon">{{petEmoji}}</text>
-            <text class="chat-empty-text">和 {{petName}} 打个招呼吧 🌸</text>
-          </view>
-        </scroll-view>
-        <view class="chat-input-row">
-          <input class="wood-chat-input" placeholder="输入你想说的话..." value="{{chatInput}}" bindinput="onChatInput" confirm-type="send" bindconfirm="sendChat" />
-          <button class="btn-leaf send-btn-mini" bindtap="sendChat">发送</button>
-        </view>
-      </view>
-    </view>
-  </view>
-
-  <!-- 底部锚点 -->
   <view id="page-bottom-anchor" style="height:1px;"></view>
     </view>
   </scroll-view>
+
+  <view wx:else class="pc-chat" style="{{pcKeyboard ? 'bottom:' + pcKeyboard + 'px' : ''}}">
+    <scroll-view wx:if="{{pcScreen === 'picker'}}" scroll-y class="pc-picker">
+      <view class="pc-picker-head">
+        <button class="pc-small pc-picker-back" bindtap="switchMode" data-mode="menu" aria-label="返回 AI 首页">‹ 返回</button>
+        <text class="pc-picker-title">和谁聊聊？</text>
+      </view>
+      <view wx:if="{{pcLoading}}" class="pc-state">正在找森林伙伴…</view>
+      <view wx:elif="{{pcLoadError}}" class="pc-state">
+        <text>{{pcLoadError}}</text><button class="pc-small" bindtap="pcReload">重新读取</button>
+      </view>
+      <view wx:elif="{{!pcPets.length}}" class="pc-state">
+        <text>森林里还没有伙伴</text><button class="pc-small" bindtap="pcForest">去森林看看</button>
+      </view>
+      <block wx:else>
+        <text class="pc-picker-hint">{{pcUpgrade ? '当前可查看宠物档案' : pcCanChoose ? '选一只伙伴，慢慢说。' : '孵化后就能和它聊天'}}</text>
+        <swiper class="pc-pet-swiper" current="{{pcPickerIndex}}" bindchange="pcSwipe" circular="{{pcPets.length > 1}}" duration="280"
+          previous-margin="{{pcPets.length > 1 ? '132rpx' : '0rpx'}}" next-margin="{{pcPets.length > 1 ? '132rpx' : '0rpx'}}">
+          <swiper-item wx:for="{{pcPets}}" wx:key="id">
+            <view class="pc-pet-card {{pcPickerIndex === index ? '' : 'pc-pet-card-side'}}" role="button" aria-disabled="{{!item.is_hatched}}" data-id="{{item.id}}" bindtap="pcPick">
+              <view class="pc-picker-avatar">
+                <view wx:if="{{item.portrait}}" class="pc-picker-portrait">
+                  <pet-portrait species="{{item.portrait.species}}" form="{{item.portrait.form}}" theme="{{item.portrait.theme}}"
+                    active="{{pcPickerIndex === index && !pcPanel}}" label="{{item.speciesName}}" color-style="{{item.colorStyle}}" fallback-emoji="{{item.emoji}}" />
+                </view>
+                <text wx:else>{{item.emoji}}</text>
+              </view>
+              <view class="pc-picker-name"><text>{{item.name}}</text><text wx:if="{{item.rarityName}}" class="pc-picker-badge">{{item.rarityName}}</text></view>
+              <text class="pc-meta">{{item.is_hatched ? (item.temperamentName || item.speciesName) + ' · ' + item.stageName : '孵化中'}}{{item.distinction ? ' · ' + item.distinction : ''}}</text>
+              <text class="pc-card-cta {{!item.is_hatched ? 'pc-card-cta-idle' : ''}}">{{item.is_hatched ? (pcUpgrade ? '查看档案 ›' : '和' + item.name + '聊天 ›') : '待孵化'}}</text>
+            </view>
+          </swiper-item>
+        </swiper>
+        <view wx:if="{{pcPets.length > 1}}" class="pc-picker-dots">
+          <view wx:for="{{pcPets}}" wx:key="id" class="pc-picker-dot {{pcPickerIndex === index ? 'pc-dot-active' : ''}}"
+            data-index="{{index}}" bindtap="pcPickerDot" role="button" aria-label="查看{{item.name}}"><view></view></view>
+        </view>
+        <text wx:if="{{pcPets.length > 1}}" class="pc-picker-hint pc-picker-help">左右滑动切换伙伴</text>
+        <button wx:if="{{!pcCanChoose}}" class="pc-small pc-picker-link" bindtap="pcForest">去森林看看</button>
+        <button wx:if="{{pcUpgrade}}" class="pc-small pc-picker-link" bindtap="pcReload">重新检测聊天服务</button>
+      </block>
+    </scroll-view>
+    <view wx:elif="{{pcLoadError}}" class="pc-state">
+      <text>{{pcLoadError}}</text><button class="pc-small" bindtap="pcReload">重新读取</button>
+    </view>
+    <view wx:elif="{{pcLoading}}" class="pc-state">正在找森林伙伴…</view>
+    <block wx:else>
+      <view class="pc-head {{pcHeadCollapsed ? 'pc-head-compact' : ''}}" data-region="header"
+        bindtouchstart="pcTouchStart" bindtouchmove="pcTouchMove" bindtouchend="pcTouchEnd" bindtouchcancel="pcTouchCancel">
+        <button class="pc-small pc-return pc-head-back" bindtap="pcBackToPicker" aria-label="返回选宠页">‹ 返回</button>
+        <view class="pc-ident">
+          <view class="pc-avatar">
+            <view wx:if="{{pcPet.portrait}}" class="pc-rig">
+              <pet-portrait id="pc-portrait" active="{{pcAnimate}}" species="{{pcPet.portrait.species}}" form="{{pcPet.portrait.form}}" theme="{{pcPet.portrait.theme}}"
+                label="{{pcPet.speciesName}}" color-style="{{pcPet.colorStyle}}" fallback-emoji="{{pcPet.emoji}}" />
+            </view>
+            <text wx:else>{{pcPet.emoji}}</text>
+          </view>
+          <view class="pc-ident-text">
+            <text class="pc-head-caption" wx:if="{{!pcHeadCollapsed}}">你养大的伙伴</text>
+            <button class="pc-name pc-head-name" bindtap="pcExpandHead" aria-label="{{pcHeadCollapsed ? '展开' : ''}}{{pcPet.name}}">{{pcPet.name}}</button>
+            <view class="pc-identity-meta">
+              <text wx:if="{{!pcHeadCollapsed}}" class="pc-meta">{{pcPet.temperamentName || pcPet.speciesName}} · {{pcPet.stageName}}{{pcPet.distinction ? ' · ' + pcPet.distinction : ''}}</text>
+              <button class="pc-small pc-role-link" bindtap="pcRole">角色卡 ›</button>
+            </view>
+          </view>
+        </view>
+      </view>
+      <scroll-view wx:if="{{pcMeet}}" scroll-y enhanced show-scrollbar="{{false}}" class="pc-messages"
+        bindscroll="pcMessageScroll" binddragstart="pcDragStart" binddragging="pcDragging" binddragend="pcDragEnd"
+        bindtouchstart="pcTouchStart" bindtouchmove="pcTouchMove" bindtouchend="pcTouchEnd" bindtouchcancel="pcTouchCancel">
+        <view class="pc-card pc-meeting">
+          <text class="pc-card-title">{{pcMeet === 'restart' ? '重新认识' : '第一次见面'}}</text>
+          <text class="pc-copy">{{pcPet.name}}认得你是养大它的人。你想让它怎么称呼你？</text>
+          <view class="pc-options pc-meet-options">
+            <button class="{{pcMeetAddress === '爸爸' ? 'pc-selected' : ''}}" data-value="爸爸" bindtap="pcMeetAddress">爸爸</button>
+            <button class="{{pcMeetAddress === '妈妈' ? 'pc-selected' : ''}}" data-value="妈妈" bindtap="pcMeetAddress">妈妈</button>
+            <button class="{{pcMeetAddress === 'custom' ? 'pc-selected' : ''}}" data-value="custom" bindtap="pcMeetAddress">自定义</button>
+            <button class="{{pcMeetAddress === '你' ? 'pc-selected' : ''}}" data-value="你" bindtap="pcMeetAddress">先叫「你」</button>
+          </view>
+          <input wx:if="{{pcMeetAddress === 'custom'}}" class="pc-input" value="{{pcMeetCustom}}" maxlength="12" placeholder="想让它怎么叫你" bindinput="pcMeetCustom" />
+          <button class="pc-send pc-use" bindtap="pcBegin" disabled="{{pcSaving}}" loading="{{pcSaving}}">{{pcMeet === 'restart' ? '重新认识' : '和它说第一句话'}}</button>
+        </view>
+      </scroll-view>
+      <block wx:else>
+      <scroll-view scroll-y class="pc-messages" scroll-into-view="{{pcAnchor}}" enhanced show-scrollbar="{{false}}"
+        bindscroll="pcMessageScroll" binddragstart="pcDragStart" binddragging="pcDragging" binddragend="pcDragEnd"
+        bindtouchstart="pcTouchStart" bindtouchmove="pcTouchMove" bindtouchend="pcTouchEnd" bindtouchcancel="pcTouchCancel">
+        <view wx:if="{{!pcReady && !pcStatus}}" class="pc-state">正在读取这只宠物的聊天…</view>
+        <view wx:if="{{pcFirstLine}}" class="pc-turn">
+          <view class="pc-day">{{pcBondGrowth.newborn ? '初次破壳' : '初次相识'}}</view>
+          <view class="pc-msg"><text class="pc-bubble">{{pcFirstLine}}</text></view>
+        </view>
+        <view wx:elif="{{pcReady && !pcTurns.length && !pcPending.length && !pcQueue.length && !pcHeld.length}}" class="pc-state">
+          和 {{pcPet.name}} 说说现在想说的事。
+        </view>
+        <view wx:for="{{pcTurns}}" wx:for-item="turn" wx:for-index="turnIndex" wx:key="id" class="pc-turn">
+          <view wx:if="{{turn.dateLabel}}" class="pc-day">{{turn.dateLabel}}</view>
+          <view wx:for="{{turn.messages}}" wx:key="index" class="pc-msg pc-mine">
+            <text class="pc-bubble" selectable>{{item}}</text>
+          </view>
+          <view wx:for="{{turn.replies}}" wx:key="index" class="pc-msg {{index > 0 ? 'pc-follow' : ''}}">
+            <view wx:if="{{index === 0}}" class="pc-msg-icon">
+              <view wx:if="{{pcPet.portrait}}" class="pc-rig">
+                <pet-portrait still species="{{pcPet.portrait.species}}" form="{{pcPet.portrait.form}}" label="{{pcPet.speciesName}}" color-style="{{pcPet.colorStyle}}" fallback-emoji="{{pcPet.emoji}}" />
+              </view>
+              <text wx:else>{{pcPet.emoji}}</text>
+            </view>
+            <text class="pc-bubble" selectable>{{item}}</text>
+          </view>
+          <button wx:if="{{pcReady && turn.messages.length && turnIndex === pcTurns.length - 1}}" class="pc-note-link" bindtap="pcOpenNote" data-turn="{{turn.id}}" data-text="{{turn.messages[turn.messages.length - 1]}}">留到下次</button>
+        </view>
+        <view wx:for="{{pcPending}}" wx:key="index" class="pc-msg pc-mine"><text class="pc-bubble">{{item}}</text></view>
+        <view wx:for="{{pcQueue}}" wx:key="index" class="pc-msg pc-mine"><text class="pc-bubble">{{item}}</text></view>
+        <view wx:for="{{pcHeld}}" wx:key="index" class="pc-msg pc-mine"><text class="pc-bubble">{{item}}</text></view>
+        <view wx:if="{{pcStatus}}" class="pc-state pc-status">
+          <text>{{pcStatus}}</text>
+          <view class="pc-actions">
+            <button wx:if="{{pcCanCheck}}" class="pc-small" bindtap="pcCheck">查看结果</button>
+            <button wx:if="{{pcCanRetry}}" class="pc-small" bindtap="pcRetry">重试</button>
+            <button wx:if="{{pcCanRevise}}" class="pc-small" bindtap="pcRevise">转回待发</button>
+            <button wx:if="{{!pcReady}}" class="pc-small" bindtap="pcReload">重新读取</button>
+            <button wx:if="{{pcNeedsConfig}}" class="pc-small" bindtap="pcConfig">去 AI 配置</button>
+          </view>
+        </view>
+        <view id="pc-bottom" style="height:1px"></view><view id="pc-end" style="height:1px"></view>
+      </scroll-view>
+      <view class="pc-compose">
+        <view class="pc-actions pc-compose-actions">
+          <button class="pc-small {{pcListen ? 'pc-selected' : ''}}" bindtap="pcToggleListen" disabled="{{!pcReady}}">{{pcListen ? '说完了，请回应' : '先听我说'}}</button>
+        </view>
+        <view wx:if="{{pcListen}}" class="pc-meta pc-listening">{{pcPet.name}}在听。说完后再一起回应。</view>
+        <view class="pc-input-row">
+          <input class="pc-input" value="{{pcInput}}" maxlength="320" placeholder="和{{pcPet.name}}说点什么…" confirm-type="send" adjust-position="{{false}}" bindkeyboardheightchange="pcKeyboardChange" bindblur="pcKeyboardClose" bindinput="pcInput" bindconfirm="pcSend" />
+          <button class="pc-send" disabled="{{!pcReady || (!pcInput && (!pcQueue.length || pcListen || pcSending || pcStatus))}}" bindtap="pcSend">发送</button>
+        </view>
+      </view>
+      </block>
+    </block>
+    <button wx:if="{{pcScreen === 'conversation' && (pcLoadError || pcLoading)}}" class="pc-small pc-return pc-state-return" bindtap="pcBackToPicker" aria-label="返回选宠页">返回</button>
+  </view>
+
+  <view wx:if="{{mode === 'chat' && pcPanel}}" class="pc-overlay">
+    <view class="pc-backdrop" bindtap="pcClose"></view>
+    <view class="pc-sheet">
+      <view class="pc-handle"></view>
+      <view class="pc-sheet-title">
+        <text>{{pcPanel === 'role' ? pcPet.name + '的角色卡' : '留到下次'}}</text>
+        <button class="pc-small" bindtap="pcClose">关闭</button>
+      </view>
+      <scroll-view scroll-y class="pc-sheet-body" enhanced show-scrollbar="{{false}}">
+        <block wx:if="{{pcPanel === 'role'}}">
+          <view class="pc-role-head">
+            <view class="pc-avatar pc-role-avatar">
+              <view wx:if="{{pcPet.portrait}}" class="pc-rig">
+                <pet-portrait active="{{pcAnimate}}" species="{{pcPet.portrait.species}}" form="{{pcPet.portrait.form}}" theme="{{pcPet.portrait.theme}}"
+                  label="{{pcPet.speciesName}}" color-style="{{pcPet.colorStyle}}" fallback-emoji="{{pcPet.emoji}}" />
+              </view>
+              <text wx:else>{{pcPet.emoji}}</text>
+            </view>
+            <view class="pc-ident-text"><text class="pc-name">{{pcPet.name}}</text>
+              <text class="pc-meta">{{pcPet.speciesName}} · {{pcPet.stageName}} · {{pcPet.talentGrade}} 级天赋</text></view>
+          </view>
+          <view class="pc-tabs">
+            <button class="{{pcTab === 'profile' ? 'pc-selected' : ''}}" bindtap="pcTab" data-tab="profile">角色档案</button>
+            <button wx:if="{{pcReady}}" class="{{pcTab === 'style' ? 'pc-selected' : ''}}" bindtap="pcTab" data-tab="style">相处设置</button>
+          </view>
+          <block wx:if="{{pcTab === 'profile'}}">
+            <view class="pc-card">
+              <text class="pc-card-title">天生的性格</text>
+              <text class="pc-copy">{{pcPet.innateLabel}}</text>
+              <text wx:if="{{pcPet.forestPersonality}}" class="pc-meta">森林里的性格描述　{{pcPet.forestPersonality}}</text>
+              <text wx:if="{{pcPet.originalWish}}" class="pc-meta">森林里的性格期望　{{pcPet.originalWish}}</text>
+            </view>
+            <view class="pc-card">
+              <text class="pc-card-title">陪伴状态</text>
+              <text class="pc-copy">宠物心情　{{pcPet.moodName}}　·　亲密度 {{pcPet.bond || 0}} / 1000</text>
+            </view>
+            <view class="pc-card">
+              <button class="pc-disclosure" bindtap="pcGrowth" aria-expanded="{{pcGrowth}}">从蛋到现在 <text>{{pcGrowth ? '收起 −' : '展开 +'}}</text></button>
+              <block wx:if="{{pcGrowth}}">
+                <text wx:if="{{pcBondGrowth ? pcBondGrowth.bornDate : pcPet.since}}" class="pc-meta">破壳　{{pcBondGrowth ? pcBondGrowth.bornDate : pcPet.since}}</text>
+                <text wx:if="{{pcBondGrowth.date}}" class="pc-meta">开始相识　{{pcBondGrowth.date}}</text>
+                <text class="pc-card-title pc-learn-title">后来学会的习惯</text>
+                <view wx:for="{{pcBondGrowth.habits}}" wx:key="slot" class="pc-learn-item">
+                  <view><text class="pc-copy">{{item.label}}</text><text class="pc-meta">{{item.date}} · {{item.sourceCount ? '从日常相处学到' : '由你纠正'}}</text></view>
+                  <view class="pc-actions pc-compose-actions">
+                    <button class="pc-small" data-slot="{{item.slot}}" data-value="{{item.value}}" bindtap="pcCorrectHabit" disabled="{{pcSaving}}">纠正</button>
+                    <button class="pc-small" data-slot="{{item.slot}}" bindtap="pcRemoveHabit" disabled="{{pcSaving}}">撤回</button>
+                  </view>
+                </view>
+                <text wx:if="{{!pcBondGrowth.habits.length}}" class="pc-meta">一起多聊几次，它会慢慢学会怎么陪你。</text>
+                <text class="pc-card-title pc-learn-title">身体成长</text>
+                <text class="pc-copy">Lv.{{pcPet.level || 1}} · 成长 {{pcPet.growth_value || 0}} · {{pcPet.colorName}} · {{pcPet.talentName}}</text>
+                <view class="pc-attributes"><text wx:for="{{pcPet.attrList}}" wx:key="key">{{item.label}} {{item.val}}</text></view>
+                <text wx:for="{{pcPet.records}}" wx:key="index" class="pc-meta">{{item.date}} {{item.message}}</text>
+              </block>
+            </view>
+            <view wx:if="{{pcReady}}" class="pc-card">
+              <button class="pc-disclosure" bindtap="pcOpenNote">聊天记忆 <text>{{pcNote ? '查看待续 ›' : '添加待续 ›'}}</text></button>
+              <text wx:if="{{pcNote}}" class="pc-copy">{{pcNote.text}}</text>
+              <text class="pc-meta">展示最近 7 天、最多 20 轮，打开时清理过期记录。发送时使用已保存的 AI 模型配置。</text>
+              <button class="pc-link" bindtap="pcClear">清空这只的近期聊天</button>
+            </view>
+          </block>
+          <block wx:elif="{{pcReady}}">
+            <view class="pc-card">
+              <view class="pc-pref"><text>怎么称呼我</text>
+                <input value="{{pcDraft.address}}" bindinput="pcEdit" data-key="address" maxlength="12" placeholder="默认用「你」" /></view>
+              <view wx:for="{{pcBasicGroups}}" wx:for-item="group" wx:key="key" class="pc-pref">
+                <text>{{group.title}}</text>
+                <view class="pc-options"><button wx:for="{{group.values}}" wx:key="value"
+                  class="{{pcDraft[group.key] === item.value && (!pcBondGrowth || (group.key !== 'tone' && group.key !== 'comfort') || pcManual[group.key]) ? 'pc-selected' : ''}}" data-key="{{group.key}}" data-value="{{item.value}}" bindtap="pcEdit">{{item.label}}</button></view>
+              </view>
+              <text wx:if="{{pcBondGrowth}}" class="pc-meta">语气与安慰方式留空时，随它自己的性格和习惯成长。</text>
+            </view>
+            <view class="pc-card">
+              <button class="pc-disclosure" bindtap="pcMore" aria-expanded="{{pcMore}}">更多表达偏好 <text>{{pcMore ? '收起 −' : '长短、动作、记忆 +'}}</text></button>
+              <block wx:if="{{pcMore}}">
+                <view wx:for="{{pcMoreGroups}}" wx:for-item="group" wx:key="key" class="pc-pref">
+                  <text>{{group.title}}</text>
+                  <view class="pc-options"><button wx:for="{{group.values}}" wx:key="value"
+                    class="{{pcDraft[group.key] === item.value ? 'pc-selected' : ''}}" data-key="{{group.key}}" data-value="{{item.value}}" bindtap="pcEdit">{{item.label}}</button></view>
+                </view>
+                <textarea value="{{pcDraft.wish}}" bindinput="pcEdit" data-key="wish" maxlength="100" auto-height class="pc-textarea" placeholder="补充偏好，例如：不用每句都问我问题" />
+              </block>
+            </view>
+            <view class="pc-card pc-preview"><text class="pc-card-title">同一句话 · 语气示例</text><text class="pc-copy">{{pcPreview}}</text></view>
+          </block>
+        </block>
+        <block wx:elif="{{pcPanel === 'note'}}">
+          <text class="pc-meta">仅 {{pcPet.name}} 可用。保存一条待续事项，30 天后到期。</text>
+          <textarea class="pc-textarea" value="{{pcNoteInput}}" bindinput="pcNoteInput" maxlength="140" auto-height placeholder="下次想接着聊什么？" />
+          <view class="pc-save-row">
+            <button wx:if="{{pcNote}}" class="pc-link" data-remove="{{true}}" bindtap="pcSaveNote" disabled="{{pcSaving}}">删除待续</button>
+            <button class="pc-send" bindtap="pcSaveNote" disabled="{{pcSaving || !pcNoteInput}}" loading="{{pcSaving}}">留给下次</button>
+          </view>
+        </block>
+      </scroll-view>
+      <view wx:if="{{pcPanel === 'role' && pcTab === 'style' && pcReady}}" class="pc-save-row pc-style-footer">
+        <button class="pc-link" bindtap="pcReset" disabled="{{pcSaving}}">恢复默认</button>
+        <button class="pc-send" bindtap="pcSave" loading="{{pcSaving}}" disabled="{{pcSaving}}">保存 · 下一轮生效</button>
+      </view>
+    </view>
+  </view>
 
   <!-- ==================== AI规划师任务发布弹窗 ==================== -->
   <view wx:if="{{showPlanModal}}" class="plan-sheet-mask" catchtouchmove>
@@ -486,22 +947,28 @@
       <view class="plan-sheet-header">
         <view class="plan-sheet-dragbar"></view>
         <view class="plan-sheet-title-row">
-          <text class="plan-sheet-title">AI 已生成成长计划</text>
+          <text class="plan-sheet-title">{{draftSource === 'local_template' ? '本地模板草案' : '成长计划草案'}}</text>
           <text class="plan-sheet-close" bindtap="closePlanModal">×</text>
         </view>
         <text class="plan-sheet-subtitle">确认后会创建目标和按日期安排的任务</text>
         <text wx:if="{{publicationPending}}" class="bs-schedule-hint">{{publicationMessage}}</text>
       </view>
       <view class="plan-sheet-body">
-        <scroll-view scroll-y class="plan-sheet-scroll">
+        <scroll-view scroll-y class="plan-sheet-scroll" scroll-into-view="{{planEditAnchor}}">
+          <template is="planner-draft-status" data="{{draftCloudState, draftCloudError, draftSource, cloudDraftRevision, draftBackupAvailable, publicationPending, hasDraft: !!plannerState.generatedGoal}}" />
+          <view wx:if="{{draftAssumptions.length}}" class="bs-card">
+            <view class="bs-card-title">待核对的草案假设</view>
+            <text wx:for="{{draftAssumptions}}" wx:key="field" class="planner-draft-caption">{{item.field === 'deadline' ? '建议周期：' : ''}}{{item.value}}</text>
+            <text class="bs-schedule-hint">可以随时生成计划；未说明的信息会保留为建议，不会当作你已确认。</text>
+          </view>
           <view class="bs-card bs-card-analysis">
-            <view class="bs-card-title">📊 AI 分析总结</view>
+            <view class="bs-card-title">📊 需求与草案说明</view>
             <view wx:if="{{plannerState.goalContext.why || plannerState.localAssess}}" class="bs-card-row">
-              <text class="bs-card-label">分析</text>
+              <text class="bs-card-label">动机</text>
               <text class="bs-card-text">{{plannerState.goalContext.why || plannerState.localAssess}}</text>
             </view>
             <view wx:if="{{plannerState.goalContext.level}}" class="bs-card-row">
-              <text class="bs-card-label">难度</text>
+              <text class="bs-card-label">基础</text>
               <text class="bs-card-text">{{plannerState.goalContext.level}}</text>
             </view>
             <view wx:if="{{plannerState.localAssess}}" class="bs-card-row">
@@ -509,7 +976,7 @@
               <text class="bs-card-text">{{plannerState.localAssess}}</text>
             </view>
           </view>
-          <view class="bs-card bs-card-goal">
+          <view id="plan-settings" class="bs-card bs-card-goal">
             <view class="bs-card-title">🎯 目标草稿</view>
             <view class="bs-goal-title-row">
               <text class="bs-goal-title-label">目标名称</text>
@@ -530,6 +997,11 @@
                 <text class="bs-schedule-picker">{{planStartDate}}　选择日期</text>
               </picker>
             </view>
+            <view wx:if="{{stewardDraft && !publicationPending}}" class="bs-card-row">
+              <text class="bs-card-label">每天最多</text>
+              <input class="bs-schedule-number" type="number" maxlength="4" value="{{plannerDailyLimit}}" bindinput="onPlannerDailyLimit" placeholder="可留空" />
+              <text class="bs-card-text">分钟</text>
+            </view>
             <view wx:if="{{plannerState.generatedGoal.stages && plannerState.generatedGoal.stages.length > 0}}" class="bs-card-row">
               <text class="bs-card-label">阶段</text>
               <view class="bs-stages">
@@ -540,11 +1012,11 @@
               </view>
             </view>
           </view>
-          <view class="bs-card bs-card-tasks">
+          <view id="plan-task-list" class="bs-card bs-card-tasks">
             <view class="bs-card-title">📝 计划任务（{{editableTasks.length || 0}}）</view>
             <text class="bs-schedule-hint">请确认日期和时长，一次最多20项。未指定日期按顺序安排。</text>
             <view wx:if="{{editableTasks && editableTasks.length > 0}}">
-              <view wx:for="{{editableTasks}}" wx:key="index" class="bs-task-item">
+              <view wx:for="{{editableTasks}}" wx:key="index" id="plan-task-{{index}}" class="bs-task-item {{planEditAnchor === 'plan-task-' + index ? 'bs-task-focused' : ''}}">
                 <view class="bs-task-row">
                   <view class="bs-task-info">
                     <input class="bs-task-input" value="{{item.title}}" data-index="{{index}}" bindinput="editPlanTaskTitle" placeholder="输入任务描述" disabled="{{publicationPending}}" />
@@ -576,8 +1048,18 @@
             </view>
           </view>
           <view style="height:20rpx;"></view>
+          <view wx:if="{{stewardDraft && !publicationPending}}" class="bs-card">
+            <text class="bs-card-title">协作稿检查</text>
+            <text wx:if="{{auditError}}" class="planner-draft-warning">{{auditError}}</text>
+            <text wx:if="{{!auditExpired && auditRules && auditRules.binding.draft_id === cloudDraftId}}" class="planner-draft-caption">{{auditRules.rules.error_count ? '还有 ' + auditRules.rules.error_count + ' 项规则问题' : '这一版规则检查已通过'}}</text>
+            <view class="planner-draft-actions">
+              <button bindtap="runPlannerRules" disabled="{{draftCloudState !== 'saved' || !!auditBusy}}">{{auditBusy === 'rules' ? '检查中…' : '规则复查 · 不调用模型'}}</button>
+              <button bindtap="openDraftReview">查看问题与建议</button>
+            </view>
+          </view>
         </scroll-view>
       </view>
+      <view wx:if="{{plannerState.phase !== 'publishing'}}" class="plan-review-shortcut" bindtap="openDraftReview" role="button">🔍 到审核师检查这份草案与安排 ›</view>
       <view class="plan-sheet-footer">
         <button class="plan-sheet-btn plan-sheet-btn-cancel" bindtap="closePlanModal">{{publicationPending ? '稍后确认' : '取消'}}</button>
         <button class="plan-sheet-btn plan-sheet-btn-publish" bindtap="publishPlanTasks" disabled="{{plannerState.phase === 'publishing'}}">
@@ -613,6 +1095,11 @@
               <text class="pomodoro-mode-name">15分钟</text>
               <text class="pomodoro-mode-desc">轻专注</text>
             </view>
+            <view class="pomodoro-mode-btn {{pomodoroMode === 'focus5' ? 'pomodoro-active' : ''}}" bindtap="setPomodoroMode" data-mode="focus5">
+              <text class="pomodoro-mode-icon">🌱</text>
+              <text class="pomodoro-mode-name">5分钟</text>
+              <text class="pomodoro-mode-desc">先开始</text>
+            </view>
             <view class="pomodoro-mode-btn {{pomodoroMode === 'break5' ? 'pomodoro-active' : ''}}" bindtap="setPomodoroMode" data-mode="break5">
               <text class="pomodoro-mode-icon">☕</text>
               <text class="pomodoro-mode-name">5分钟</text>
@@ -623,8 +1110,14 @@
             <text class="pomodoro-time">{{pomodoroFormattedTime}}</text>
             <text class="pomodoro-status">{{pomodoroStatus}}</text>
           </view>
+          <view wx:if="{{pomodoroTask && pomodoroMode !== 'break5'}}" class="toolbox-task">
+            <text class="toolbox-task-caption">{{pomodoroTask.goalTitle || '本轮行动'}}</text>
+            <text class="toolbox-task-name">{{pomodoroTask.text}}</text>
+            <button wx:if="{{pomodoroTask.id}}" class="toolbox-link" bindtap="openToolTask">{{pomodoroSeconds === 0 ? '去原任务打卡 ›' : '查看原任务 ›'}}</button>
+            <button wx:if="{{!pomodoroRunning}}" class="toolbox-link" bindtap="clearPomodoroTask">移除关联</button>
+          </view>
           <view class="pomodoro-controls">
-            <button wx:if="{{!pomodoroRunning}}" class="btn-leaf" bindtap="startPomodoro">开始专注</button>
+            <button wx:if="{{!pomodoroRunning}}" class="btn-leaf" bindtap="startPomodoro">{{pomodoroStatus === '已暂停' ? '继续计时' : pomodoroSeconds === 0 ? '再来一轮' : pomodoroMode === 'break5' ? '开始休息' : '开始专注'}}</button>
             <button wx:else class="btn-wood" bindtap="pausePomodoro">暂停</button>
             <button class="btn-wood" bindtap="resetPomodoro">重置</button>
           </view>
@@ -632,28 +1125,41 @@
 
         <!-- ===== 今日待办抽签 ===== -->
         <view wx:if="{{activeTool === 'todoDraw'}}" class="tool-content">
-          <view wx:if="{{!drawnTodo}}" class="todo-draw-area">
-            <text class="todo-hint">点击下方按钮，抽取今日待办</text>
-            <button class="btn-leaf todo-draw-btn" bindtap="drawTodo">🎲 抽取任务</button>
+          <text wx:if="{{todoStatus === 'loading'}}" class="tool-hint">正在读取今日待办…</text>
+          <view wx:elif="{{todoStatus === 'error'}}" class="todo-draw-area">
+            <text class="todo-hint">暂时无法读取今日待办</text>
+            <button class="btn-leaf" bindtap="loadTodayTodos">重新读取</button>
+          </view>
+          <view wx:elif="{{todoCount}}" class="todo-draw-area">
+            <text class="todo-hint">进行中目标 · {{todoCount}} 项今日待办</text>
+            <button wx:if="{{!drawnTodo || !drawnTodo.id}}" class="btn-leaf todo-draw-btn" bindtap="drawTodo">🎲 抽一个真实任务</button>
+          </view>
+          <view wx:else class="todo-draw-area">
+            <text class="todo-hint">今天暂时没有可抽取的目标待办</text>
+            <button class="btn-wood" bindtap="openToolGoals">去看我的目标</button>
           </view>
           <view wx:if="{{drawnTodo}}" class="todo-result">
-            <text class="todo-icon">{{drawnTodo.icon}}</text>
+            <text class="toolbox-task-caption">{{drawnTodo.id ? drawnTodo.goalTitle : '森林灵感 · 自选小行动'}}</text>
+            <text wx:if="{{drawnTodo.icon}}" class="todo-icon">{{drawnTodo.icon}}</text>
             <text class="todo-task">{{drawnTodo.text}}</text>
-            <view class="todo-meta">
-              <text class="todo-difficulty">{{drawnTodo.difficulty}}</text>
-              <text class="todo-time">{{drawnTodo.time}}</text>
+            <view wx:if="{{drawnTodo.time || drawnTodo.difficulty}}" class="todo-meta">
+              <text wx:if="{{drawnTodo.difficulty}}" class="todo-difficulty">{{drawnTodo.difficulty}}</text>
+              <text wx:if="{{drawnTodo.time}}" class="todo-time">{{drawnTodo.time}}</text>
             </view>
             <view class="todo-actions">
-              <button class="btn-wood" bindtap="drawTodo">换一个</button>
-              <button class="btn-leaf" bindtap="acceptTodo">收下这个</button>
+              <button class="btn-wood" wx:if="{{drawnTodo.id && todoCount > 1}}" bindtap="drawTodo">换一项</button>
+              <button class="btn-leaf" bindtap="focusFromTool" data-source="todo">专注这件事</button>
             </view>
+            <button wx:if="{{drawnTodo.id}}" class="toolbox-link" bindtap="openToolTask" data-source="todo">查看原任务 ›</button>
           </view>
+          <button wx:if="{{todoStatus !== 'loading'}}" class="toolbox-action" bindtap="drawTodoIdea">{{drawnTodo && !drawnTodo.id ? '换一条灵感' : '抽一条森林灵感'}}</button>
         </view>
 
         <!-- ===== 专注宣言 ===== -->
         <view wx:if="{{activeTool === 'focusOath'}}" class="tool-content">
-          <text class="tool-hint">输入今天要专注的事</text>
-          <input class="wood-input" placeholder="例如：我要复习英语四级" value="{{focusInput}}" bindinput="onFocusInput" />
+          <text class="tool-hint">写下一个能马上开始的小动作。</text>
+          <input class="wood-input" maxlength="50" placeholder="例如：背 5 个四级单词" value="{{focusInput}}" bindinput="onFocusInput" />
+          <input class="wood-input" maxlength="40" placeholder="可能遇到的阻碍（选填）" value="{{focusObstacle}}" bindinput="onFocusObstacleInput" />
           <button class="btn-leaf" bindtap="generateFocusOath">📜 生成宣言</button>
           <view wx:if="{{focusOath}}" class="oath-result">
             <text class="oath-text">{{focusOath}}</text>
@@ -661,13 +1167,16 @@
               <button class="btn-wood" bindtap="copyFocusOath">复制</button>
               <button class="btn-leaf" bindtap="saveFocusOath">保存到历史</button>
             </view>
+            <button class="toolbox-action" bindtap="focusFromTool" data-text="{{focusInput}}">用这件事开始专注</button>
           </view>
           <view wx:if="{{focusHistory && focusHistory.length > 0}}" class="oath-history">
-            <text class="oath-history-title">历史宣言</text>
+            <button class="toolbox-action" bindtap="toggleFocusHistory" aria-expanded="{{focusHistoryExpanded}}">{{focusHistoryExpanded ? '收起' : '展开'}}本机历史 · {{focusHistory.length}} 条</button>
+            <block wx:if="{{focusHistoryExpanded}}">
             <view wx:for="{{focusHistory}}" wx:key="index" class="oath-history-item">
               <text class="oath-history-text">{{item.content}}</text>
               <text class="oath-history-date">{{item.date}}</text>
             </view>
+            </block>
           </view>
         </view>
 
@@ -684,6 +1193,7 @@
             <text class="delay-advice">{{delayResult.advice}}</text>
             <text class="delay-action">{{delayResult.action}}</text>
             <text class="delay-encourage">{{delayResult.encourage}}</text>
+            <button class="toolbox-action" bindtap="focusFromTool" data-rest="{{delaySelected === '太累了'}}">{{delaySelected === '太累了' ? '休息 5 分钟' : '先做 5 分钟'}}</button>
           </view>
         </view>
 
@@ -707,6 +1217,7 @@
             <text class="personality-method">{{personalityResult.method}}</text>
             <text class="personality-today">{{personalityResult.today}}</text>
             <text class="personality-tools">{{personalityResult.tools}}</text>
+            <button class="toolbox-action" bindtap="openTool" data-tool="todoDraw">选一个今日任务试试</button>
             <button class="btn-leaf" bindtap="resetPersonalityTest">再测一次</button>
           </view>
         </view>
@@ -725,6 +1236,7 @@
             <text class="card-advantage">{{disciplineCard.advantage}}</text>
             <text class="card-challenge">{{disciplineCard.challenge}}</text>
             <text class="card-action">{{disciplineCard.action}}</text>
+            <button class="toolbox-action" bindtap="copyToolText" data-text="{{disciplineCard.action}}">复制行动建议</button>
           </view>
         </view>
 
@@ -748,6 +1260,8 @@
             <text class="energy-status">{{energyResult.status}}</text>
             <text class="energy-do">{{energyResult.do}}</text>
             <text class="energy-not-do">{{energyResult.notDo}}</text>
+            <button class="toolbox-action" bindtap="focusFromTool" data-rest="{{energyLevel <= 2}}">{{energyLevel <= 2 ? '给自己 5 分钟休息' : '试试 5 分钟专注'}}</button>
+            <button class="toolbox-link" bindtap="openToolMood">去首页记录心情 ›</button>
           </view>
         </view>
 

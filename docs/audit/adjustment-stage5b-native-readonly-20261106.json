@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-06",
+  "evidence": "User supplied WeChat Developer Tools Console output",
+  "nativeReadonlyPassed": true,
+  "output": {
+    "ok": true,
+    "hasGoal": true,
+    "engine": "langgraph-1.6.1",
+    "execution": "foreground-resumable",
+    "applicationSupported": true,
+    "privateProofAbsent": true,
+    "period": [
+      "2026-11-07",
+      "2026-11-13"
+    ],
+    "eligible": false,
+    "blockedReason": "该目标已结束，请选择进行中的目标",
+    "complete": true,
+    "futureTasks": 0,
+    "hasRun": false,
+    "status": "",
+    "revision": null,
+    "isCurrent": null,
+    "canApply": false,
+    "hasApplication": false
+  },
+  "businessWrites": false,
+  "modelCalls": false,
+  "realApplicationVerified": false,
+  "fullUiVerified": false
+}

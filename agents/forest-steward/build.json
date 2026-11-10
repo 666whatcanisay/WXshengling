@@ -1,0 +1,9 @@
+{
+  "sourceHash": "e2a72ee1cc1cdcb2127a700e91c90672108e84bae748144e9cce2b71325b2ebe",
+  "bundleHash": "55f5ffb5de1b1221e7dedd05a69dca8bb13f21ef9bb0f9b5998b3a04b9b57e5e",
+  "bytes": 2710874,
+  "langgraph": "1.6.1",
+  "checkpoint": "1.2.2",
+  "runtime": "node24",
+  "externalDependencies": []
+}

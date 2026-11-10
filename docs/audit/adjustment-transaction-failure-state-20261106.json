@@ -1,0 +1,14 @@
+{
+  "readOnly": true,
+  "goalUnchanged": true,
+  "tasksUnchanged": true,
+  "minutes": [
+    20,
+    20
+  ],
+  "hasApplication": false,
+  "runStatus": "awaiting_review",
+  "revision": 1,
+  "modelCalls": false,
+  "businessWrites": false
+}

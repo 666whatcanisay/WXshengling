@@ -10,99 +10,61 @@
       <text class="title-icon">🌿</text>
     </view>
 
-  <!-- 周报周期标签 -->
-  <view class="week-label">
-    <text class="week-text">{{weeklyReport.weekLabel}}</text>
-    <button class="refresh-btn" bindtap="onRefresh">🔄 刷新</button>
-  </view>
-
-  <!-- 周报统计（4项木纹卡片） -->
-  <view class="weekly-stats-grid">
-    <view class="stat-card wood-border-sm">
-      <text class="sc-icon">✅</text>
-      <text class="sc-num">{{weeklyReport.completedTasks}}/{{weeklyReport.totalTasks}}</text>
-      <text class="sc-label">任务完成</text>
-      <view class="sc-bar-wrap">
-        <view class="sc-bar-fill" style="width: {{weeklyReport.completionRate}}%"></view>
-      </view>
-    </view>
-    <view class="stat-card wood-border-sm">
-      <text class="sc-icon">⭐</text>
-      <text class="sc-num">{{weeklyReport.xpEarned}}</text>
-      <text class="sc-label">获得经验</text>
-      <text class="sc-sub">本周累计 XP ✨</text>
-    </view>
-    <view class="stat-card wood-border-sm">
-      <text class="sc-icon">🔥</text>
-      <text class="sc-num">{{weeklyReport.streakDays}}</text>
-      <text class="sc-label">连续打卡</text>
-      <text class="sc-sub">天 🎯</text>
-    </view>
-    <view class="stat-card wood-border-sm">
-      <text class="sc-icon">📖</text>
-      <text class="sc-num">{{weeklyReport.topGoal.emoji}} {{weeklyReport.topGoal.title}}</text>
-      <text class="sc-label">最勤目标</text>
-      <text class="sc-sub">{{weeklyReport.topGoal.count}} 次完成</text>
-    </view>
-  </view>
-
-  <!-- 成长分析（图标+文字） -->
-  <view class="card analysis-section">
-    <view class="section-title-inline">🧠 AI 成长分析</view>
-    <view class="analysis-list">
-      <view class="analysis-item">
-        <text class="ai-icon">⏰</text>
-        <view class="ai-text-wrap">
-          <text class="ai-text-main">最佳时段：{{weeklyReport.bestTime}}</text>
-          <text class="ai-text-sub">在这个时间段你的效率最高哦～</text>
-        </view>
-      </view>
-      <view class="analysis-item">
-        <text class="ai-icon">🟢</text>
-        <view class="ai-text-wrap">
-          <text class="ai-text-main">擅长领域：{{weeklyReport.easyGoalType}}</text>
-          <text class="ai-text-sub">这类目标完成率最高，继续保持！</text>
-        </view>
-      </view>
-      <view class="analysis-item">
-        <text class="ai-icon">🔴</text>
-        <view class="ai-text-wrap">
-          <text class="ai-text-main">待提升：{{weeklyReport.hardGoalType}}</text>
-          <text class="ai-text-sub">可以尝试拆分成更小的子目标</text>
-        </view>
-      </view>
+    <view class="week-label">
+      <text class="week-text">{{loading ? '正在读取本周记录…' : loadError ? '周报读取失败' : weeklyReport.weekLabel}}</text>
+      <button class="refresh-btn" bindtap="onRefresh" disabled="{{loading}}">{{loadError ? '重试' : '🔄 刷新'}}</button>
     </view>
 
-    <!-- 建议 -->
-    <view class="suggestion-box quote-card">
-      <view class="quote-bar"></view>
-      <view class="quote-content">
-        <text class="suggestion-label">💡 智能建议</text>
-        <text class="suggestion-text">{{weeklyReport.suggestion}}</text>
-      </view>
-    </view>
-  </view>
-
-  <!-- 情绪趋势（7日块状图） -->
-  <view class="card emotion-trend-card">
-    <view class="section-title-inline">🌸 本周情绪趋势</view>
-    <view class="trend-chart">
-      <view
-        wx:for="{{emotionTrends.labels}}"
-        wx:key="*this"
-        class="trend-col"
-      >
-        <view class="trend-bar-wrap">
-          <view
-            class="trend-bar bar-{{emotionTrends.scores[index] >= 8 ? 'high' : (emotionTrends.scores[index] >= 5 ? 'mid' : 'low')}}"
-            style="height: {{emotionTrends.scores[index] * 8}}rpx"
-          ></view>
+    <block wx:if="{{!loading && !loadError && weeklyReport}}">
+      <view class="weekly-stats-grid">
+        <view class="stat-card wood-border-sm">
+          <text class="sc-icon">✅</text>
+          <text class="sc-num">{{weeklyReport.totalTasks ? weeklyReport.completedTasks + '/' + weeklyReport.totalTasks : '暂无任务'}}</text>
+          <text class="sc-label">本周任务 · 截至今天</text>
+          <view wx:if="{{weeklyReport.totalTasks}}" class="sc-bar-wrap">
+            <view class="sc-bar-fill" style="width: {{weeklyReport.completionRate}}%"></view>
+          </view>
         </view>
-        <text class="trend-day">{{item}}</text>
-        <text class="trend-score">{{emotionTrends.scores[index]}}</text>
+        <view class="stat-card wood-border-sm">
+          <text class="sc-icon">⭐</text>
+          <text class="sc-num">{{weeklyReport.xpEarned === null ? '暂无记录' : weeklyReport.xpEarned}}</text>
+          <text class="sc-label">本周成长日志 XP</text>
+        </view>
+        <view class="stat-card wood-border-sm">
+          <text class="sc-icon">🔥</text>
+          <text class="sc-num">{{weeklyReport.streakDays === null ? '暂无记录' : weeklyReport.streakDays + ' 天'}}</text>
+          <text class="sc-label">连续签到</text>
+        </view>
+        <view class="stat-card wood-border-sm">
+          <text class="sc-icon">📖</text>
+          <text class="sc-num">{{weeklyReport.topGoal ? weeklyReport.topGoal.title : '暂无记录'}}</text>
+          <text class="sc-label">本周最勤目标</text>
+          <text wx:if="{{weeklyReport.topGoal}}" class="sc-sub">{{weeklyReport.topGoal.count}} 次完成</text>
+        </view>
       </view>
-    </view>
-  </view>
+
+      <view class="card analysis-section">
+        <view class="section-title-inline">🧠 成长分析</view>
+        <text class="ai-text-sub">最佳时段和擅长领域暂缺可用依据。</text>
+        <view class="suggestion-box quote-card">
+          <view class="quote-bar"></view>
+          <view class="quote-content">
+            <text class="suggestion-label">💡 建议</text>
+            <text class="suggestion-text">{{weeklyReport.totalTasks ? '回看本周任务，给下一次安排留一点余量。' : '等有任务记录后再回看本周进度。'}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="card emotion-trend-card">
+        <view class="section-title-inline">🌸 本周心情记录</view>
+        <view class="trend-chart">
+          <view wx:for="{{weeklyReport.moods}}" wx:key="date" class="trend-col">
+            <text class="trend-day">{{item.day}}</text>
+            <text class="trend-score">{{item.label}}</text>
+          </view>
+        </view>
+      </view>
+    </block>
 
     </view>
   </scroll-view>

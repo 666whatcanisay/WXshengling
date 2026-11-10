@@ -1,0 +1,54 @@
+{
+  "date": "2026-11-06",
+  "source": "user Console",
+  "nativeReadOnly": {
+    "ok": true,
+    "hasGoal": true,
+    "engine": "langgraph-1.6.1",
+    "execution": "foreground-resumable",
+    "period": [
+      "2026-11-07",
+      "2026-11-13"
+    ],
+    "eligible": false,
+    "blockedReason": "该目标已结束，请选择进行中的目标",
+    "complete": true,
+    "futureTasks": 0,
+    "hasRun": false,
+    "status": "",
+    "revision": null,
+    "isCurrent": null
+  },
+  "nativeUiLocation": {
+    "page": "pages/forest-steward/forest-steward",
+    "tab": "summary",
+    "selectedGoal": "300天晨跑计划",
+    "newPageCode": true,
+    "loading": false,
+    "workspaceLoaded": true,
+    "error": "",
+    "cardCount": 1,
+    "cardTop": 4,
+    "cardHeight": 502,
+    "scrollTop": 2499.99951171875
+  },
+  "visualAcceptanceExplicit": false,
+  "realModelFlowVerified": false,
+  "businessWrites": false,
+  "testReadiness": {
+    "readOnly": true,
+    "period": [
+      "2026-11-07",
+      "2026-11-13"
+    ],
+    "goalsRead": 27,
+    "goalsReadComplete": true,
+    "futureReadComplete": true,
+    "futurePendingTasks": 0,
+    "activeNonExpiredGoals": 6,
+    "usableGoals": [],
+    "functionInvocations": false,
+    "modelCalls": false,
+    "businessWrites": false
+  }
+}

@@ -1,0 +1,18 @@
+<view class="portrait-gallery">
+  <view class="gallery-card">
+    <text class="gallery-kicker">森林立绘图鉴</text>
+    <picker range="{{animals}}" range-key="name" value="{{speciesIndex}}" bindchange="selectSpecies">
+      <view class="gallery-species">{{animals[speciesIndex].name}} ▾</view>
+    </picker>
+    <pet-portrait active="{{visible}}" species="{{animals[speciesIndex].id}}" form="{{stages[stageIndex].id}}"
+      theme="{{themes[themeIndex].id}}" label="{{animals[speciesIndex].name}}" fallback-emoji="{{animals[speciesIndex].icon}}" />
+    <view class="gallery-stages">
+      <button wx:for="{{stages}}" wx:key="id" class="{{stageIndex === index ? 'selected' : ''}}"
+        data-index="{{index}}" bindtap="selectStage">{{item.name}}</button>
+    </view>
+    <picker range="{{themes}}" range-key="name" value="{{themeIndex}}" bindchange="selectTheme">
+      <view class="gallery-theme">{{themes[themeIndex].grade}} · {{themes[themeIndex].name}} ▾</view>
+    </picker>
+    <text class="gallery-hint">轻点动物查看动作</text>
+  </view>
+</view>

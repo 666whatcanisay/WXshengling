@@ -1,0 +1,58 @@
+{
+  "inspectedAt": "2026-11-06T15:00:58.966Z",
+  "readOnly": true,
+  "goalsRead": 28,
+  "hasGoal": true,
+  "adjustmentPeriod": [
+    "2026-11-07",
+    "2026-11-13"
+  ],
+  "complete": true,
+  "futureTasks": 2,
+  "eligible": true,
+  "blockedReason": "",
+  "sourceHasCurrentCoachReport": false,
+  "hasRun": true,
+  "status": "awaiting_review",
+  "isCurrent": true,
+  "revision": 1,
+  "changedTasks": 2,
+  "ruleErrors": 0,
+  "aiDone": true,
+  "dailyBudget": 10,
+  "changeMinutes": [
+    {
+      "before": 20,
+      "after": 10
+    },
+    {
+      "before": 20,
+      "after": 10
+    }
+  ],
+  "reviewModel": {
+    "provider": "deepseek",
+    "name": "deepseek-chat"
+  },
+  "steps": [
+    {
+      "name": "manager",
+      "status": "done"
+    },
+    {
+      "name": "planner",
+      "status": "done"
+    },
+    {
+      "name": "rules",
+      "status": "done"
+    },
+    {
+      "name": "review",
+      "status": "done"
+    }
+  ],
+  "functionInvocations": false,
+  "modelCalls": false,
+  "businessWrites": false
+}

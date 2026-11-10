@@ -1,0 +1,334 @@
+{
+  "date": "2026-11-06",
+  "status": "deployed-normal-workflows-and-cancel-user-cloud-verified",
+  "node": "v24.22.2",
+  "assertions": 1375,
+  "newBackendAssertions": 63,
+  "newClientAssertions": 25,
+  "typescriptStrictPassed": true,
+  "syntaxChecks": 16,
+  "unapprovedApplyGuardVerified": true,
+  "wxmlCompiled": true,
+  "wxssCompiled": true,
+  "render": {
+    "checks": 48,
+    "states": [
+      "idle",
+      "running",
+      "done",
+      "failed",
+      "stale",
+      "cancelled",
+      "uncertain",
+      "ready",
+      "offline",
+      "rulesError"
+    ]
+  },
+  "layouts": {
+    "approximateHtml": true,
+    "checks": [
+      {
+        "state": "idle",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "running",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "done",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "failed",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "stale",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "cancelled",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "uncertain",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "ready",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "offline",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "rulesError",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "idle",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "state": "running",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "state": "done",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "state": "failed",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "state": "stale",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "state": "cancelled",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "state": "uncertain",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "state": "ready",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "state": "offline",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "state": "rulesError",
+        "width": 375,
+        "overflow": false
+      }
+    ]
+  },
+  "bundle": {
+    "sourceHash": "5ccc536ce78f01ff8737baa85486dd9c7d3312baf464e847453d6e8c070fcdfa",
+    "bundleHash": "f5ff8985894b3d5a256a37cefdccc5542d41aa07ca90c5917ff156e43c641a93",
+    "bytes": 2709710,
+    "langgraph": "1.6.1",
+    "checkpoint": "1.2.2",
+    "runtime": "node24",
+    "externalDependencies": []
+  },
+  "localRequireSample": {
+    "milliseconds": 139,
+    "rssMiB": 52,
+    "cloudPerformanceVerified": false
+  },
+  "securityReview": {
+    "nativeOpenidOnly": true,
+    "ownerScopedHashedDocs": true,
+    "existingCollection": "ai_plans",
+    "newCollections": false,
+    "fencedCheckpointsAndDraftSaves": true,
+    "modelOutsideTransactions": true,
+    "keysExcludedFromState": true,
+    "publicationValidationPreserved": true
+  },
+  "execution": "foreground-resumable-not-background",
+  "realCloudBusinessWrites": false,
+  "realModelCalls": false,
+  "wechatRuntimeVerified": "existing-draft/new-demand workflows, checkpoints, re-entry/continue and cancel while awaiting confirmation passed; in-flight cancel/failure/concurrency mainly local",
+  "miniProgramPublished": false,
+  "deployment": {
+    "userApproved": true,
+    "sourceVerified": true,
+    "functionActive": true,
+    "patchedFiles": 5,
+    "preservedFiles": 3781,
+    "runtime": "Nodejs24.11",
+    "timeoutSeconds": 30,
+    "memoryMiB": 256,
+    "configurationUnchanged": true
+  },
+  "wechatReadonly": {
+    "ok": true,
+    "engine": "langgraph-1.6.1",
+    "execution": "foreground-resumable",
+    "hasRun": false,
+    "steps": [],
+    "rulesDone": false,
+    "aiDone": false
+  },
+  "existingDraftCloudVerification": {
+    "envId": "cloud1-d5gz9j6zh654f4b36",
+    "inspectedAt": "2026-11-06T04:28:55.468Z",
+    "readOnly": true,
+    "hasRun": true,
+    "status": "awaiting_confirmation",
+    "mode": "draft",
+    "next": "wait_user",
+    "draftRevision": 3,
+    "hasCheckpoint": true,
+    "steps": [
+      {
+        "role": "manager",
+        "status": "done"
+      },
+      {
+        "role": "rules",
+        "status": "done"
+      },
+      {
+        "role": "review",
+        "status": "done"
+      }
+    ],
+    "error": "",
+    "reports": [
+      {
+        "mode": "rules",
+        "status": "done",
+        "errorCount": 0,
+        "warningCount": 0,
+        "semanticCount": null
+      },
+      {
+        "mode": "ai",
+        "status": "done",
+        "errorCount": 0,
+        "warningCount": 0,
+        "semanticCount": 8
+      }
+    ],
+    "functionInvocations": false,
+    "modelCalls": false,
+    "businessWrites": false
+  },
+  "newPlanCloudVerification": {
+    "envId": "cloud1-d5gz9j6zh654f4b36",
+    "inspectedAt": "2026-11-06T04:34:04.392Z",
+    "readOnly": true,
+    "hasRun": true,
+    "status": "awaiting_confirmation",
+    "mode": "new",
+    "next": "wait_user",
+    "draftRevision": 4,
+    "hasCheckpoint": true,
+    "steps": [
+      {
+        "role": "manager",
+        "status": "done"
+      },
+      {
+        "role": "planner",
+        "status": "done"
+      },
+      {
+        "role": "rules",
+        "status": "done"
+      },
+      {
+        "role": "review",
+        "status": "done"
+      }
+    ],
+    "error": "",
+    "reports": [
+      {
+        "mode": "rules",
+        "status": "done",
+        "errorCount": 0,
+        "warningCount": 0,
+        "semanticCount": null
+      },
+      {
+        "mode": "ai",
+        "status": "done",
+        "errorCount": 0,
+        "warningCount": 0,
+        "semanticCount": 7
+      }
+    ],
+    "functionInvocations": false,
+    "modelCalls": false,
+    "businessWrites": false
+  },
+  "userPauseResumeConfirmation": "已到等待确认，重进/继续正常",
+  "cancelCloudVerification": {
+    "envId": "cloud1-d5gz9j6zh654f4b36",
+    "inspectedAt": "2026-11-06T04:37:13.472Z",
+    "readOnly": true,
+    "hasRun": true,
+    "status": "cancelled",
+    "mode": "new",
+    "next": "wait_user",
+    "draftRevision": 4,
+    "hasCheckpoint": true,
+    "hasCurrentDraft": true,
+    "currentDraftRevision": 4,
+    "isCurrent": true,
+    "steps": [
+      {
+        "role": "manager",
+        "status": "done"
+      },
+      {
+        "role": "planner",
+        "status": "done"
+      },
+      {
+        "role": "rules",
+        "status": "done"
+      },
+      {
+        "role": "review",
+        "status": "done"
+      }
+    ],
+    "error": "",
+    "reports": [
+      {
+        "mode": "rules",
+        "status": "done",
+        "errorCount": 0,
+        "warningCount": 0,
+        "semanticCount": null
+      },
+      {
+        "mode": "ai",
+        "status": "done",
+        "errorCount": 0,
+        "warningCount": 0,
+        "semanticCount": 7
+      }
+    ],
+    "functionInvocations": false,
+    "modelCalls": false,
+    "businessWrites": false
+  },
+  "userCancelConfirmation": "已取消，草案和建议还在",
+  "nextPhase": {
+    "suggestion": "coach recent-7-day facts, minimum cloud feedback and on-demand AI review",
+    "implementationAuthorized": false
+  }
+}

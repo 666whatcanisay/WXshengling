@@ -1,0 +1,25 @@
+{
+  "status": "deployed-and-source-verified",
+  "envId": "cloud1-d5gz9j6zh654f4b36",
+  "function": "app-node24",
+  "runtime": "Nodejs24.11",
+  "changedFiles": [
+    "index.js",
+    "lib/plannerDrafts.js",
+    "lib/stewardRuns.js",
+    "lib/stewardPlanner.js",
+    "lib/stewardGraph.cjs"
+  ],
+  "preservedFiles": 3781,
+  "expectedTotalFiles": 3786,
+  "incrementalZipFiles": [
+    "index.js",
+    "lib/plannerDrafts.js",
+    "lib/stewardGraph.cjs",
+    "lib/stewardPlanner.js",
+    "lib/stewardRuns.js"
+  ],
+  "databaseWrites": false,
+  "modelCalls": false,
+  "miniProgramPublish": false
+}

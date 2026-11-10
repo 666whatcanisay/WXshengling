@@ -7,6 +7,14 @@
 const cloudConfig = require('./cloudConfig');
 const MAX_RETRIES = 2;
 const RETRY_DELAY = 800; // ms
+const RETRYABLE = new Set([
+  'login', 'getDashboard', 'listGoals', 'getGoalDetail', 'listTasks', 'listPets', 'petDetail', 'petCollection',
+  'listAchievements', 'myCapsules', 'listGrowthLogs', 'getGrowthReport', 'listApiKeys',
+  'getPlannerDraft', 'getPlannerReview', 'getStewardRun', 'getCoachGoals', 'getCoachWorkspace',
+  'getAdjustmentWorkspace', 'getAdjustmentApplication', 'taskCheckin', 'publishAiPlan',
+  'aiPollPlan',
+  'petChatPets', 'petChatGet', 'petChatFacts',
+]);
 
 /**
  * 检查网络状态
@@ -34,18 +42,30 @@ function checkNetwork() {
 function callCloud(service, action, data, retryCount) {
   const name = cloudConfig.functions[service];
   const attempt = retryCount || 0;
+  const checksCurrentSession = service === 'app' || action === 'login' || action === 'authLogin';
+  const app = checksCurrentSession && typeof getApp === 'function' ? getApp() : null;
+  const ownerAtCall = app?.globalData?.currentOpenid;
+  const accountId = app?.globalData?.userInfo?.id;
+  const isCurrent = () => app?.globalData?.currentOpenid === ownerAtCall && app?.globalData?.userInfo?.id === accountId;
   return new Promise((resolve, reject) => {
     if (!name) return reject('未知云函数入口: ' + service);
     wx.cloud.callFunction({
       name,
       config: { env: cloudConfig.env },
-      data: { action, data },
+      data: { action, data, ...(service === 'app' && accountId ? { accountId } : {}) },
       success: (res) => {
         const result = res.result || {};
         // code === -1 表示明确的业务错误
         if (result.code === -1) {
           const errMsg = result.message || `云函数 ${name}/${action} 返回异常`;
-          console.error(`[CloudAPI] ${name}.${action} 业务错误:`, errMsg, result);
+          if (['ACCOUNT_BANNED', 'ACCOUNT_REQUIRED'].includes(result.reason) && ownerAtCall && isCurrent()) {
+            try { app.clearUserSession(); } catch (error) { console.warn('[CloudAPI] 本机会话清理失败'); }
+            wx.reLaunch({ url: result.reason === 'ACCOUNT_BANNED' ? '/pages/login/login?reason=account-banned' : '/pages/login/login' });
+          }
+          // 宠物聊天入口会用旧版列表兼容这个明确的版本差异。
+          if (action !== 'petChatPets' || String(errMsg).trim() !== '未知操作: petChatPets') {
+            console.error(`[CloudAPI] ${name}.${action} 业务错误:`, errMsg, result);
+          }
           reject(errMsg);
           return;
         }
@@ -90,7 +110,7 @@ function callCloud(service, action, data, retryCount) {
           rawMsg.indexOf('-502003') >= 0;      // 网络超时
         const isFunctionTimeout = rawMsg.indexOf('-504003') >= 0; // 云函数执行超时（非网络问题）
 
-        if (attempt < MAX_RETRIES && isNetworkError && !isFunctionTimeout) {
+        if (RETRYABLE.has(action) && attempt < MAX_RETRIES && isNetworkError && !isFunctionTimeout) {
           const online = await checkNetwork();
           if (!online) {
             console.warn(`[CloudAPI] 网络不可用，跳过重试`);
@@ -101,6 +121,10 @@ function callCloud(service, action, data, retryCount) {
           wx.showToast({ title: '网络波动，重试中...', icon: 'none', duration: 1500 });
 
           setTimeout(() => {
+            if (app && !isCurrent()) {
+              reject('登录状态已变化，请重新操作');
+              return;
+            }
             callCloud(service, action, data, attempt + 1)
               .then(resolve)
               .catch(reject);
@@ -142,13 +166,14 @@ const cloudApi = {
   // ===== 目标 =====
   goals: () => callCloud('app', 'listGoals'),
   createGoal: (data) => callCloud('app', 'createGoal', data),
+  createGoalOnce: (data) => callCloud('app', 'createGoalOnce', data),
   goalDetail: (id) => callCloud('app', 'getGoalDetail', { id }),
   updateGoal: (id, data) => callCloud('app', 'updateGoal', { id, ...data }),
   deleteGoal: (id) => callCloud('app', 'deleteGoal', { id }),
 
   // ===== 任务 =====
   tasks: (params) => callCloud('app', 'listTasks', params || {}),
-  createTask: (data) => callCloud('app', 'createTask', data),
+  createTask: (data) => callCloud('app', data?.request_id ? 'createTaskOnce' : 'createTask', data),
   taskCheckin: (data) => callCloud('app', 'taskCheckin', data),
   repairGoalDays: (data) => callCloud('app', 'repairGoalDays', data),
 
@@ -167,6 +192,7 @@ const cloudApi = {
   getGrowthPool: () => callCloud('app', 'getGrowthPool'),
   /** 泉水系统：从池子分配经验到指定宠物 */
   allocatePool: (data) => callCloud('app', 'allocatePool', data || {}),
+  allocatePoolOnce: (data) => callCloud('app', 'allocatePoolOnce', data),
   /** 刷新蛋类型（更换为其他蛋） */
   refreshEgg: (data) => callCloud('app', 'refreshEgg', data || {}),
   /** 领取新手800点经验 */
@@ -174,6 +200,11 @@ const cloudApi = {
   petUpdate: (id, data) => callCloud('app', 'updatePet', { id, ...data }),
   petDetail: (id) => callCloud('app', 'petDetail', { petId: id }),
   petInteract: (petId, action) => callCloud('app', 'petInteract', { pet_id: petId, action }),
+  petChatPets: () => callCloud('app', 'petChatPets'),
+  petChatGet: data => callCloud('app', 'petChatGet', data),
+  petChatFacts: data => callCloud('app', 'petChatFacts', data),
+  petChatChange: data => callCloud('app', 'petChatChange', data),
+  petChatSend: data => callCloud('app', 'petChatSend', data),
   awakenPet: (petId) => callCloud('app', 'awakenPet', { pet_id: petId }),
   deletePet: (petId) => callCloud('app', 'deletePet', { pet_id: petId }),
   /** 宠物事件：标记事件已读 */
@@ -193,12 +224,13 @@ const cloudApi = {
 
   // ===== 成长日志 =====
   growthLogs: (params) => callCloud('app', 'listGrowthLogs', params || {}),
-  addGrowthLog: (data) => callCloud('app', 'addGrowthLog', data || {}),
+  growthReport: () => callCloud('app', 'getGrowthReport'),
 
   // ===== 背包系统（V10.4：云端持久化 + 儿童节礼包）=====
   claimChildrenDayGift: () => callCloud('app', 'claimChildrenDayGift'),
-  getBackpack: () => callCloud('app', 'getBackpack'),
-  useBackpackItem: (itemName) => callCloud('app', 'useBackpackItem', { itemName }),
+  getBackpack: (options) => callCloud('app', 'getBackpack', options),
+  useBackpackItem: (data) => callCloud('app', 'useBackpackItem', data),
+  useBackpackItemOnce: (data) => callCloud('app', 'useBackpackItemOnce', data),
   syncEverOwnedSpecies: (speciesList) => callCloud('app', 'syncEverOwnedSpecies', { speciesList }),
 
   // ===== API Keys =====
@@ -212,6 +244,27 @@ const cloudApi = {
   aiStartGenerate: (data) => callCloud('app', 'aiStartGenerate', data),
   aiDoGenerate: (data) => callCloud('app', 'aiDoGenerate', data),
   aiPollPlan: (data) => callCloud('app', 'aiPollPlan', data),
+  getPlannerDraft: () => callCloud('app', 'getPlannerDraft'),
+  getPlannerReview: data => callCloud('app', 'getPlannerReview', data),
+  getStewardRun: data => callCloud('app', 'getStewardRun', data),
+  getCoachGoals: () => callCloud('app', 'getCoachGoals'),
+  getAdjustmentWorkspace: data => callCloud('app', 'getAdjustmentWorkspace', data),
+  startAdjustment: data => callCloud('app', 'startAdjustment', data),
+  stepAdjustment: data => callCloud('app', 'stepAdjustment', data),
+  saveAdjustment: data => callCloud('app', 'saveAdjustment', data),
+  cancelAdjustment: data => callCloud('app', 'cancelAdjustment', data),
+  checkAdjustment: data => callCloud('app', 'checkAdjustment', data),
+  applyAdjustment: data => callCloud('app', 'applyAdjustment', data),
+  getAdjustmentApplication: data => callCloud('app', 'getAdjustmentApplication', data),
+  getCoachWorkspace: data => callCloud('app', 'getCoachWorkspace', data),
+  saveCoachFeedback: data => callCloud('app', 'saveCoachFeedback', data),
+  reviewCoach: data => callCloud('app', 'reviewCoach', data),
+  startStewardRun: data => callCloud('app', 'startStewardRun', data),
+  stepStewardRun: data => callCloud('app', 'stepStewardRun', data),
+  cancelStewardRun: data => callCloud('app', 'cancelStewardRun', data),
+  reviewPlannerDraft: data => callCloud('app', 'reviewPlannerDraft', data),
+  savePlannerDraft: (data) => callCloud('app', 'savePlannerDraft', data),
+  clearPlannerDraft: (data) => callCloud('app', 'clearPlannerDraft', data),
   publishAiPlan: (data) => callCloud('app', 'publishAiPlan', data),
 
   // ===== 反馈 =====
@@ -231,7 +284,7 @@ const cloudApi = {
   adminEditPet: (data) => callCloud('app', 'adminEditPet', data),
   adminBroadcast: (data) => callCloud('app', 'adminBroadcast', data),
   /** V8.3 数据清理：删除所有非管理员账号及关联数据 */
-  adminCleanupNonAdmin: () => callCloud('app', 'adminCleanupNonAdmin'),
+  adminCleanupNonAdmin: (data) => callCloud('app', 'adminCleanupNonAdmin', data),
   /** V8.3 删除单个用户及其所有关联数据 */
   adminDeleteUser: (data) => callCloud('app', 'adminDeleteUser', data),
 

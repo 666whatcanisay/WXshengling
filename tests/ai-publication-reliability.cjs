@@ -17,7 +17,7 @@ const request = () => ({ publication_id: 'draft-a', source_plan_id: 'source-a',
   goal: { title: '七天阅读', target_days: 7, start_date: '2026-11-04', stages: [{ name: '起步', duration: '第1-7天' }] },
   tasks: [{ title: '阅读', xp_reward: 10, date: '2026-11-04', stage: 1, estimated_minutes: 15 },
     { title: '总结', xp_reward: 20, date: '2026-11-10', stage: 2, estimated_minutes: 20 }] });
-const seed = () => ({ goals: [], tasks: [], users: [], ai_plans: [
+const seed = () => ({ goals: [], tasks: [], users: [{ _id: 'user', _openid: 'owner' }], ai_plans: [
   { _id: 'source-a', _openid: 'owner', status: 'done', result: { tasks: [] } },
 ] });
 function backend(env) {
@@ -40,7 +40,7 @@ function totals(env, goals = 1, tasks = 2) {
   eq(env.rows.goals.length, goals, 'goal count'); eq(env.rows.tasks.length, tasks, 'task count');
 }
 const records = env => env.rows.ai_plans.filter(p => p.kind === 'plan_publication');
-function page(api, storage = new Map(), application = { globalData: { currentOpenid: 'owner' } }, storageFails = false) {
+function page(api, storage = new Map(), application = { globalData: { currentOpenid: 'owner', userInfo: { id: 'account' } } }, storageFails = false) {
   const file = path.join(root, 'miniprogram/pages/ai/ai.js'), localRequire = createRequire(file);
   let definition;
   const toasts = [], navigation = [];
@@ -211,16 +211,24 @@ async function callApi(api, input) {
   await scenario({}, async (env, api) => {
     const test = page({ publishAiPlan: async () => { throw new Error('OFFLINE'); } });
     await test.instance.publishPlanTasks();
-    test.application.globalData.currentOpenid = 'other';
+    const legacyKey = 'ai_publication_pending_v1:owner';
+    const legacy = { version: 1, owner: 'owner', request: request() };
+    test.storage.set(legacyKey, legacy);
+    test.application.globalData.userInfo = { id: 'recreated-account' };
     eq(test.instance._restorePendingPublication(), false); eq(test.instance.data.publicationPending, false);
-    eq(test.instance.data.plannerState.generatedGoal, null); eq(test.storage.size, 1, 'old account draft stays scoped');
+    eq(test.instance.data.plannerState.generatedGoal, null);
+    eq(test.storage.size, 2, 'both original and unattributed records remain on device');
+    eq(test.storage.get(legacyKey), legacy);
+    test.application.globalData.userInfo = { id: 'account' };
+    eq(test.instance._restorePendingPublication(), true);
+    eq(test.instance.data.plannerState.generatedGoal.title, request().goal.title);
   });
   await scenario({}, async (env, api) => {
     let release;
     const gate = new Promise(resolve => { release = resolve; });
     const test = page({ async publishAiPlan(input) { await gate; return callApi(api, input); } });
     const pending = test.instance.publishPlanTasks();
-    test.application.globalData.currentOpenid = 'other';
+    test.application.globalData.userInfo = { id: 'recreated-account' };
     test.instance._restorePendingPublication();
     eq(test.instance.data.plannerState.generatedGoal, null, 'switching accounts hides in-flight draft');
     eq(test.instance.data.showPlanModal, false);

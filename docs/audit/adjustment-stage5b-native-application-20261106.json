@@ -1,0 +1,22 @@
+{
+  "readOnly": true,
+  "inspectedAt": "2026-11-06T15:16:04.880Z",
+  "runStatus": "applied",
+  "revision": 1,
+  "hasApplication": true,
+  "receiptMatchesOriginal": true,
+  "taskMinutes": [
+    10,
+    10
+  ],
+  "taskNames": [
+    "[联调] 阅读10分钟",
+    "[联调] 整理笔记10分钟"
+  ],
+  "onlyConfirmedFieldsChanged": true,
+  "taskAndGoalTimestampsMatchReceipt": true,
+  "accountAndPoolBalancesUnchanged": true,
+  "unrelatedAccountMetadataWillBePreserved": true,
+  "modelCalls": false,
+  "businessWrites": false
+}

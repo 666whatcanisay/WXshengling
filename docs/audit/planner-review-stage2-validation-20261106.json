@@ -1,0 +1,196 @@
+{
+  "date": "2026-11-06",
+  "status": "deployed-normal-review-flow-user-verified",
+  "node": "v24.22.2",
+  "assertions": 1287,
+  "newReviewAssertions": 119,
+  "wxmlCompiled": true,
+  "wxssCompiled": true,
+  "render": {
+    "compiledRenderChecks": 44,
+    "states": [
+      "empty",
+      "fresh",
+      "rules",
+      "pending",
+      "failed",
+      "done",
+      "expired",
+      "unsaved",
+      "locked",
+      "unknown",
+      "reading",
+      "error"
+    ]
+  },
+  "layouts": {
+    "approximateHtmlPreview": true,
+    "checks": [
+      {
+        "state": "empty",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "fresh",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "rules",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "pending",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "failed",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "done",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "expired",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "unsaved",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "locked",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "unknown",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "reading",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "error",
+        "width": 320,
+        "overflow": false
+      },
+      {
+        "state": "empty",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "state": "fresh",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "state": "rules",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "state": "pending",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "state": "failed",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "state": "done",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "state": "expired",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "state": "unsaved",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "state": "locked",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "state": "unknown",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "state": "reading",
+        "width": 375,
+        "overflow": false
+      },
+      {
+        "state": "error",
+        "width": 375,
+        "overflow": false
+      }
+    ]
+  },
+  "securityReview": {
+    "nativeOpenidOnly": true,
+    "ownerAndCurrentDraftCheckedInTransaction": true,
+    "existingAdminOnlyCollection": "ai_plans",
+    "modelOutsideTransaction": true,
+    "keysExcludedFromReviewState": true,
+    "noNewDependencies": true,
+    "publicationValidationUnchanged": true
+  },
+  "realCloudBusinessWrites": false,
+  "realModelCalls": false,
+  "wechatRuntimeVerified": "normal rule/AI/reload/edit-invalidates flow confirmed by user; failures/concurrency not cloud-verified",
+  "miniProgramPublished": false,
+  "syntaxChecks": 13,
+  "unapprovedApplyGuardVerified": true,
+  "deployment": {
+    "userApproved": true,
+    "sourceVerified": true,
+    "functionActive": true,
+    "runtime": "Nodejs24.11",
+    "patchedFiles": 5,
+    "preservedFiles": 3778,
+    "configUnchanged": true
+  },
+  "wechatReadonly": {
+    "ok": true,
+    "hasDraft": true,
+    "revision": 2,
+    "rulesVersion": "planner-review-v1",
+    "rulesHasResult": false,
+    "aiHasResult": false
+  },
+  "wechatAfterEdit": {
+    "ok": true,
+    "hasDraft": true,
+    "revision": 3,
+    "rulesHasResult": false,
+    "aiHasResult": false
+  },
+  "wechatUserConfirmation": {
+    "answer": "都正常",
+    "aiSuggestionsAppeared": true,
+    "restoredAfterRecompile": true,
+    "oldSuggestionsHiddenAfterEdit": true
+  }
+}

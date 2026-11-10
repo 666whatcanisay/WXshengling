@@ -1,0 +1,8 @@
+{
+  "component": true,
+  "usingComponents": {
+    "pet-portrait": "/pet-art/portrait/index",
+    "portrait-placeholder": "/components/portrait-placeholder/index"
+  },
+  "componentPlaceholder": { "pet-portrait": "portrait-placeholder" }
+}

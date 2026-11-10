@@ -1,0 +1,28 @@
+<view class="lynx-scene {{species === 'lynx' ? 'lynx-form-' + form : 'portrait-generic'}} {{active ? 'lynx-active' : ''}} {{reacting ? 'lynx-reacting' : ''}}"
+  role="{{still ? 'img' : 'button'}}" aria-label="{{still ? label : '轻点' + label + '，查看互动动作'}}" bindtap="react">
+  <view wx:if="{{!still}}" class="lynx-shadow" />
+  <block wx:if="{{!still && !motionError}}">
+    <view wx:if="{{species === 'lynx' || layout.tail}}" class="lynx-tail-pivot" style="{{layout.tail}}">
+      <image class="lynx-tail" src="{{artRoot}}{{species}}/tail.png" style="{{colorStyle}}" mode="aspectFit"
+        data-key="{{species}}/{{form}}" binderror="onMotionError" />
+    </view>
+    <view class="lynx-rig">
+      <image wx:if="{{species === 'lynx'}}" class="lynx-ear-tips" src="{{artRoot}}{{species}}/{{form}}/ear-tips.png"
+        style="{{colorStyle}}" mode="aspectFit" data-key="{{species}}/{{form}}" binderror="onMotionError" />
+      <image class="lynx-body" src="{{artRoot}}{{species}}/{{form}}/body.png" style="{{layout.body + colorStyle}}" mode="aspectFit"
+        data-key="{{species}}/{{form}}" binderror="onMotionError" />
+      <image class="lynx-blink" src="{{artRoot}}{{species}}/{{form}}/blink.png" style="{{layout.blink + colorStyle}}" mode="aspectFit"
+        data-key="{{species}}/{{form}}" binderror="onMotionError" />
+
+      <view wx:if="{{theme !== 'base' && !ornamentErrors[theme]}}" class="lynx-ornament lynx-ornament-{{theme}}" style="{{layout.ornament}}">
+        <image class="lynx-ornament-art" src="{{artRoot}}{{theme}}.png" mode="aspectFit"
+          data-id="{{theme}}" binderror="onOrnamentError" />
+        <view class="lynx-accent" />
+      </view>
+    </view>
+  </block>
+  <image wx:elif="{{!stillError}}" class="{{species === 'lynx' ? 'lynx-still' : 'portrait-still'}}"
+    src="{{artRoot}}{{species}}/{{form}}/{{species === 'lynx' ? 'still' : 'body'}}.png" style="{{layout.body + colorStyle}}"
+    mode="aspectFit" data-key="{{species}}/{{form}}" binderror="onStillError" />
+  <text wx:else class="lynx-unavailable">{{fallbackEmoji}}</text>
+</view>

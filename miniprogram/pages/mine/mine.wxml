@@ -104,6 +104,12 @@
       <text class="menu-arrow">›</text>
     </view>
 
+    <button class="card menu-card-item menu-contact" open-type="contact" session-from="home_float" hover-class="none">
+      <text class="menu-icon">💬</text>
+      <text class="menu-label">联系客服</text>
+      <text class="menu-arrow">›</text>
+    </button>
+
     <!-- 退出登录（警告色） -->
     <view class="card menu-card-item item-logout" bindtap="logout">
       <text class="menu-icon">🚪</text>
@@ -124,8 +130,16 @@
         <text class="collection-close" bindtap="closeCollection">✕</text>
       </view>
 
+      <view wx:if="{{collectionStatus === 'loading'}}" class="empty-collection">
+        <text class="empty-text">正在加载图鉴…</text>
+      </view>
+      <view wx:elif="{{collectionStatus === 'error'}}" class="empty-collection">
+        <text class="empty-text">图鉴暂时加载失败</text>
+        <view class="btn-leaf go-pets-btn" bindtap="openCollection">重新加载</view>
+      </view>
+
       <!-- 统计概览区 -->
-      <view class="collection-stats">
+      <view wx:if="{{collectionStatus === 'ready'}}" class="collection-stats">
         <view class="stat-cell">
           <text class="stat-num-lg">{{stats.total_ever_owned || 0}}</text>
           <text class="stat-label-sm">拥有过</text>
@@ -148,7 +162,7 @@
       </view>
 
       <!-- 最稀有宠物展示 -->
-      <view wx:if="{{stats.rarest_pet}}" class="rarest-showcase">
+      <view wx:if="{{collectionStatus === 'ready' && stats.rarest_pet}}" class="rarest-showcase">
         <text class="rarest-label">🏆 最稀有伙伴</text>
         <view class="rarest-card">
           <text class="rarest-emoji">{{rarestDisplay.icon}}</text>
@@ -163,13 +177,13 @@
       </view>
 
       <!-- Tab 切换：当前 / 历史 -->
-      <view class="collection-tabs">
+      <view wx:if="{{collectionStatus === 'ready'}}" class="collection-tabs">
         <view class="col-tab {{colActiveTab === 'current' ? 'col-tab-active' : ''}}" data-tab="current" bindtap="switchColTab">当前宠物 ({{currentPets.length}})</view>
         <view class="col-tab {{colActiveTab === 'released' ? 'col-tab-active' : ''}}" data-tab="released" bindtap="switchColTab">历史记录 ({{releasedPets.length}})</view>
       </view>
 
       <!-- 当前宠物列表 -->
-      <scroll-view wx:if="{{colActiveTab === 'current'}}" scroll-y class="collection-list" enhanced show-scrollbar="{{false}}">
+      <scroll-view wx:if="{{collectionStatus === 'ready' && colActiveTab === 'current'}}" scroll-y class="collection-list" enhanced show-scrollbar="{{false}}">
         <view wx:if="{{currentPets.length === 0}}" class="empty-collection">
           <text class="empty-icon">🥚</text>
           <text class="empty-text">还没有宠物，去创建目标获得神秘蛋吧！</text>
@@ -203,7 +217,7 @@
       </scroll-view>
 
       <!-- 历史宠物列表 -->
-      <scroll-view wx:if="{{colActiveTab === 'released'}}" scroll-y class="collection-list" enhanced show-scrollbar="{{false}}">
+      <scroll-view wx:if="{{collectionStatus === 'ready' && colActiveTab === 'released'}}" scroll-y class="collection-list" enhanced show-scrollbar="{{false}}">
         <view wx:if="{{releasedPets.length === 0}}" class="empty-collection">
           <text class="empty-icon">📜</text>
           <text class="empty-text">还没有放行记录</text>
@@ -241,7 +255,7 @@
       <text class="delete-confirm-hint">此操作不可撤销，但你可以重新孵化新宠物。</text>
       <view class="delete-confirm-actions">
         <button class="btn-wood delete-cancel-btn" bindtap="cancelDelete">再想想</button>
-        <button class="btn-danger delete-ok-btn" bindtap="doDeletePet">确认放行</button>
+        <button class="btn-danger delete-ok-btn" loading="{{releasingPet}}" disabled="{{releasingPet}}" bindtap="doDeletePet">确认放行</button>
       </view>
     </view>
   </view>

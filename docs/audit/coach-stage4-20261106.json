@@ -1,0 +1,21 @@
+{
+  "status": "deployed-and-source-verified",
+  "envId": "cloud1-d5gz9j6zh654f4b36",
+  "function": "app-node24",
+  "runtime": "Nodejs24.11",
+  "changedFiles": [
+    "index.js",
+    "lib/coachFacts.js",
+    "lib/coachService.js"
+  ],
+  "preservedFiles": 3785,
+  "expectedTotalFiles": 3788,
+  "incrementalZipFiles": [
+    "index.js",
+    "lib/coachFacts.js",
+    "lib/coachService.js"
+  ],
+  "databaseWrites": false,
+  "modelCalls": false,
+  "miniProgramPublish": false
+}

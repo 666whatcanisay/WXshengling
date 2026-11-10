@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-06",
+  "userNativeResult": {
+    "ok": true,
+    "previousRevision": 4,
+    "cloudRevision": 5,
+    "markerSaved": true,
+    "oldReportAbsent": true,
+    "localDirty": false,
+    "saveError": "",
+    "modelCalls": false
+  },
+  "managementReadonly": {
+    "inspectedAt": "2026-11-06T09:34:35.168Z",
+    "readOnly": true,
+    "goalsRead": 27,
+    "goalsComplete": true,
+    "hasGoal": true,
+    "period": [
+      "2026-10-31",
+      "2026-11-06"
+    ],
+    "complete": true,
+    "pastTasks": 0,
+    "completed": 0,
+    "todayPending": 0,
+    "feedbackRevision": 5,
+    "reportStatus": "",
+    "latestStoredReportStatus": "done",
+    "latestReportIsCurrent": false,
+    "latestReportAttempt": 1,
+    "latestReportFailureKind": "",
+    "feedbackHasNote": true,
+    "latestReportFeedbackRevision": 4,
+    "observations": null,
+    "suggestions": null,
+    "functionInvocations": false,
+    "modelCalls": false,
+    "businessWrites": false
+  },
+  "verdict": "New feedback revision invalidates the report; historical report retained",
+  "assistantBusinessWrites": false,
+  "assistantModelCalls": false,
+  "testMarkerRetainedInFeedback": true
+}

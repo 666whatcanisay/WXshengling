@@ -1,0 +1,56 @@
+{
+  "status": "deployed-and-source-verified",
+  "envId": "cloud1-d5gz9j6zh654f4b36",
+  "function": "app-node24",
+  "runtime": "Nodejs24.11",
+  "changedFiles": [
+    "index.js",
+    "lib/plannerContext.js",
+    "lib/plannerDrafts.js"
+  ],
+  "preservedFiles": 3778,
+  "incrementalZipFiles": [
+    "index.js",
+    "lib/plannerContext.js",
+    "lib/plannerDrafts.js"
+  ],
+  "databaseWrites": false,
+  "modelCalls": false,
+  "miniProgramPublish": false,
+  "userReadonlyCheck": {
+    "date": "2026-11-06",
+    "source": "user returned WeChat Developer Tools Console output",
+    "result": {
+      "ok": true,
+      "revision": 0,
+      "hasDraft": false,
+      "draftRevision": null,
+      "source": "",
+      "taskCount": 0,
+      "stableTaskIds": null,
+      "sourceKinds": []
+    }
+  },
+  "businessSaveRestoreVerified": true,
+  "userBusinessCheck": {
+    "date": "2026-11-06",
+    "source": "user returned WeChat Console output and confirmed no issue after requested generate/edit/save/recompile/review steps",
+    "result": {
+      "ok": true,
+      "revision": 2,
+      "hasDraft": true,
+      "draftRevision": 2,
+      "source": "model",
+      "taskCount": 6,
+      "stableTaskIds": true,
+      "sourceKinds": [
+        "user_edit",
+        "user_message"
+      ]
+    },
+    "userReportedRecompileRestoreOk": true,
+    "formalPublicationTested": false,
+    "cloudConcurrencyOrNetworkFailureTested": false
+  },
+  "evidenceScope": "Deployment itself performed no business writes/model calls; user then actively generated and saved a draft using the current model. No formal goal/task publication tested."
+}

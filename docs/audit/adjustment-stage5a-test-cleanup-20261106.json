@@ -1,0 +1,23 @@
+{
+  "envId": "cloud1-d5gz9j6zh654f4b36",
+  "goals": 1,
+  "tasks": 2,
+  "runs": 1,
+  "graphRecords": 13,
+  "adjustmentRecords": 15,
+  "totalRecords": 18,
+  "transaction": true,
+  "originalTasksUnchangedBeforeCleanup": true,
+  "modelCalls": false,
+  "rewardWrites": false,
+  "sourceDeployment": false,
+  "evidenceProvenance": "Restored from the earlier verified stage 5A tool results in this chat after the generic audit filename was reused by stage 5B",
+  "checkedAt": "2026-11-06T11:18:48.168Z",
+  "dryRun": false,
+  "verified": true,
+  "unrelatedAdjustmentRecordsUnchanged": true,
+  "authorization": "Prior explicit permission to create and clean this marked test batch",
+  "localCleanupSafetyAssertions": 18,
+  "nativeNormalPathAccepted": true,
+  "cleanupScriptPrivate": true
+}

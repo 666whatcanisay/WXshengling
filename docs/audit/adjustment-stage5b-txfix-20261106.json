@@ -1,0 +1,17 @@
+{
+  "status": "deployed-and-source-verified",
+  "envId": "cloud1-d5gz9j6zh654f4b36",
+  "function": "app-node24",
+  "runtime": "Nodejs24.11",
+  "changedFiles": [
+    "lib/adjustmentApplication.js"
+  ],
+  "preservedFiles": 3791,
+  "expectedTotalFiles": 3792,
+  "incrementalZipFiles": [
+    "lib/adjustmentApplication.js"
+  ],
+  "databaseWrites": false,
+  "modelCalls": false,
+  "miniProgramPublish": false
+}

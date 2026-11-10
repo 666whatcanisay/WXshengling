@@ -1,0 +1,185 @@
+.lynx-scene {
+  position: relative;
+  width: 260rpx;
+  height: 260rpx;
+  margin: 12rpx auto 16rpx;
+}
+
+.lynx-shadow {
+  position: absolute;
+  left: 47rpx;
+  top: 228rpx;
+  width: 165rpx;
+  height: 26rpx;
+  background: radial-gradient(ellipse, rgba(16, 30, 20, .55), transparent 70%);
+}
+
+.lynx-rig, .lynx-tail-pivot, .lynx-tail, .lynx-rig image,
+.lynx-ornament, .lynx-accent, .lynx-still {
+  position: absolute;
+}
+
+.lynx-rig { inset: 0; transform-origin: 46% 92%; }
+.lynx-body { left: 43rpx; top: 8rpx; width: 155rpx; height: 234rpx; }
+.lynx-ear-tips {
+  left: 43rpx;
+  top: 8rpx;
+  width: 155rpx;
+  height: 36rpx;
+  transform-origin: 43% 88%;
+}
+.lynx-blink { left: 60rpx; top: 80rpx; width: 80rpx; height: 34rpx; opacity: 0; }
+.lynx-tail-pivot {
+  left: 172rpx;
+  top: 129rpx;
+  width: 57rpx;
+  height: 61rpx;
+  transform-origin: 19% 77%;
+}
+.lynx-tail { inset: 0; width: 100%; height: 100%; transform-origin: inherit; }
+.lynx-still { inset: 0; width: 100%; height: 100%; }
+.portrait-still { position: absolute; }
+.lynx-unavailable { display: block; padding-top: 65rpx; font-size: 120rpx; text-align: center; }
+
+.lynx-ornament {
+  left: 128rpx;
+  top: 135rpx;
+  width: 43rpx;
+  height: 58rpx;
+  transform-origin: 46% 8%;
+}
+.lynx-ornament-dew { transform-origin: 34% 8%; }
+.lynx-form-baby .lynx-body { left: 52rpx; top: 51rpx; width: 139rpx; height: 190rpx; }
+.lynx-form-baby .lynx-ear-tips { left: 52rpx; top: 51rpx; width: 139rpx; height: 25rpx; }
+.lynx-form-baby .lynx-blink { left: 68rpx; top: 108rpx; width: 87rpx; height: 34rpx; }
+.lynx-form-baby .lynx-tail-pivot { left: 171rpx; top: 151rpx; width: 48rpx; height: 51rpx; }
+.lynx-form-baby .lynx-ornament { left: 129rpx; top: 163rpx; width: 36rpx; height: 48rpx; }
+.lynx-form-youth .lynx-body { left: 48rpx; top: 20rpx; width: 145rpx; height: 223rpx; }
+.lynx-form-youth .lynx-ear-tips { left: 48rpx; top: 20rpx; width: 145rpx; height: 28rpx; }
+.lynx-form-youth .lynx-blink { left: 63rpx; top: 86rpx; width: 75rpx; height: 30rpx; }
+.lynx-form-youth .lynx-tail-pivot { left: 172rpx; top: 137rpx; width: 53rpx; height: 57rpx; }
+.lynx-form-youth .lynx-ornament { left: 128rpx; top: 139rpx; }
+.lynx-form-perfect .lynx-body { left: 39rpx; top: 3rpx; width: 153rpx; height: 246rpx; }
+.lynx-form-perfect .lynx-ear-tips { left: 39rpx; top: 3rpx; width: 153rpx; height: 36rpx; }
+.lynx-form-perfect .lynx-blink { left: 62rpx; top: 72rpx; width: 58rpx; height: 23rpx; }
+.lynx-form-perfect .lynx-tail-pivot { left: 167rpx; top: 140rpx; width: 64rpx; height: 69rpx; }
+.lynx-form-perfect .lynx-shadow { top: 236rpx; }
+.lynx-form-perfect .lynx-ornament { left: 128rpx; top: 131rpx; }
+.lynx-ornament-art { inset: 0; width: 100%; height: 100%; }
+.lynx-accent {
+  left: 27rpx;
+  top: 31rpx;
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+}
+.lynx-ornament-dew .lynx-accent {
+  left: 15rpx;
+  top: 25rpx;
+  opacity: 0;
+  background: #ddffe8;
+  box-shadow: 0 0 7rpx #a0e5ba;
+}
+.lynx-ornament-orbit .lynx-accent {
+  width: 11rpx;
+  height: 11rpx;
+  border-radius: 0;
+  clip-path: polygon(50% 0%, 64% 35%, 100% 50%, 64% 64%, 50% 100%, 35% 64%, 0% 50%, 35% 35%);
+  background: #ffe3a2;
+}
+.lynx-ornament-lantern .lynx-accent {
+  opacity: 0;
+  left: 19rpx;
+  background: #fff2ac;
+  box-shadow: 0 0 11rpx 3rpx #ffbd52;
+}
+
+.lynx-active .lynx-rig { animation: lynx-breathe 4.1s ease-in-out infinite; }
+.lynx-active .lynx-blink { animation: lynx-blink 6.4s ease-in-out infinite; }
+.lynx-active .lynx-tail-pivot { animation: lynx-tail 5.2s ease-in-out infinite; }
+.lynx-active .lynx-ornament { animation: lynx-charm-sway 4.8s ease-in-out infinite; }
+.lynx-active.lynx-reacting .lynx-ear-tips { animation: lynx-ear-flick .49s ease-out both; }
+.lynx-active.lynx-reacting .lynx-tail { animation: lynx-tail-flick .72s ease-in-out both; }
+.lynx-active.lynx-reacting.portrait-generic .lynx-rig { animation: portrait-nod .62s ease-out both; }
+.lynx-active.lynx-reacting.portrait-generic .lynx-blink { animation: portrait-wink .52s ease-in-out both; }
+.lynx-active.lynx-reacting .lynx-ornament-dew { animation: lynx-dew-bounce .78s ease-out both; }
+.lynx-active.lynx-reacting .lynx-ornament-dew .lynx-accent { animation: lynx-dew-slide .85s ease-in-out both; }
+.lynx-active.lynx-reacting .lynx-ornament-orbit { animation: lynx-moon-turn .85s ease-in-out both; }
+.lynx-active.lynx-reacting .lynx-ornament-orbit .lynx-accent { animation: lynx-star-orbit .85s ease-in-out both; }
+.lynx-active.lynx-reacting .lynx-ornament-lantern .lynx-ornament-art { animation: lynx-lantern-light .94s ease-in-out both; }
+.lynx-active.lynx-reacting .lynx-ornament-lantern .lynx-accent { animation: lynx-firefly .98s ease-in-out both; }
+
+@keyframes lynx-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.012, 1.016); }
+}
+@keyframes portrait-nod {
+  0%, 100% { transform: rotate(0) scale(1); }
+  35% { transform: rotate(-4deg) scale(1.02, .985); }
+  68% { transform: rotate(1deg) scale(1, 1.018); }
+}
+@keyframes portrait-wink {
+  0%, 24%, 55%, 100% { opacity: 0; }
+  34%, 44% { opacity: 1; }
+}
+@keyframes lynx-blink {
+  0%, 20%, 23%, 70%, 73%, 100% { opacity: 0; }
+  21%, 22%, 71%, 72% { opacity: 1; }
+}
+@keyframes lynx-tail {
+  0%, 100% { transform: rotate(-4deg); }
+  45% { transform: rotate(12deg); }
+  70% { transform: rotate(2deg); }
+}
+@keyframes lynx-tail-flick {
+  0%, 100% { transform: rotate(0); }
+  28% { transform: rotate(-16deg); }
+  60% { transform: rotate(10deg); }
+}
+@keyframes lynx-ear-flick {
+  0%, 100% { transform: rotate(0); }
+  38% { transform: translateY(2rpx) rotate(-4deg); }
+  65% { transform: rotate(2deg); }
+}
+@keyframes lynx-charm-sway {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(4deg); }
+}
+@keyframes lynx-dew-bounce {
+  0%, 100% { transform: rotate(0); }
+  24% { transform: rotate(-17deg); }
+  48% { transform: rotate(12deg); }
+  72% { transform: rotate(-5deg); }
+}
+@keyframes lynx-dew-slide {
+  0%, 100% { opacity: 0; }
+  22% { opacity: 1; transform: translate(0, 0); }
+  78% { opacity: .85; transform: translate(11rpx, 24rpx) scale(.72); }
+}
+@keyframes lynx-moon-turn {
+  0%, 100% { transform: rotate(0) scaleX(1); }
+  40% { transform: rotate(-13deg) scaleX(.72); }
+  70% { transform: rotate(8deg) scaleX(.95); }
+}
+@keyframes lynx-star-orbit {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  28% { transform: translate(14rpx, -16rpx) rotate(45deg); }
+  65% { transform: translate(-9rpx, -24rpx) rotate(110deg); }
+}
+@keyframes lynx-lantern-light {
+  0%, 100% { filter: brightness(1); }
+  28%, 63% { filter: brightness(1.32); }
+}
+@keyframes lynx-firefly {
+  0%, 100% { opacity: 0; transform: translate(0, 0) scale(.45); }
+  32% { opacity: 1; transform: translate(14rpx, -15rpx) scale(1); }
+  64% { opacity: 1; transform: translate(25rpx, -37rpx) scale(.85); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lynx-active .lynx-rig, .lynx-active .lynx-blink,
+  .lynx-active .lynx-tail-pivot, .lynx-active .lynx-ornament {
+    animation-play-state: paused;
+  }
+  .lynx-active.lynx-reacting .lynx-ornament { animation-play-state: running; }
+}

@@ -3,8 +3,39 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
 const _ = db.command;
 const https = require('https');
+const crypto = require('crypto');
 const taskRules = require('./lib/taskRules');
-const publishAiPlan = require('./lib/planPublication').createPublisher(cloud);
+const publishAiPlan = require('./lib/planPublication').createPublisher(cloud, getStewardRuns);
+const plannerDrafts = require('./lib/plannerDrafts').createStore(cloud,
+  (tx, owner, input) => getStewardRuns().checkStandaloneSave(tx, owner, input));
+const plannerContext = require('./lib/plannerContext');
+const generationLease = require('./lib/modelRunLease');
+const petChat = require('./lib/petChat').createService({ cloud,
+  loadModel: openid => resolveAiRequest(openid, {}),
+  callModel: (config, messages, maxTokens) => callLLM(config.baseUrl, config.apiKey, config.model, messages, maxTokens, { timeoutMs: 17000, usage: true }),
+  observeUsage: usage => console.info('[宠物聊天缓存]', JSON.stringify(usage)),
+});
+const plannerReviews = require('./lib/plannerReviews').createService({ cloud, drafts: plannerDrafts,
+  loadModel: openid => resolveAiRequest(openid, {}),
+  callModel: (config, messages) => callLLM(config.baseUrl, config.apiKey, config.model, messages, 1800, { timeoutMs: 18000 }) });
+const coachService = require('./lib/coachService').createService({ cloud,
+  loadModel: openid => resolveAiRequest(openid, {}),
+  callModel: (config, messages) => callLLM(config.baseUrl, config.apiKey, config.model, messages, 1800, { timeoutMs: 18000, jsonObject: true }) });
+let stewardRuns;
+let adjustmentService;
+function getAdjustmentService() {
+  if (!adjustmentService) adjustmentService = require('./lib/adjustmentService').createService({ cloud, coach: coachService,
+    loadModel: openid => resolveAiRequest(openid, {}),
+    callModel: (config, messages) => callLLM(config.baseUrl, config.apiKey, config.model, messages, 1800, { timeoutMs: 18000, jsonObject: true }),
+    graphFactory: (...args) => require('./lib/stewardGraph.cjs').createAdjustmentGraph(...args) });
+  return adjustmentService;
+}
+function getStewardRuns() {
+  if (!stewardRuns) stewardRuns = require('./lib/stewardRuns').createService({ cloud, drafts: plannerDrafts, reviews: plannerReviews,
+    generate: require('./lib/stewardPlanner').createGenerator({ cloud, drafts: plannerDrafts, doGenerate: aiDoGenerate }),
+    graphFactory: (...args) => require('./lib/stewardGraph.cjs').createGraph(...args) });
+  return stewardRuns;
+}
 
 function getOpenId() {
   return cloud.getWXContext().OPENID || "";
@@ -67,6 +98,8 @@ async function safeQuery(collectionName, query) {
 
 async function safeAdd(collectionName, data) {
   try {
+    // Legacy pool writers share the first-create key used by transactional awards.
+    if (collectionName === 'user_growth_pool' && !data._id) data = { ...data, _id: 'pool:' + data._openid };
     return await db.collection(collectionName).add({ data });
   } catch (e) {
     console.warn(`[安全写入] 集合 ${collectionName} 写入失败:`, e.message);
@@ -75,14 +108,6 @@ async function safeAdd(collectionName, data) {
 }
 
 async function safeUpdate(collectionName, query, data) {
-  // 【诊断】打印最终传给 db.update() 的 data，确认是否被转换为点路径
-  var keys = Object.keys(data || {});
-  console.log('[SAFEUPDATE-FINAL] 集合=' + collectionName + ' | keys=' + JSON.stringify(keys));
-  for (var i = 0; i < keys.length; i++) {
-    var k = keys[i];
-    var v = data[k];
-    console.log('[SAFEUPDATE-FINAL]   ' + k + ': type=' + typeof v + ', isDotPath=' + (k.indexOf('.') >= 0) + ', value=', JSON.stringify(v));
-  }
   try {
     return await db.collection(collectionName).where(query).update({ data });
   } catch (e) {
@@ -157,26 +182,29 @@ async function ensureCollection(name) {
 
 // ====== 仪表盘 ======
 async function getDashboard(openid) {
-  const [users] = await safeQuery("users", { _openid: openid });
-  const user = users || {};
-
-  const activeGoals = await safeQuery("goals", { _openid: openid, status: _.neq("deleted") });
-  const petsListRaw = await safeQuery("pets", { _openid: openid });
-  // 【V8.3修复】过滤已软删除的宠物，避免仪表盘显示幽灵宠物
-  const petsList = (petsListRaw || []).filter(p => !p.deleted_at);
-  const activePet = petsList[0] || null;
-
   const today = todayStr();
-  const todayTasks = await safeQuery("tasks", { _openid: openid, date: today });
-  const completedCount = todayTasks.filter(t => t.completed).length;
+  const [users, activeGoals, petsList, dayTasks, checkins, achievements, emotions] = await Promise.all([
+    readAll('users', { _openid: openid }),
+    readAll('goals', { _openid: openid, status: _.neq('deleted') }),
+    readActivePets(openid),
+    queryTasks({ _openid: openid, date: today }),
+    readAll('checkins', { _openid: openid, date: today }),
+    readAll('achievements', { _openid: openid }),
+    readAll('emotions', { _openid: openid, date: today }).catch(error => {
+      console.warn('[Dashboard] 今日心情读取失败', error.code || error.errCode);
+      return null;
+    }),
+  ]);
+  const todayTasks = actionableTasks(dayTasks, activeGoals);
+  const user = users[0] || {};
+  const activePet = petsList[0] || null;
+  const completed = todayTasks.filter(t => t.completed);
+  const completedCount = completed.length;
   const totalCount = todayTasks.length;
   const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-  const todayXp = todayTasks.filter(t => t.completed).reduce((s, t) => s + (t.xp_reward || 0), 0);
-
-  const checkins = await safeQuery("checkins", { _openid: openid, date: today });
   const signedIn = checkins.length > 0;
-
-  const achievements = await safeQuery("achievements", { _openid: openid });
+  const todayXp = completed.reduce((sum, task) => sum + (Number(storedTaskExperience(task)) || 0), Number(checkins[0]?.xp_earned) || 0);
+  const emotion = emotions?.filter(hasMoodLabel).reduce(preferLatestEmotion, null);
 
   return {
     code: 0,
@@ -192,9 +220,10 @@ async function getDashboard(openid) {
       _id: user._id || "",
     },
     todayGrowth: { xp: todayXp, completedTasks: completedCount, totalTasks: totalCount, completionRate, streakDays: user.streak_days || 0 },
+    ...(emotions ? { todayEmotion: emotion ? emotionSummary(emotion) : null } : {}),
     goals: activeGoals.map(g => ({ id: g._id, title: g.title, progress: g.progress || 0, emoji: g.emoji || "🎯" })),
     signedIn,
-    todayTasks: todayTasks.map(t => ({ id: t._id, title: t.title, completed: t.completed, xp_reward: t.xp_reward })),
+    todayTasks: todayTasks.map(t => ({ id: t._id, title: t.title, completed: t.completed, xp_reward: storedTaskExperience(t) })),
     achievements: achievements || [],
     activePet: activePet ? {
       id: activePet._id, name: activePet.name, stage: activePet.stage,
@@ -230,54 +259,133 @@ async function getDashboard(openid) {
 
 // ====== 用户 ======
 async function updateUser(openid, data) {
-  const fields = { updated_at: Date.now() };
-  if (data.nickname !== undefined) fields.nickname = data.nickname;
-  if (data.avatar !== undefined) fields.avatar = data.avatar;
-  await safeUpdate("users", { _openid: openid }, fields);
-  return { success: true };
+  const database = cloud.database({ throwOnNotFound: false });
+  const { data: users } = await database.collection('users').where({ _openid: openid }).limit(2).get();
+  if (users.length !== 1) return { code: -1, message: '用户记录异常，请重新登录或联系管理员' };
+  return database.runTransaction(async tx => {
+    const { data: user } = await tx.collection('users').doc(users[0]._id).get();
+    if (user?._openid !== openid || user.status === 'banned') {
+      return { code: -1, message: '当前账号无法更新资料，请重新登录' };
+    }
+    const fields = { updated_at: Date.now() };
+    if (data.nickname !== undefined) fields.nickname = data.nickname;
+    if (data.avatar !== undefined) fields.avatar = data.avatar;
+    await updateTransactionRow(tx, 'users', user._id, fields);
+    return { success: true };
+  });
 }
 
 // ====== 签到 ======
+async function updateTransactionRow(tx, collection, id, data) {
+  const result = await tx.collection(collection).doc(id).update({ data });
+  if (result.stats?.updated !== 1) throw new Error('结算记录未更新: ' + collection);
+}
+
+async function rewardContext(openid, accountId) {
+  const database = cloud.database({ throwOnNotFound: false });
+  const [users, pools] = await Promise.all([
+    database.collection('users').where({ _openid: openid }).limit(2).get(),
+    database.collection('user_growth_pool').where({ _openid: openid }).limit(2).get(),
+  ]);
+  if (users.data.length !== 1) return { code: -1, message: '用户记录异常，请重新登录或联系管理员' };
+  if (accountId && (users.data[0]._id !== accountId || users.data[0].status === 'banned')) {
+    return { code: -1, message: '账号会话已失效，请重新登录' };
+  }
+  if (pools.data.length > 1) return { code: -1, message: '成长池记录重复，请联系管理员' };
+  const legacyPool = pools.data[0];
+  return { database, userId: users.data[0]._id, poolId: legacyPool?._id || 'pool:' + openid, legacyPool };
+}
+
+async function selectRewardPet(openid) {
+  const pets = await readActivePets(openid);
+  return pets.find(pet => pet.is_hatched === false) || pets.find(pet => pet.is_hatched === true);
+}
+
+async function readRewardPool(tx, context, openid) {
+  const pool = (await tx.collection('user_growth_pool').doc(context.poolId).get()).data;
+  if ((pool && pool._openid !== openid) || (context.legacyPool && !pool)) throw new Error('成长池记录已变更，请刷新后重试');
+  return pool;
+}
+
+async function creditRewardPool(tx, context, pool, openid, balance, earned, now, extra = {}) {
+  if (pool) {
+    await updateTransactionRow(tx, 'user_growth_pool', context.poolId, {
+      ...(balance ? { growth_pool: _.inc(balance) } : {}),
+      ...(earned ? { total_earned: _.inc(earned) } : {}),
+      updated_at: now, ...extra,
+    });
+  } else {
+    await tx.collection('user_growth_pool').add({ data: {
+      _id: context.poolId, _openid: openid, growth_pool: balance, total_earned: earned,
+      created_at: now, updated_at: now, ...extra,
+    } });
+  }
+}
+
 async function dailyCheckin(openid) {
   const today = todayStr();
-  const checkins = await safeQuery("checkins", { _openid: openid, date: today });
-  if (checkins.length > 0) return { success: true, already_signed: true, message: "今日已签到" };
+  const existing = await db.collection('checkins').where({ _openid: openid, date: today }).limit(1).get();
+  if (existing.data.length) return { success: true, already_signed: true, message: '今日已签到' };
 
-  const xpReward = 10;
-  await safeAdd("checkins", { _openid: openid, date: today, xp_earned: xpReward, created_at: Date.now() });
-
-  const users = await safeQuery("users", { _openid: openid });
-  const user = users[0];
-  if (user) {
-    const yesterday = taskRules.addDays(today, -1);
-    const newStreak = user.last_checkin_date === yesterday ? (user.streak_days || 0) + 1 : 1;
-    await safeUpdate("users", { _openid: openid }, {
-      total_xp: _.inc(xpReward), streak_days: newStreak, last_checkin_date: today, updated_at: Date.now(),
-    });
-
-    // ===== 宠物事件：连续签到检查 =====
-    if (newStreak === 7 || newStreak === 30) {
-      var eventType = newStreak === 30 ? 'streak_30' : 'streak_7';
-      var checkinPets = await safeQuery("pets", { _openid: openid });
-      var activeCheckinPet = checkinPets.find(function(p) { return p.is_hatched === true && !p.deleted_at; });
-      if (activeCheckinPet) {
-        checkAndGeneratePetEvent(openid, activeCheckinPet, eventType).catch(function(err) {
-          console.warn('[签到事件] 生成失败:', err.message);
-        });
-      }
+  const context = await rewardContext(openid);
+  if (context.code === -1) return context;
+  const selected = await selectRewardPet(openid);
+  const receiptId = 'daily:' + openid + ':' + today;
+  const result = await context.database.runTransaction(async tx => {
+    const receipt = (await tx.collection('checkins').doc(receiptId).get()).data;
+    const user = (await tx.collection('users').doc(context.userId).get()).data;
+    if (!user || user._openid !== openid) throw new Error('用户记录已变更，请刷新后重试');
+    if (receipt || user.last_checkin_date === today) {
+      return { success: true, already_signed: true, streak_days: user.streak_days, message: '今日已签到' };
     }
+    const pool = await readRewardPool(tx, context, openid);
+    const pet = selected && (await tx.collection('pets').doc(selected._id).get()).data;
+    const now = Date.now();
+    if (todayStr() !== today) throw new Error('日期已更新，请重新签到');
+    const streak = user.last_checkin_date === taskRules.addDays(today, -1) ? (user.streak_days || 0) + 1 : 1;
+    const growth = await applyPetGrowth(tx, pet, openid, GROWTH_SOURCES.checkin.value, now);
+    await creditRewardPool(tx, context, pool, openid, growth.unused, GROWTH_SOURCES.checkin.value, now);
+    await updateTransactionRow(tx, 'users', context.userId, {
+      total_xp: _.inc(10), streak_days: streak, last_checkin_date: today, updated_at: now,
+    });
+    await tx.collection('checkins').add({ data: {
+      _id: receiptId, _openid: openid, date: today, xp_earned: 10, pet_growth_awarded: true, created_at: now,
+    } });
+    return { success: true, xp_earned: 10, streak_days: streak, growth };
+  });
+  if (result.growth) {
+    await notifyGrowthEvent(openid, result.growth);
+    if (result.streak_days === 7 || result.streak_days === 30) {
+      try {
+        const pets = await readActivePets(openid);
+        const pet = pets.find(item => item.is_hatched === true);
+        if (pet) await checkAndGeneratePetEvent(openid, pet, 'streak_' + result.streak_days);
+      } catch (error) { console.warn('[签到事件] 生成失败'); }
+    }
+    delete result.growth;
   }
-  return { success: true, xp_earned: xpReward };
+  return result;
 }
 
 // ====== 目标 ======
 async function listGoals(openid) {
-  const data = await safeQuery("goals", { _openid: openid, status: _.neq("deleted") });
+  const data = await readAll('goals', { _openid: openid, status: _.neq("deleted") });
   return { success: true, data: data.sort((a, b) => (b.created_at || 0) - (a.created_at || 0)) };
 }
 
-async function createGoal(openid, data) {
-  if (!data.title) return { code: -1, message: "目标标题不能为空" };
+function stableId(prefix, parts) {
+  return prefix + crypto.createHash('sha256').update(JSON.stringify(parts)).digest('hex');
+}
+
+async function createGoal(openid, data, accountId) {
+  if (typeof data.title !== 'string' || !data.title.trim()) return { code: -1, message: "目标标题不能为空" };
+  const requestId = data.request_id;
+  if (accountId && (!requestId || !taskRules.validDate(data.start_date))) {
+    return { code: -1, message: '目标创建请求不完整' };
+  }
+  if (requestId !== undefined && (typeof requestId !== 'string' || !/^[\w:.-]{1,128}$/.test(requestId))) {
+    return { code: -1, message: '创建标识不正确' };
+  }
   const days = taskRules.positiveInteger(data.target_days === undefined ? (data.target_value === undefined ? 30 : data.target_value) : data.target_days);
   const startDate = data.start_date || todayStr();
   if (!days || !taskRules.validDate(startDate)) return { code: -1, message: "目标周期或开始日期不正确" };
@@ -285,62 +393,103 @@ async function createGoal(openid, data) {
   try { endDate = taskRules.addDays(startDate, days - 1); } catch (e) { return { code: -1, message: "目标周期超出日期范围" }; }
   if (!taskRules.validDate(endDate)) return { code: -1, message: "目标周期超出日期范围" };
   const now = Date.now();
-  const res = await safeAdd("goals", {
+  const goal = {
     _openid: openid, title: data.title, description: data.description || "",
     emoji: data.emoji || "🎯", progress: 0, target_value: days, target_days: days,
     start_date: startDate, end_date: endDate, time_zone: 'Asia/Shanghai',
     stages: Array.isArray(data.stages) ? data.stages.filter(s => s && typeof s === 'object').map(s => ({ name: String(s.name || ''), duration: String(s.duration || ''), milestone: String(s.milestone || '') })) : [],
     current_value: 0, unit: data.unit || "", status: "active", created_at: now, updated_at: now,
+  };
+  const initialTask = data.create_initial_task !== false;
+  const id = requestId && stableId('manual_', accountId ? [openid, accountId, requestId] : [openid, requestId]);
+  const binding = id && stableId('', [goal.title, goal.description, goal.emoji, days, data.start_date || '', goal.stages, goal.unit, initialTask]);
+  const database = cloud.database({ throwOnNotFound: false });
+  return database.runTransaction(async tx => {
+    if (accountId) {
+      const { data: account } = await tx.collection('users').doc(accountId).get();
+      if (!account || account._openid !== openid || account.status === 'banned') {
+        return { code: -1, message: '账号会话已失效，请重新登录' };
+      }
+    }
+    if (id) {
+      const old = (await tx.collection('goals').doc(id).get()).data;
+      if (old) return old._openid === openid && old.create_binding === binding
+        ? { success: true, id, already_created: true }
+        : { code: -1, message: '此创建请求已使用，请刷新目标列表' };
+      Object.assign(goal, { _id: id, create_binding: binding });
+    }
+    const goalId = (await tx.collection('goals').add({ data: goal }))._id;
+    if (!goalId) throw new Error('目标未能保存');
+    if (initialTask) {
+      const task = await tx.collection('tasks').add({ data: {
+        _openid: openid, goal_id: goalId, title: data.title, completed: false,
+        xp_reward: 10, date: startDate, created_at: now, updated_at: now,
+      } });
+      if (!task._id) throw new Error('初始任务未能保存');
+    }
+    return { success: true, id: goalId };
   });
-  // 【V8.5修复】创建目标后自动生成当天任务，解决目标页 todayTasks 永远为空的问题
-  const goalId = res._id;
-  console.log('[GOAL-CREATE] goal res=', JSON.stringify(res));
-  if (data.create_initial_task !== false) {
-    await safeAdd("tasks", {
-      _openid: openid,
-      goal_id: goalId,
-      title: data.title,
-      completed: false,
-      xp_reward: 10,
-      date: startDate,
-      created_at: now,
-      updated_at: now,
-    });
-    console.log('[TASK-CREATE] task created, goal_id=', goalId);
-  }
-  return { success: true, id: goalId };
+}
+
+async function createGoalOnce(openid, accountId, data) {
+  const result = await createGoal(openid, data, accountId);
+  return result.code === -1 ? { rejected: true, message: result.message } : result;
 }
 
 async function updateGoal(openid, data) {
-  if (!data.id) return { code: -1, message: "缺少目标ID" };
-  const fields = { updated_at: Date.now() };
+  if (typeof data.id !== 'string' || !data.id) return { code: -1, message: "缺少目标ID" };
+  const fields = {};
   ["title", "description", "emoji", "progress", "current_value", "status"].forEach(k => {
     if (data[k] !== undefined) fields[k] = data[k];
   });
-  await safeUpdate("goals", { _id: data.id, _openid: openid }, fields);
-  return { success: true };
+  const database = cloud.database({ throwOnNotFound: false });
+  return database.runTransaction(async tx => {
+    const { data: goal } = await tx.collection('goals').doc(data.id).get();
+    if (!goal || goal._openid !== openid) return { code: -1, message: '目标不存在' };
+    if (goal.status === 'deleted') {
+      return data.status === 'deleted' ? { success: true } : { code: -1, message: '目标不存在' };
+    }
+    if (goalClosed(goal) && data.status && data.status !== goal.status && data.status !== 'deleted') {
+      return { code: -1, message: '目标已结束，状态不能再变更' };
+    }
+    await updateTransactionRow(tx, 'goals', goal._id, { ...fields, updated_at: nextGoalUpdate(goal) });
+    return { success: true };
+  });
 }
 
 async function deleteGoal(openid, id) {
-  await safeUpdate("goals", { _id: id, _openid: openid }, { status: "deleted", updated_at: Date.now() });
-  return { success: true };
+  return updateGoal(openid, { id, status: 'deleted' });
 }
 
 async function getGoalDetail(openid, id) {
-  const data = await safeQuery("goals", { _id: id });
-  if (!data[0] || data[0]._openid !== openid) return { code: -1, message: "目标不存在" };
+  const { data } = await db.collection('goals').where({ _id: id, _openid: openid, status: _.neq('deleted') }).limit(1).get();
+  if (!data[0]) return { code: -1, message: "目标不存在" };
   return { success: true, data: data[0] };
 }
 
 // ====== 任务 ======
-async function queryTasks(filter) {
+async function readAll(collection, filter) {
   const result = [];
   for (let offset = 0; ; offset += 100) {
-    const page = await db.collection('tasks').where(filter).skip(offset).limit(100).get();
+    const page = await db.collection(collection).where(filter).skip(offset).limit(100).get();
     const rows = page.data || [];
     result.push(...rows);
     if (rows.length < 100) return result;
   }
+}
+
+function queryTasks(filter) { return readAll('tasks', filter); }
+async function readActivePets(openid) {
+  const pets = await readAll('pets', { _openid: openid });
+  return pets.filter(pet => !pet.deleted_at);
+}
+const storedTaskExperience = task => task.xp_reward == null || task.xp_reward === '' ? 10 : task.xp_reward;
+const goalClosed = goal => ['done', 'abandoned', 'deleted'].includes(goal.status);
+const nextGoalUpdate = goal => Math.max(Date.now(), (Number(goal.updated_at) || 0) + 1);
+
+function actionableTasks(tasks, goals) {
+  const openGoals = new Set(goals.filter(goal => !goalClosed(goal)).map(goal => goal._id));
+  return tasks.filter(task => !task.goal_id || task.completed === true || openGoals.has(task.goal_id));
 }
 
 async function listTasks(openid, params) {
@@ -349,88 +498,124 @@ async function listTasks(openid, params) {
   if (!taskRules.validDate(queryDate)) return { code: -1, message: "任务日期不正确" };
   const filter = { _openid: openid, date: queryDate };
   if (options.goal_id) filter.goal_id = options.goal_id;
-  const data = await queryTasks(filter);
+  const [tasks, goals] = await Promise.all([queryTasks(filter), options.goal_id ? null : readAll('goals', { _openid: openid })]);
+  const data = goals ? actionableTasks(tasks, goals) : tasks;
   return { success: true, data: data.map(t => ({ id: t._id, title: t.title, completed: t.completed,
-    xp_reward: t.xp_reward, goal_id: t.goal_id, date: t.date, stage: t.stage,
+    xp_reward: storedTaskExperience(t), goal_id: t.goal_id, date: t.date, stage: t.stage,
     estimated_minutes: t.estimated_minutes, completed_at: t.completed_at })) };
 }
 
-async function createTask(openid, data) {
+async function createTask(openid, data, accountId) {
+  if (accountId && (typeof data.request_id !== 'string' || !/^[\w:.-]{1,128}$/.test(data.request_id) ||
+      typeof data.goal_id !== 'string' || !data.goal_id || !taskRules.validDate(data.date))) {
+    return { code: -1, message: '任务创建请求不完整' };
+  }
   if (!data.title) return { code: -1, message: "任务标题不能为空" };
+  if (accountId && (typeof data.title !== 'string' || !data.title.trim() || data.title.length > 200)) {
+    return { code: -1, message: '任务名称需为1至200字' };
+  }
+  const xp = taskRules.taskExperience(data.xp_reward ?? 10);
+  if (xp === null) return { code: -1, message: '任务经验需为0至1000的整数' };
   const date = data.date || todayStr();
   if (!taskRules.validDate(date)) return { code: -1, message: "任务日期不正确" };
   const minutes = data.estimated_minutes === undefined ? null : taskRules.positiveInteger(data.estimated_minutes);
   if (data.estimated_minutes !== undefined && (!minutes || minutes > 1440)) return { code: -1, message: "任务时长需为1至1440分钟" };
   if (data.stage !== undefined && !['string', 'number'].includes(typeof data.stage)) return { code: -1, message: "任务阶段不正确" };
-  if (data.goal_id) {
-    const goals = await safeQuery('goals', { _id: data.goal_id, _openid: openid });
-    const goal = goals[0];
-    if (!goal || goal.status === 'deleted') return { code: -1, message: "目标不存在" };
-    if ((goal.start_date && date < goal.start_date) || (goal.end_date && date > goal.end_date)) return { code: -1, message: "任务日期超出目标周期" };
-  }
   const scheduling = {};
   if (minutes !== null) scheduling.estimated_minutes = minutes;
   if (data.stage !== undefined) scheduling.stage = data.stage;
-  const res = await safeAdd("tasks", {
+  const task = {
     _openid: openid, title: data.title, goal_id: data.goal_id || "",
-    xp_reward: data.xp_reward || 10, completed: false, date, ...scheduling,
+    xp_reward: xp, completed: false, date, ...scheduling,
     created_at: Date.now(), updated_at: Date.now(),
-  });
+  };
+  if (task.goal_id) {
+    const id = accountId && stableId('manual_task_', [openid, accountId, data.request_id]);
+    const binding = id && stableId('', [task.goal_id, task.title, date, xp, minutes, data.stage ?? null]);
+    const database = cloud.database({ throwOnNotFound: false });
+    return database.runTransaction(async tx => {
+      if (id) {
+        const { data: account } = await tx.collection('users').doc(accountId).get();
+        if (!account || account._openid !== openid || account.status === 'banned') {
+          return { code: -1, message: '账号会话已失效，请重新登录' };
+        }
+        const { data: existing } = await tx.collection('tasks').doc(id).get();
+        if (existing) {
+          return existing._openid === openid && existing.create_binding === binding
+            ? { success: true, id, already_created: true }
+            : { code: -1, message: '此创建请求已使用，请核对目标任务' };
+        }
+      }
+      const { data: goal } = await tx.collection('goals').doc(task.goal_id).get();
+      if (!goal || goal._openid !== openid) return { code: -1, message: '目标不存在' };
+      if (goalClosed(goal)) return { code: -1, message: '目标已结束，不能新增任务' };
+      if ((goal.start_date && date < goal.start_date) || (goal.end_date && date > goal.end_date)) return { code: -1, message: '任务日期超出目标周期' };
+      await updateTransactionRow(tx, 'goals', goal._id, { task_activity_version: _.inc(1) });
+      const result = await tx.collection('tasks').add({ data: id ? { ...task, _id: id, create_binding: binding } : task });
+      if (!result._id) throw new Error('任务未能保存');
+      return { success: true, id: result._id };
+    });
+  }
+  const res = await safeAdd('tasks', task);
   return { success: true, id: res._id };
 }
 
+async function createTaskOnce(openid, accountId, data) {
+  const result = await createTask(openid, data, accountId);
+  return result.code === -1 ? { rejected: true, message: result.message } : result;
+}
+
 // 核心奖励原子结算；事务外只定位旧随机 ID，结算依据均在事务内重读。
-async function taskCheckin(openid, data) {
+async function taskCheckin(openid, data, { makeup = false, accountId } = {}) {
   if (typeof data.task_id !== 'string' || !data.task_id) return { code: -1, message: "缺少任务ID" };
   if (!openid) return { code: -1, message: "未登录" };
-  // 仅本流程允许 doc.get 返回 null，不改变其它接口的缺失文档行为。
-  const checkinDb = cloud.database({ throwOnNotFound: false });
-  // 不能用吞错的 safeQuery：读取失败不等于用户/成长池不存在。
-  const [userRows, poolRows] = await Promise.all([
-    checkinDb.collection("users").where({ _openid: openid }).limit(2).get(),
-    checkinDb.collection("user_growth_pool").where({ _openid: openid }).limit(2).get(),
-  ]);
-  if (userRows.data.length !== 1) return { code: -1, message: "用户记录异常，请重新登录或联系管理员" };
-  if (poolRows.data.length > 1) return { code: -1, message: "成长池记录重复，请联系管理员" };
-  const userId = userRows.data[0]._id;
-  const legacyPool = poolRows.data[0];
-  const poolId = legacyPool ? legacyPool._id : 'pool:' + openid;
-  const settlement = await checkinDb.runTransaction(async tx => {
+  const context = await rewardContext(openid, accountId);
+  if (context.code === -1) return context;
+  const { userId } = context;
+  const selected = data.pet_growth === true ? await selectRewardPet(openid) : null;
+  const settlement = await context.database.runTransaction(async tx => {
     const task = (await tx.collection("tasks").doc(data.task_id).get()).data;
     if (!task || task._openid !== openid) return { code: -1, message: "任务不存在" };
     if (task.date && task.date > todayStr()) return { code: -1, message: "未来任务请到当天再打卡" };
+    if (makeup && (!task.goal_id || (task.date !== todayStr() && !(accountId && task.completed)))) {
+      return { code: -1, message: '只能补签今日的目标任务' };
+    }
     if (task.completed) return { success: true, already_completed: true, xp_earned: 0, message: "任务已完成" };
+    const goal = task.goal_id && (await tx.collection('goals').doc(task.goal_id).get()).data;
+    if (task.goal_id && (!goal || goal._openid !== openid || goalClosed(goal))) {
+      return { code: -1, message: '目标已结束或不可用，不能继续打卡' };
+    }
     const user = (await tx.collection("users").doc(userId).get()).data;
-    const pool = (await tx.collection("user_growth_pool").doc(poolId).get()).data;
+    const pool = await readRewardPool(tx, context, openid);
     if (!user || user._openid !== openid) throw new Error("用户记录已变更，请刷新后重试");
-    if ((pool && pool._openid !== openid) || (legacyPool && !pool)) throw new Error("成长池记录已变更，请刷新后重试");
-    const xpReward = task.xp_reward || 10;
-    if (!Number.isFinite(xpReward) || xpReward < 0) throw new Error("任务奖励异常");
+    const pet = selected && (await tx.collection('pets').doc(selected._id).get()).data;
+    const xpReward = taskRules.taskExperience(storedTaskExperience(task));
+    if (xpReward === null) return { code: -1, message: '任务经验超出有效范围，未结算' };
     const now = Date.now();
-    const updateOne = async (name, id, patch) => {
-      const res = await tx.collection(name).doc(id).update({ data: patch });
-      if (!res.stats || res.stats.updated !== 1) throw new Error("结算记录未更新: " + name);
-    };
-    await updateOne("tasks", task._id, { completed: true, completed_at: now, updated_at: now });
-    await updateOne("users", userId, { total_xp: _.inc(xpReward), updated_at: now });
-    // wx-server-sdk 只转交 options.data，自定义 _id 必须在 data 内。
+    const backpack = makeup ? backpackAfterUse(pool, '补签卡') : null;
+    if (makeup && !backpack) return { code: -1, message: '补签卡数量不足' };
+    const growthValue = data.pet_growth === true && xpReward > 0 ? GROWTH_SOURCES.complete_goal.value : 0;
+    // Both settlement and closing write the goal so their ordering also holds under snapshot isolation.
+    if (goal) await updateTransactionRow(tx, 'goals', goal._id, { task_activity_version: _.inc(1) });
+    const growth = growthValue ? await applyPetGrowth(tx, pet, openid, growthValue, now) : { unused: 0 };
+    await updateTransactionRow(tx, 'tasks', task._id, {
+      completed: true, completed_at: now, updated_at: now, ...(growthValue ? { pet_growth_awarded: true } : {}),
+    });
+    if (xpReward) await updateTransactionRow(tx, 'users', userId, { total_xp: _.inc(xpReward), updated_at: now });
+    // The SDK requires explicit IDs inside data.
     await tx.collection("growth_logs").add({ data: {
       _id: 'checkin-log:' + task._id, _openid: openid, xp_change: xpReward,
-      reason: '完成任务: ' + task.title, source: "task", created_at: now, updated_at: now,
+      reason: makeup ? '使用了【补签卡】，补签了「' + task.title + '」' : '完成任务: ' + task.title,
+      source: "task", created_at: now, updated_at: now,
     }});
-    if (pool) {
-      await updateOne("user_growth_pool", poolId, {
-        growth_pool: _.inc(xpReward), total_earned: _.inc(xpReward), updated_at: now,
-      });
-    } else {
-      await tx.collection("user_growth_pool").add({ data: {
-        _id: poolId, _openid: openid, growth_pool: xpReward, total_earned: xpReward,
-        created_at: now, updated_at: now,
-      }});
+    if (xpReward || backpack) {
+      await creditRewardPool(tx, context, pool, openid, xpReward + growth.unused, xpReward + growthValue, now,
+        backpack ? { backpack } : {});
     }
-    return { success: true, xp_earned: xpReward, goal_id: task.goal_id, date: task.date };
+    return { success: true, xp_earned: xpReward, goal_id: task.goal_id, date: task.date, growth, backpack };
   });
   if (!settlement.success || settlement.already_completed) return settlement;
+  await notifyGrowthEvent(openid, settlement.growth);
   // 派生统计在核心结算后幂等修复；不把它的失败当成奖励回滚。
   let completedDays;
   try {
@@ -440,6 +625,7 @@ async function taskCheckin(openid, data) {
     }
   } catch (e) { console.warn('[TASK-CHECKIN] 更新目标天数失败（非致命）:', e.message); }
   const result = { success: true, xp_earned: settlement.xp_earned };
+  if (settlement.backpack) result.backpack = settlement.backpack;
   if (completedDays !== undefined) result.completed_days = completedDays;
   return result;
 }
@@ -1141,6 +1327,11 @@ function getGrowthStage(growthValue) {
   return GROWTH_STAGE_THRESHOLDS[0];
 }
 
+function getHatchedGrowthStage(pet) {
+  const stage = getGrowthStage(pet.growth_value);
+  return stage.key !== 'EGG' ? stage : GROWTH_STAGE_THRESHOLDS.slice(1).find(entry => entry.key === pet.stage) || GROWTH_STAGE_THRESHOLDS[1];
+}
+
 /**
  * V8.2：检查是否跨阶段
  */
@@ -1250,9 +1441,7 @@ function hatchPetV7(eggType) {
 
 // ====== 宠物（V6）======
 async function listPets(openid) {
-  const data = await safeQuery("pets", { _openid: openid });
-  // 【V8.3修复】过滤已软删除的宠物（deleted_at存在），避免释放后的宠物重新出现在列表
-  const activeData = data.filter(p => !p.deleted_at);
+  const activeData = await readActivePets(openid);
   // V8.2修复：按创建时间升序排序，确保返回顺序一致（先创建的在前）
   activeData.sort(function(a, b) {
     return (a.created_at || 0) - (b.created_at || 0);
@@ -1300,44 +1489,56 @@ async function listPets(openid) {
 
 // 创建神秘蛋（V6：支持3种蛋类型 + growth_value）
 async function createEgg(openid, data) {
-  const exist = await safeQuery("pets", { _openid: openid });
-  // 只统计未删除且非已释放的
-  const activeCount = exist.filter(p => !p.deleted_at).length;
-  if (activeCount >= 3) return { code: -1, message: "最多拥有3只宠物" };
-  const hasEgg = exist.find(p => p.is_hatched === false && !p.deleted_at);
-  if (hasEgg) return { code: -1, message: "已有正在孵化的蛋" };
-
-  // 确定蛋类型：传入的 或 随机
-  var eggTypeKeys = Object.keys(EGG_TYPES);
-  var eggType = (data && data.egg_type && EGG_TYPES[data.egg_type])
+  const eggTypeKeys = Object.keys(EGG_TYPES);
+  const eggType = eggTypeKeys.includes(data.egg_type)
     ? data.egg_type
     : eggTypeKeys[Math.floor(Math.random() * eggTypeKeys.length)];
+  const eggInfo = EGG_TYPES[eggType];
+  const database = cloud.database({ throwOnNotFound: false });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data: users } = await database.collection('users').where({ _openid: openid }).limit(2).get();
+    if (users.length !== 1) return { code: -1, message: '用户记录异常，请重新登录或联系管理员' };
+    const user = users[0];
+    // 事务只支持单文档。先读用户版本再查宠物，提交时确认期间没有其他领蛋写入。
+    const pets = await readActivePets(openid);
+    if (pets.length >= 3) return { code: -1, message: '最多拥有3只宠物' };
+    if (pets.some(pet => pet.is_hatched === false)) return { code: -1, message: '已有正在孵化的蛋' };
 
-  var eggInfo = EGG_TYPES[eggType];
-
-  const res = await safeAdd("pets", {
-    _openid: openid,
-    name: eggInfo.name || '神秘成长蛋',
-    stage: "egg",
-    egg_stage: "egg",
-    level: 1,
-    experience: 0,
-    species: "",
-    egg_type: eggType,
-    growth_value: 0,          // V6: 使用 growth_value 替代 hatch_progress
-    is_hatched: false,
-    rarity: 'unknown',
-    attributes: {},           // 【V8.3修复】初始化为空对象，避免MongoDB对null写子属性崩溃
-    bond: 0,
-    mood: 'sleepy',
-    mood_message: '正在沉睡中...',
-    awakened: false,
-    personality: '',
-    titles: [],
-    created_at: Date.now(),
-    updated_at: Date.now(),
-  });
-  return { success: true, id: res._id, egg_type: eggType, egg_name: eggInfo.name };
+    const result = await database.runTransaction(async tx => {
+      const { data: currentUser } = await tx.collection('users').doc(user._id).get();
+      if (currentUser?._openid !== openid || currentUser.status === 'banned') {
+        return { code: -1, message: '当前账号无法领蛋，请重新登录' };
+      }
+      if (currentUser.pet_claim_revision !== user.pet_claim_revision) return null;
+      await updateTransactionRow(tx, 'users', user._id, { pet_claim_revision: _.inc(1) });
+      const now = Date.now();
+      const egg = await tx.collection('pets').add({ data: {
+        _openid: openid,
+        name: eggInfo.name || '神秘成长蛋',
+        stage: 'egg',
+        egg_stage: 'egg',
+        level: 1,
+        experience: 0,
+        species: '',
+        egg_type: eggType,
+        growth_value: 0,
+        is_hatched: false,
+        rarity: 'unknown',
+        attributes: {},
+        bond: 0,
+        mood: 'sleepy',
+        mood_message: '正在沉睡中...',
+        awakened: false,
+        personality: '',
+        titles: [],
+        created_at: now,
+        updated_at: now,
+      } });
+      return { success: true, id: egg._id, egg_type: eggType, egg_name: eggInfo.name };
+    });
+    if (result) return result;
+  }
+  return { code: -1, message: '宠物状态已变更，请刷新后重试' };
 }
 
 /**
@@ -1460,208 +1661,57 @@ function performPetHatch(eggType) {
 }
 
 // 孵化进度增加（V6→V8.2：经验池 + 多阶段成长 + 属性随机成长）
+// Growth is settled with the authoritative check-in. The legacy route is read-only.
 async function hatchProgress(openid, data) {
-  // 【安全】确保集合存在
-  await ensureCollection("user_growth_pool");
-
-  var source = (data && data.source) || 'checkin';
-  var addValue = (GROWTH_SOURCES[source] && GROWTH_SOURCES[source].value) || 5;
-
-  // ===== P1：统一入池 =====
-  var pool = await safeQuery("user_growth_pool", { _openid: openid });
-  var poolRecord = pool[0];
-  if (!poolRecord) {
-    poolRecord = await safeAdd("user_growth_pool", {
-      _openid: openid,
-      growth_pool: 0,
-      total_earned: 0,
-      created_at: Date.now(),
-      updated_at: Date.now(),
-    });
-    poolRecord = { growth_pool: 0 };
+  const daily = data.source === 'checkin';
+  const task = data.source === 'complete_goal' && typeof data.task_id === 'string' && data.task_id;
+  if (!daily && !task) return { code: -1, message: '需要有效的签到或任务记录' };
+  const database = cloud.database({ throwOnNotFound: false });
+  const id = daily ? 'daily:' + openid + ':' + todayStr() : task;
+  const { data: record } = await database.collection(daily ? 'checkins' : 'tasks').doc(id).get();
+  if (record?._openid !== openid || record.pet_growth_awarded !== true) {
+    return { code: -1, message: '没有可核实的成长奖励记录' };
   }
+  return { success: true, already_awarded: true };
+}
 
-  // 池子增加
-  var newPoolValue = (poolRecord.growth_pool || 0) + addValue;
-  await safeUpdate("user_growth_pool", { _openid: openid }, {
-    growth_pool: newPoolValue,
-    total_earned: (poolRecord.total_earned || 0) + addValue,
-    updated_at: Date.now(),
-  });
-
-  // ===== 获取当前宠物 =====
-  const pets = await safeQuery("pets", { _openid: openid });
-  // 优先找未孵化的蛋，否则找已孵化宠物继续成长
-  var egg = pets.find(p => p.is_hatched === false && !p.deleted_at);
-  var activePet = egg || pets.find(p => p.is_hatched === true && !p.deleted_at);
-
-  if (!activePet) {
-    // 没有任何宠物，仅入池
-    var srcLabel = (GROWTH_SOURCES[source] && GROWTH_SOURCES[source].label) || '成长';
-    return { success: true, pool_only: true, pool_value: newPoolValue, added: addValue, message: srcLabel + ' +' + addValue + '，已存入成长池' };
-  }
-
-  var isEgg = !(activePet.is_hatched === true);
-  var oldGrowth = activePet.growth_value || 0;
-
-  // ===== 从池子消费到宠物 =====
-  var consumeValue = Math.min(addValue, newPoolValue); // 最多消费本次获得的量
-  var newValue = oldGrowth + consumeValue;
-  var remainingPool = newPoolValue - consumeValue;
-
-  // 更新池子剩余
-  await safeUpdate("user_growth_pool", { _openid: openid }, {
-    growth_pool: Math.max(0, remainingPool),
-    updated_at: Date.now(),
-  });
-
-  // ===== 孵化逻辑（蛋 → 幼年）— V8.2：统一调用 performPetHatch() =====
-  if (isEgg && newValue >= 100) {
-    newValue = 100; // 蛋阶段最大100
-    var hatchData = performPetHatch(activePet.egg_type || 'forest_egg');
-
-    // 【V8.4诊断】临时恢复为 safeUpdate，验证新蛋(attributes:{})是否仍报错
-    await safeUpdate("pets", { _id: activePet._id }, hatchData.updateFields);
-
-    // 成长日志记录（孵化特有）
-    await safeAdd("growth_logs", {
-      _openid: openid, xp_change: 0,
-      reason: '🎉 蛋孵化了！获得了【' + (hatchData.rarityText[hatchData.result.rarity] || '') + hatchData.result.name + '】',
-      source: "hatch", created_at: Date.now(),
-    });
-
-    var tags = hatchData.buildDisplayTags();
-    return {
-      success: true,
-      hatched: true,
-      pet: { id: activePet._id, ...hatchData.result, is_shiny: hatchData.result.is_shiny },
-      stage_up: { from: 'EGG', to: 'BABY', name: '幼年' },
-      need_personality: true,
-      message: '恭喜！你的蛋孵化成了' + (hatchData.rarityText[hatchData.result.rarity] || '') + hatchData.result.name +
-        tags.colorTag + tags.talentTag + '！进入幼年期',
-    };
-  }
-
-  // ===== 已孵化宠物的成长逻辑（支持跨阶段）=====
-  if (!isEgg) {
-    var newStageInfo = getGrowthStage(newValue);
-    var oldStageInfo = getGrowthStage(oldGrowth);
-    var stageUpResult = null;
-
-    // 检查是否跨阶段
-    if (oldStageInfo.key !== newStageInfo.key) {
-      stageUpResult = {
-        from: oldStageInfo.key,
-        to: newStageInfo.key,
-        name: newStageInfo.name,
-        // P3：生成四维属性随机奖励
-        attrBonus: generateStageUpBonus(),
-      };
-
-      // 累加属性奖励到宠物
-      // 【V8.3修复】attributes可能为null（旧数据），MongoDB不允许对null写子属性
-      var currentAttrs = activePet.attributes;
-      if (!currentAttrs || typeof currentAttrs !== 'object' || Array.isArray(currentAttrs)) {
-        currentAttrs = { vitality: 0, wisdom: 0, luck: 0, resonance: 0 };
-      }
-      var newAttrs = {};
-      Object.keys(stageUpResult.attrBonus).forEach(function(key) {
-        newAttrs[key] = (currentAttrs[key] || 0) + stageUpResult.attrBonus[key];
-      });
-
-      // 【V8.3修复2】growth_records可能为null，_.push对null会报错，改为整体替换
-      var currentGrowthRecords2 = activePet.growth_records;
-      if (!currentGrowthRecords2 || !Array.isArray(currentGrowthRecords2)) {
-        currentGrowthRecords2 = [];
-      }
-      await safeUpdate("pets", { _id: activePet._id }, {
-        growth_value: newValue,
-        stage: newStageInfo.key,
-        attributes: newAttrs,
-        growth_records: currentGrowthRecords2.concat({
-          time: Date.now(),
-          stage: newStageInfo.key,
-          message: '成长为【' + newStageInfo.name + '】',
-        }),
-        updated_at: Date.now(),
-      });
-
-      // 记录成长日志
-      var attrText = Object.keys(stageUpResult.attrBonus).map(function(k) {
-        var labels = { vitality: '活力', wisdom: '智慧', luck: '幸运', resonance: '共鸣' };
-        return (labels[k] || k) + '+' + stageUpResult.attrBonus[k];
-      }).join(' ');
-      await safeAdd("growth_logs", {
-        _openid: openid, xp_change: 0,
-        reason: '⬆️ 成长升级：' + oldStageInfo.name + ' → ' + newStageInfo.name + '（' + attrText + '）',
-        source: "stage_up", created_at: Date.now(),
-      });
-
-      // ===== 宠物事件：跨阶段检查 =====
-      if (newStageInfo.key === 'ADULT') {
-        checkAndGeneratePetEvent(openid, activePet, 'reach_adult').catch(function(err) {
-          console.warn('[成长事件] reach_adult 生成失败:', err.message);
-        });
-      }
-      if (newStageInfo.key === 'PERFECT') {
-        checkAndGeneratePetEvent(openid, activePet, 'reach_perfect').catch(function(err) {
-          console.warn('[成长事件] reach_perfect 生成失败:', err.message);
-        });
-      }
-
-      var srcLabel = (GROWTH_SOURCES[source] && GROWTH_SOURCES[source].label) || '成长';
-      return {
-        success: true,
-        progress: newValue,
-        stage: newStageInfo.key,
-        stage_name: newStageInfo.name,
-        stage_up: stageUpResult,
-        growth_source: source,
-        added_value: consumeValue,
-        attr_bonus: stageUpResult.attrBonus,
-        pool_remaining: Math.max(0, remainingPool),
-        need_personality_prompt: true,  // P4: 需要用户输入性格期望
-        message: srcLabel + ' +' + consumeValue + '，🎉 升级为【' + newStageInfo.name + '】！' + attrText,
-      };
+async function applyPetGrowth(tx, pet, openid, value, now) {
+  if (!pet || pet._openid !== openid || pet.deleted_at) return { unused: value };
+  const oldValue = Number(pet.growth_value) || 0;
+  const newValue = oldValue + value;
+  const patch = { growth_value: newValue, updated_at: now };
+  let log, event;
+  if (pet.is_hatched !== true) {
+    if (newValue >= 100) {
+      const hatched = performPetHatch(pet.egg_type || 'forest_egg');
+      Object.assign(patch, hatched.updateFields, { attributes: _.set(hatched.updateFields.attributes) });
+      log = { reason: '🎉 蛋孵化了！获得了【' + hatched.result.name + '】', source: 'hatch' };
+    } else {
+      patch.egg_stage = getEggStage(newValue);
     }
-
-    // 未跨阶段，正常增加成长值
-    await safeUpdate("pets", { _id: activePet._id }, {
-      growth_value: newValue,
-      updated_at: Date.now(),
-    });
-
-    var srcLabel2 = (GROWTH_SOURCES[source] && GROWTH_SOURCES[source].label) || '成长';
-    return {
-      success: true,
-      progress: newValue,
-      stage: newStageInfo.key,
-      stage_name: newStageInfo.name,
-      growth_source: source,
-      added_value: consumeValue,
-      pool_remaining: Math.max(0, remainingPool),
-      message: srcLabel2 + ' +' + consumeValue + '，当前阶段【' + newStageInfo.name + '】' + newValue + '/' + newStageInfo.minGrowth,
-    };
+  } else {
+    const previous = getGrowthStage(oldValue);
+    const next = getGrowthStage(newValue);
+    if (previous.key !== next.key) {
+      const attributes = { ...(pet.attributes || {}) };
+      const bonus = generateStageUpBonus();
+      for (const key of Object.keys(bonus)) attributes[key] = (attributes[key] || 0) + bonus[key];
+      const records = Array.isArray(pet.growth_records) ? pet.growth_records : [];
+      Object.assign(patch, { stage: next.key, attributes: _.set(attributes),
+        growth_records: records.concat({ time: now, stage: next.key, message: '成长为【' + next.name + '】' }) });
+      log = { reason: '⬆️ 成长升级：' + previous.name + ' → ' + next.name, source: 'stage_up' };
+      if (next.key === 'ADULT' || next.key === 'PERFECT') event = 'reach_' + next.key.toLowerCase();
+    }
   }
+  await updateTransactionRow(tx, 'pets', pet._id, patch);
+  if (log) await tx.collection('growth_logs').add({ data: { _openid: openid, xp_change: 0, created_at: now, ...log } });
+  return { unused: 0, pet, event };
+}
 
-  // ===== 蛋未孵化，正常增加 =====
-  var newEggStage = getEggStage(newValue);
-  await safeUpdate("pets", { _id: activePet._id }, {
-    growth_value: newValue,
-    egg_stage: newEggStage,
-    updated_at: Date.now(),
-  });
-
-  var srcLabel3 = (GROWTH_SOURCES[source] && GROWTH_SOURCES[source].label) || '成长';
-  return {
-    success: true,
-    progress: newValue,
-    egg_stage: newEggStage,
-    growth_source: source,
-    added_value: consumeValue,
-    pool_remaining: Math.max(0, remainingPool),
-    message: srcLabel3 + ' +' + consumeValue + '，孵化进度 ' + newValue + '/100',
-  };
+async function notifyGrowthEvent(openid, growth) {
+  if (!growth?.event) return;
+  try { await checkAndGeneratePetEvent(openid, growth.pet, growth.event); }
+  catch (error) { console.warn('[成长事件] 生成失败'); }
 }
 
 // ===== P4：性格系统 =====
@@ -1735,206 +1785,107 @@ async function updateChatContext(openid, data) {
  * 获取用户成长池信息
  */
 async function getGrowthPool(openid) {
-  var pool = await safeQuery("user_growth_pool", { _openid: openid });
-  if (pool && pool[0]) {
-    return {
-      success: true,
-      growth_pool: pool[0].growth_pool || 0,
-      total_earned: pool[0].total_earned || 0,
-    };
-  }
-  // 没有池子记录时返回默认值（首次使用会自动创建）
-  return { success: true, growth_pool: 0, total_earned: 0 };
+  const { data } = await db.collection('user_growth_pool').where({ _openid: openid }).limit(2).get();
+  if (data.length > 1) return { code: -1, message: '成长池记录重复，请联系管理员' };
+  const pool = data[0];
+  return {
+    success: true,
+    growth_pool: pool?.growth_pool || 0,
+    total_earned: pool?.total_earned || 0,
+    starter_claimed: !!(pool?.starter_claimed || pool?.starter_claimed_at),
+  };
 }
 
 /**
  * 【泉水系统】从经验池分配经验到指定宠物
- * data: { pet_id: string, amount: number }  (amount=0 表示全部倒入)
+ * data: { pet_id: string, amount: number, request_id?: string }
+ * amount=0 表示使用可分配余额，未孵化的蛋只接收孵化所需成长。
  *
- * 流程：校验池子余额 → 校验宠物归属 → 扣减池子 → 增加growth_value → 检查跨阶段
+ * 池子扣减、宠物成长和回执在同一事务提交。
  */
-async function allocatePool(openid, data) {
-  console.log('[ALLOCATE-DEBUG] ===== 开始分配 =====');
-  console.log('[ALLOCATE-DEBUG] data.pet_id=', data.pet_id);
-  console.log('[ALLOCATE-DEBUG] data.amount=', data.amount);
+async function allocatePool(openid, data, accountId) {
+  const requested = typeof data.amount === 'string' && /^\d+$/.test(data.amount) ? Number(data.amount) : data.amount;
+  if (typeof data.pet_id !== 'string' || !data.pet_id) return { code: -1, message: '请选择目标宠物' };
+  if (!Number.isSafeInteger(requested) || requested < 0) return { code: -1, message: '请输入有效的灌注数量' };
+  const requestId = data.request_id;
+  if (requestId !== undefined && (typeof requestId !== 'string' || !/^[\w:.-]{1,128}$/.test(requestId))) {
+    return { code: -1, message: '灌注凭据不正确' };
+  }
 
-  // 【安全】确保集合存在
-  await ensureCollection("user_growth_pool");
+  const context = await rewardContext(openid, accountId);
+  if (context.code === -1) return context;
+  const receiptId = requestId && stableId('fountain_', accountId ? [openid, accountId, requestId] : [openid, requestId]);
+  const settlement = await context.database.runTransaction(async tx => {
+    if (receiptId) {
+      const { data: receipt } = await tx.collection('growth_logs').doc(receiptId).get();
+      if (receipt) {
+        if (receipt._openid !== openid || receipt.pet_id !== data.pet_id || receipt.requested_growth !== requested) {
+          return { code: -1, message: '此灌注凭据已用于其他操作' };
+        }
+        return { result: receipt.allocation_result };
+      }
+    }
+    const { data: pet } = await tx.collection('pets').doc(data.pet_id).get();
+    if (pet?._openid !== openid || pet.deleted_at) return { code: -1, message: '目标宠物不存在或已放行' };
+    const pool = await readRewardPool(tx, context, openid);
+    const balance = Number(pool?.growth_pool) || 0;
+    if (balance <= 0) return { code: -1, message: '经验池是空的，先去签到或完成任务吧' };
 
-  if (!data.pet_id) return { code: -1, message: "请选择目标宠物" };
+    const now = Date.now();
+    const oldGrowth = Number(pet.growth_value) || 0;
+    const isEgg = pet.is_hatched !== true;
+    const available = Math.min(requested || balance, balance);
+    const amount = isEgg ? Math.min(available, Math.max(0, 100 - oldGrowth)) : available;
+    const newGrowth = oldGrowth + amount;
+    const previous = getGrowthStage(oldGrowth);
+    const next = getGrowthStage(newGrowth);
+    const patch = { growth_value: newGrowth, updated_at: now };
+    const result = { success: true, allocated: amount, pool_remaining: balance - amount, pet_new_growth: newGrowth,
+      stage: next.key, stage_name: next.name };
+    let source, event;
+    if (isEgg && newGrowth >= 100) {
+      const hatch = performPetHatch(pet.egg_type || 'forest_egg');
+      Object.assign(patch, hatch.updateFields, { growth_value: newGrowth, stage: next.key,
+        attributes: _.set(hatch.updateFields.attributes),
+        chat_context: _.set({ ...hatch.updateFields.chat_context, stage: next.key }) });
+      const tags = hatch.buildDisplayTags();
+      const name = (hatch.rarityText[hatch.result.rarity] || '') + hatch.result.name;
+      Object.assign(result, { hatched: true, pet: { id: pet._id, ...hatch.result }, need_personality: true,
+        message: '灌注 ' + amount + ' 点，孵化出【' + name + tags.colorTag + tags.talentTag + '】' });
+      if (available > amount) result.message += '，超出部分已留在泉水';
+      source = 'hatch_pool';
+    } else if (!isEgg && previous.key !== next.key) {
+      const bonus = generateStageUpBonus();
+      const attributes = {};
+      for (const key of Object.keys(bonus)) attributes[key] = (Number(pet.attributes?.[key]) || 0) + bonus[key];
+      const records = Array.isArray(pet.growth_records) ? pet.growth_records : [];
+      Object.assign(patch, { stage: next.key, attributes: _.set(attributes),
+        growth_records: records.concat({ time: now, stage: next.key, message: '💧 泉水灌注成长为【' + next.name + '】' }) });
+      const attrText = Object.entries({ vitality: '活力', wisdom: '智慧', luck: '幸运', resonance: '共鸣' })
+        .map(([key, label]) => label + '+' + bonus[key]).join(' ');
+      Object.assign(result, { stage_up: { from: previous.key, to: next.key, name: next.name, attrBonus: bonus },
+        attr_bonus: bonus, need_personality_prompt: true,
+        message: '💧 灌注 +' + amount + '，升级为【' + next.name + '】！' + attrText });
+      source = 'fountain_allocate';
+      if (next.key === 'ADULT' || next.key === 'PERFECT') event = 'reach_' + next.key.toLowerCase();
+    } else {
+      if (isEgg) patch.egg_stage = getEggStage(newGrowth);
+      result.message = '💧 灌入 +' + amount + ' 点成长';
+    }
 
-  // 1. 获取池子
-  var pool = await safeQuery("user_growth_pool", { _openid: openid });
-  if (!pool || !pool[0]) return { code: -1, message: "经验池不存在" };
-  var poolValue = pool[0].growth_pool || 0;
-  if (poolValue <= 0) return { code: -1, message: "经验池是空的，先去签到或完成任务吧" };
-
-  // 2. 获取目标宠物（必须属于当前用户）
-  var targetPets = await safeQuery("pets", { _id: data.pet_id, _openid: openid });
-  if (!targetPets || !targetPets[0]) return { code: -1, message: "目标宠物不存在" };
-  var pet = targetPets[0];
-
-  // 3. 计算分配数量
-  var amount = parseInt(data.amount) || 0;
-  if (amount <= 0) amount = poolValue; // 全部倒入
-  if (amount > poolValue) amount = poolValue; // 不能超过余额
-
-  var oldGrowth = pet.growth_value || 0;
-  var newGrowth = oldGrowth + amount;
-  var remainingPool = poolValue - amount;
-
-  console.log('[ALLOCATE-DEBUG] oldGrowth=' + oldGrowth + ' newGrowth=' + newGrowth + ' amount=' + amount);
-  console.log('[ALLOCATE-DEBUG] pet.is_hatched=' + pet.is_hatched);
-  console.log('[ALLOCATE-DEBUG] pet.attributes type=' + typeof pet.attributes);
-  console.log('[ALLOCATE-DEBUG] pet.attributes value=', JSON.stringify(pet.attributes));
-
-  // 4. 更新池子（先扣）
-  console.log('[ALLOCATE-DEBUG] >>> safeUpdate #1: user_growth_pool');
-  console.log('[ALLOCATE-DEBUG]     data keys:', Object.keys({ growth_pool: remainingPool, updated_at: Date.now() }));
-  await safeUpdate("user_growth_pool", { _openid: openid }, {
-    growth_pool: remainingPool,
-    updated_at: Date.now(),
+    await updateTransactionRow(tx, 'pets', pet._id, patch);
+    await creditRewardPool(tx, context, pool, openid, -amount, 0, now);
+    if (source || receiptId) {
+      await tx.collection('growth_logs').add({ data: {
+        ...(receiptId && { _id: receiptId, requested_growth: requested, allocation_result: result }),
+        _openid: openid, pet_id: pet._id, source: source || 'fountain_allocate', xp_change: 0,
+        reason: result.message, created_at: now,
+      } });
+    }
+    return { result, growth: { pet, event } };
   });
-
-  // 5. 更新宠物 + 孵化优先级检查（V8.2修复：孵化 > 阶段升级）
-  var newStageInfo = getGrowthStage(newGrowth);
-  var oldStageInfo = getGrowthStage(oldGrowth);
-
-  // ===== V8.2 P0修复：孵化优先级最高 =====
-  // 只要蛋的 growth_value 从 <100 跨到 >=100，必须先孵化，再考虑阶段升级
-  // 原Bug：跨阶段检查在L1508先执行，return后L1574的孵化永远无法到达
-  if (pet.is_hatched === false && newGrowth >= 100) {
-    console.log('[ALLOCATE-DEBUG] >>> 进入孵化分支 (newGrowth=' + newGrowth + ' >= 100)');
-    // 【V8.4修复说明】不再需要预清理 attributes:{} 
-    // 原因: 微信云SDK将{attributes:{}}视为空$set而报错
-    // 但performPetHatch()的updateFields已包含完整的非空attributes对象
-    // MongoDB整字段替换(null→{vitality:3,...})不会报错(只有子路径写入才报错)
-
-    var allocHatchData = performPetHatch(pet.egg_type || 'forest_egg');
-    // 触发诊断日志
-    if (allocHatchData._debug !== undefined) { /* 触发getter */ }
-
-    console.log('[ALLOCATE-DEBUG] >>> performPetHatch 返回');
-    console.log('[ALLOCATE-DEBUG]     updateFields keys:', Object.keys(allocHatchData.updateFields));
-    console.log('[ALLOCATE-DEBUG]     updateFields JSON:', JSON.stringify(allocHatchData.updateFields, null, 2));
-    console.log('[ALLOCATE-DEBUG] >>> safeUpdate #3: 孵化写入 (诊断：恢复safeUpdate测试)');
-    await safeUpdate("pets", { _id: data.pet_id }, allocHatchData.updateFields);
-    console.log('[ALLOCATE-DEBUG]     safeUpdate #3 完成');
-
-    // V8.2补充：allocatePool 也记录成长日志
-    await safeAdd("growth_logs", {
-      _openid: openid, xp_change: 0,
-      reason: '💧 泉水灌注使蛋孵化了！获得了【' + (allocHatchData.rarityText[allocHatchData.result.rarity] || '') + allocHatchData.result.name + '】',
-      source: "hatch_pool", created_at: Date.now(),
-    });
-
-    var tags2 = allocHatchData.buildDisplayTags();
-    return {
-      success: true, allocated: amount, pool_remaining: remainingPool,
-      hatched: true, pet: { id: data.pet_id, ...allocHatchData.result, is_shiny: allocHatchData.result.is_shiny },
-      need_personality: true,
-      message: '💧 泉水灌注使蛋孵化了！获得了【' + (allocHatchData.rarityText[allocHatchData.result.rarity] || '') + allocHatchData.result.name +
-        tags2.colorTag + tags2.talentTag + '】',
-    };
-  }
-
-  // ===== 已孵化宠物的阶段升级检查（仅对非蛋生效）=====
-  var stageUpResult = null;
-  var updateFields = {
-    growth_value: newGrowth,
-    updated_at: Date.now(),
-  };
-
-  // 跨阶段检查（此时已确认 pet 不是蛋，或虽是蛋但 newGrowth < 100）
-  if (oldStageInfo.key !== newStageInfo.key) {
-    stageUpResult = {
-      from: oldStageInfo.key,
-      to: newStageInfo.key,
-      name: newStageInfo.name,
-      attrBonus: generateStageUpBonus(),
-    };
-
-    // 累加属性奖励
-    // 【V8.3修复】attributes可能为null，MongoDB不允许对null字段写子属性，必须先初始化为对象
-    var currentAttrs = pet.attributes;
-    if (!currentAttrs || typeof currentAttrs !== 'object' || Array.isArray(currentAttrs)) {
-      currentAttrs = { vitality: 0, wisdom: 0, luck: 0, resonance: 0 };
-    }
-    var newAttrs = {};
-    Object.keys(stageUpResult.attrBonus).forEach(function(key) {
-      newAttrs[key] = (currentAttrs[key] || 0) + stageUpResult.attrBonus[key];
-    });
-    updateFields.stage = newStageInfo.key;
-    updateFields.attributes = newAttrs;
-    // 【V8.3修复2】growth_records可能为null，_.push对null会报错，改为整体替换
-    var currentGrowthRecords = pet.growth_records;
-    if (!currentGrowthRecords || !Array.isArray(currentGrowthRecords)) {
-      currentGrowthRecords = [];
-    }
-    updateFields.growth_records = currentGrowthRecords.concat({
-      time: Date.now(),
-      stage: newStageInfo.key,
-      message: '💧 泉水灌注成长为【' + newStageInfo.name + '】',
-    });
-
-    console.log('[ALLOCATE-DEBUG] >>> safeUpdate #4: 阶段升级写入');
-    console.log('[ALLOCATE-DEBUG]     updateFields keys:', Object.keys(updateFields));
-    await safeUpdate("pets", { _id: data.pet_id }, updateFields);
-    console.log('[ALLOCATE-DEBUG]     safeUpdate #4 完成');
-
-    // 成长日志
-    var attrText = Object.keys(stageUpResult.attrBonus).map(function(k) {
-      var labels = { vitality: '活力', wisdom: '智慧', luck: '幸运', resonance: '共鸣' };
-      return (labels[k] || k) + '+' + stageUpResult.attrBonus[k];
-    }).join(' ');
-    await safeAdd("growth_logs", {
-      _openid: openid, xp_change: 0,
-      reason: '💧 泉水灌注：' + oldStageInfo.name + ' → ' + newStageInfo.name + '（' + attrText + '）',
-      source: "fountain_allocate",
-      created_at: Date.now(),
-    });
-
-    // ===== 宠物事件：泉水灌注跨阶段检查 =====
-    if (newStageInfo.key === 'ADULT') {
-      checkAndGeneratePetEvent(openid, pet, 'reach_adult').catch(function(err) {
-        console.warn('[成长事件] reach_adult 生成失败:', err.message);
-      });
-    }
-    if (newStageInfo.key === 'PERFECT') {
-      checkAndGeneratePetEvent(openid, pet, 'reach_perfect').catch(function(err) {
-        console.warn('[成长事件] reach_perfect 生成失败:', err.message);
-      });
-    }
-
-    return {
-      success: true,
-      allocated: amount,
-      pool_remaining: remainingPool,
-      pet_new_growth: newGrowth,
-      stage: newStageInfo.key,
-      stage_name: newStageInfo.name,
-      stage_up: stageUpResult,
-      attr_bonus: stageUpResult.attrBonus,
-      need_personality_prompt: true,  // P4: 需要用户输入性格期望
-      message: '💧 灌注 +' + amount + '，升级为【' + newStageInfo.name + '】！' + attrText,
-    };
-  }
-
-  // 未跨阶段，正常增加
-  console.log('[ALLOCATE-DEBUG] >>> safeUpdate #5: 正常增加写入');
-  console.log('[ALLOCATE-DEBUG]     updateFields keys:', Object.keys(updateFields));
-  await safeUpdate("pets", { _id: data.pet_id }, updateFields);
-  console.log('[ALLOCATE-DEBUG]     safeUpdate #5 完成');
-
-  return {
-    success: true,
-    allocated: amount,
-    pool_remaining: remainingPool,
-    pet_new_growth: newGrowth,
-    stage: newStageInfo.key,
-    stage_name: newStageInfo.name,
-    message: '💧 灌入 +' + amount + ' 点经验，当前【' + newStageInfo.name + '】' + newGrowth + '/' + newStageInfo.minGrowth,
-  };
+  await notifyGrowthEvent(openid, settlement.growth);
+  return settlement.result || settlement;
 }
 
 /**
@@ -1947,49 +1898,34 @@ async function allocatePool(openid, data) {
  *   - 可指定目标类型，或随机切换到其他类型
  */
 async function refreshEgg(openid, data) {
-  if (!data.pet_id) return { code: -1, message: "缺少宠物ID" };
+  if (typeof data.pet_id !== 'string' || !data.pet_id) return { code: -1, message: '缺少宠物ID' };
+  const allEggTypes = Object.keys(EGG_TYPES);
+  const requested = allEggTypes.includes(data.target_egg_type) ? data.target_egg_type : null;
+  const roll = requested ? 0 : Math.random();
+  const database = cloud.database({ throwOnNotFound: false });
+  return database.runTransaction(async tx => {
+    const { data: pet } = await tx.collection('pets').doc(data.pet_id).get();
+    if (pet?._openid !== openid) return { code: -1, message: '宠物不存在' };
+    if (pet.deleted_at) return { code: -1, message: '该宠物已释放' };
+    if (pet.is_hatched === true) return { code: -1, message: '已孵化的宠物不能更换蛋类型哦' };
 
-  // 获取目标宠物
-  var pets = await safeQuery("pets", { _id: data.pet_id, _openid: openid });
-  if (!pets || !pets[0]) return { code: -1, message: "宠物不存在" };
-  // 【V8.3修复】排除已软删除的宠物
-  var pet = pets[0];
-  if (pet.deleted_at) return { code: -1, message: "该宠物已释放" };
-
-  // 必须是未孵化的蛋
-  if (pet.is_hatched === true) return { code: -1, message: "已孵化的宠物不能更换蛋类型哦" };
-
-  // 确定新蛋类型
-  var allEggTypes = Object.keys(EGG_TYPES);
-  var currentType = pet.egg_type || 'forest_egg';
-  var newType = data.target_egg_type;
-
-  if (newType && EGG_TYPES[newType]) {
-    // 指定了目标类型
+    const currentType = pet.egg_type || 'forest_egg';
+    const otherTypes = allEggTypes.filter(type => type !== currentType);
+    const newType = requested || otherTypes[Math.floor(roll * otherTypes.length)];
     if (newType === currentType) {
-      return { code: -1, message: "当前就是这个类型哦～换一个吧" };
+      return { code: -1, message: '当前就是这个类型哦～换一个吧' };
     }
-  } else {
-    // 随机切换（排除当前）
-    var otherTypes = allEggTypes.filter(function(t) { return t !== currentType; });
-    newType = otherTypes[Math.floor(Math.random() * otherTypes.length)];
-  }
-
-  var eggInfo = EGG_TYPES[newType];
-
-  await safeUpdate("pets", { _id: data.pet_id }, {
-    egg_type: newType,
-    updated_at: Date.now(),
+    const eggInfo = EGG_TYPES[newType];
+    await updateTransactionRow(tx, 'pets', pet._id, { egg_type: newType, updated_at: Date.now() });
+    return {
+      success: true,
+      new_egg_type: newType,
+      new_egg_name: eggInfo.name,
+      new_egg_color: eggInfo.color,
+      new_egg_emoji: eggInfo.emoji,
+      message: '🔄 已更换为【' + eggInfo.name + '】！',
+    };
   });
-
-  return {
-    success: true,
-    new_egg_type: newType,
-    new_egg_name: eggInfo.name,
-    new_egg_color: eggInfo.color,
-    new_egg_emoji: eggInfo.emoji,
-    message: '🔄 已更换为【' + eggInfo.name + '】！',
-  };
 }
 
 /**
@@ -1997,355 +1933,260 @@ async function refreshEgg(openid, data) {
  * 每个用户只能领取一次
  */
 async function claimStarterXp(openid) {
-  // 【安全】确保集合存在
-  await ensureCollection("user_growth_pool");
-
-  // 检查是否已领取
-  var pool = await safeQuery("user_growth_pool", { _openid: openid });
-  var poolRecord = pool && pool[0];
-  var hasClaimed = false;
-  if (poolRecord) {
-    hasClaimed = !!(poolRecord.starter_claimed || poolRecord.starter_claimed_at);
-  }
-
-  if (hasClaimed) {
-    return { code: -1, message: "已经领取过新手经验了哦～", already_claimed: true };
-  }
-
-  // 发放800点
-  var bonusAmount = 800;
-
-  if (poolRecord) {
-    // 更新现有池子
-    var newValue = (poolRecord.growth_pool || 0) + bonusAmount;
-    await safeUpdate("user_growth_pool", { _openid: openid }, {
-      growth_pool: newValue,
-      total_earned: (poolRecord.total_earned || 0) + bonusAmount,
-      starter_claimed: true,
-      starter_claimed_at: Date.now(),
-      updated_at: Date.now(),
+  const context = await rewardContext(openid);
+  if (context.code === -1) return context;
+  const bonusAmount = 800;
+  return context.database.runTransaction(async tx => {
+    const pool = await readRewardPool(tx, context, openid);
+    const balance = pool?.growth_pool || 0;
+    if (pool?.starter_claimed || pool?.starter_claimed_at) {
+      return { success: true, already_claimed: true, claimed_amount: 0,
+        total_pool: balance, message: '新手礼包已经领过了' };
+    }
+    const now = Date.now();
+    await creditRewardPool(tx, context, pool, openid, bonusAmount, bonusAmount, now, {
+      starter_claimed: true, starter_claimed_at: now,
     });
-  } else {
-    // 创建池子记录并发放
-    await safeAdd("user_growth_pool", {
-      _openid: openid,
-      growth_pool: bonusAmount,
-      total_earned: bonusAmount,
-      starter_claimed: true,
-      starter_claimed_at: Date.now(),
-      created_at: Date.now(),
-      updated_at: Date.now(),
-    });
-  }
-
-  // 记录日志
-  await safeAdd("growth_logs", {
-    _openid: openid,
-    xp_change: 0,
-    reason: '🎁 新手礼包：获得 ' + bonusAmount + ' 点初始经验',
-    source: "starter_bonus",
-    created_at: Date.now(),
+    await tx.collection('growth_logs').add({ data: {
+      _openid: openid, xp_change: 0, source: 'starter_bonus', created_at: now,
+      reason: '🎁 新手礼包：获得 ' + bonusAmount + ' 点初始经验',
+    } });
+    return { success: true, claimed_amount: bonusAmount, total_pool: balance + bonusAmount,
+      message: '🎁 领取成功！+' + bonusAmount + ' 点经验已存入泉水' };
   });
-
-  return {
-    success: true,
-    claimed_amount: bonusAmount,
-    total_pool: bonusAmount,
-    message: '🎁 领取成功！+' + bonusAmount + ' 点经验已存入泉水',
-  };
 }
 
 // ===== 儿童节礼包 + 背包云端持久化（V10.4）=====
 
 /** 儿童节礼包：每人一次，送各20个道具 */
 async function claimChildrenDayGift(openid) {
-  await ensureCollection("user_growth_pool");
-
-  var pool = await safeQuery("user_growth_pool", { _openid: openid });
-  var poolRecord = pool && pool[0];
-
-  // 检查是否已领取（兼容两种标记）
-  if (poolRecord && (poolRecord.children_day_claimed || poolRecord.children_day_claimed_at)) {
-    return { code: -1, message: "已经领取过儿童节礼包了哦～", already_claimed: true };
-  }
-
-  // 礼包内容：每种道具 x20
-  var giftBackpack = [
+  const context = await rewardContext(openid);
+  if (context.code === -1) return context;
+  const giftBackpack = [
     { name: '普通饲料', count: 20 },
     { name: '高级饲料', count: 20 },
     { name: '成长药水', count: 20 },
     { name: '补签卡', count: 20 },
   ];
 
-  if (poolRecord) {
-    // 合并到现有背包
-    var existing = poolRecord.backpack || [];
-    for (var i = 0; i < giftBackpack.length; i++) {
-      var gift = giftBackpack[i];
-      var found = existing.find(function(e) { return e.name === gift.name; });
-      if (found) found.count += gift.count;
-      else existing.push({ name: gift.name, count: gift.count });
+  return context.database.runTransaction(async tx => {
+    const pool = await readRewardPool(tx, context, openid);
+    if (pool?.children_day_claimed || pool?.children_day_claimed_at) {
+      return { success: true, already_claimed: true, message: '儿童节礼包已经领过了' };
     }
-    await safeUpdate("user_growth_pool", { _openid: openid }, {
-      backpack: existing,
-      children_day_claimed: true,
-      children_day_claimed_at: Date.now(),
-      updated_at: Date.now(),
+    const backpack = [...storedBackpack(pool)];
+    for (const gift of giftBackpack) {
+      const index = backpack.findIndex(item => item.name === gift.name);
+      if (index === -1) backpack.push(gift);
+      else backpack[index] = { ...backpack[index], count: (Number(backpack[index].count) || 0) + gift.count };
+    }
+    const now = Date.now();
+    await creditRewardPool(tx, context, pool, openid, 0, 0, now, {
+      backpack, children_day_claimed: true, children_day_claimed_at: now,
     });
-  } else {
-    await safeAdd("user_growth_pool", {
-      _openid: openid,
-      growth_pool: 0,
-      total_earned: 0,
-      backpack: giftBackpack,
-      children_day_claimed: true,
-      children_day_claimed_at: Date.now(),
-      created_at: Date.now(),
-      updated_at: Date.now(),
-    });
-  }
-
-  return { success: true, backpack: giftBackpack, message: '🎈 儿童节快乐！道具x20 已放入背包' };
+    return { success: true, backpack: giftBackpack, message: '🎈 儿童节快乐！道具x20 已放入背包' };
+  });
 }
 
 /** 获取当前背包（从云端同步） */
-async function getBackpack(openid) {
-  await ensureCollection("user_growth_pool");
-  var pool = await safeQuery("user_growth_pool", { _openid: openid });
-  var record = pool && pool[0];
-  if (!record || !record.backpack) return null;
-  return record.backpack;
+async function getBackpack(openid, options) {
+  const { data } = await db.collection('user_growth_pool').where({ _openid: openid }).limit(2).get();
+  if (data.length > 1) return { code: -1, message: '成长池记录重复，请联系管理员' };
+  const pool = data[0];
+  const backpack = pool?.backpack ?? null;
+  return { code: 0, data: options?.includeGiftStatus === true
+    ? { backpack, children_day_claimed: !!(pool?.children_day_claimed || pool?.children_day_claimed_at) }
+    : backpack };
 }
 
-/** 获取/同步历史拥有物种（V10.5：图鉴永久解锁）*/
-async function syncEverOwnedSpecies(openid, data) {
-  await ensureCollection("user_growth_pool");
-  var currentSpecies = (data && data.speciesList) || [];
-  if (!Array.isArray(currentSpecies)) currentSpecies = [];
-
-  var pool = await safeQuery("user_growth_pool", { _openid: openid });
-  var record = pool && pool[0];
-
-  // 历史记录
-  var everOwned = (record && record.all_ever_owned_species)
-    ? JSON.parse(JSON.stringify(record.all_ever_owned_species))
-    : [];
-
-  // 合并：追加新物种（去重）
-  var everSet = {};
-  everOwned.forEach(function(s) { everSet[s] = true; });
-  var added = 0;
-  for (var i = 0; i < currentSpecies.length; i++) {
-    if (currentSpecies[i] && !everSet[currentSpecies[i]]) {
-      everOwned.push(currentSpecies[i]);
-      everSet[currentSpecies[i]] = true;
-      added++;
-    }
-  }
-
-  // 写回云端
-  if (added > 0 || !record) {
-    var updateData = { all_ever_owned_species: everOwned, updated_at: Date.now() };
-    if (record) {
-      await safeUpdate("user_growth_pool", { _openid: openid }, updateData);
-    } else {
-      await safeAdd("user_growth_pool", {
-        _openid: openid,
-        growth_pool: 0,
-        total_earned: 0,
-        all_ever_owned_species: everOwned,
-        created_at: Date.now(),
-        updated_at: Date.now(),
-      });
-    }
-  }
-
-  return { success: true, all_ever_owned_species: everOwned, added: added };
+function collectedPetSpecies(pets) {
+  const owned = new Set(pets.map(pet => pet.species));
+  return SPECIES_LIST.filter(species => owned.has(species));
 }
 
-/** 使用物品（云端扣减，返回新背包状态） */
-async function useBackpackItem(openid, data) {
-  if (!data.itemName) return { code: -1, message: "缺少物品名" };
+/** 保留旧入口和返回格式，图鉴从当前与已放行的宠物记录读取。 */
+async function syncEverOwnedSpecies(openid) {
+  const pets = await readAll('pets', { _openid: openid });
+  return { success: true, all_ever_owned_species: collectedPetSpecies(pets), added: 0 };
+}
 
-  await ensureCollection("user_growth_pool");
-  var pool = await safeQuery("user_growth_pool", { _openid: openid });
-  var record = pool && pool[0];
+function storedBackpack(pool) {
+  return Array.isArray(pool?.backpack) ? pool.backpack : [
+    { name: '普通饲料', count: 3 }, { name: '高级饲料', count: 1 },
+    { name: '成长药水', count: 0 }, { name: '补签卡', count: 1 },
+  ];
+}
 
-  // 没有记录 → 用默认背包初始化（兼容老用户）
-  var backpack = (record && record.backpack)
-    ? JSON.parse(JSON.stringify(record.backpack))
-    : [
-        { name: '普通饲料', count: 3 },
-        { name: '高级饲料', count: 1 },
-        { name: '成长药水', count: 0 },
-        { name: '补签卡', count: 1 },
-      ];
+function backpackAfterUse(pool, itemName) {
+  const inventory = storedBackpack(pool);
+  const item = inventory.find(entry => entry.name === itemName);
+  if (!item || !Number.isInteger(item.count) || item.count <= 0) return null;
+  return inventory.map(entry => entry === item ? { ...entry, count: entry.count - 1 } : entry);
+}
 
-  var target = backpack.find(function(item) { return item.name === data.itemName; });
-  if (!target || target.count <= 0) {
-    return { code: -1, message: "物品数量不足" };
+function backpackPetPatch(pet) {
+  return { experience: pet.experience, growth_value: pet.growth_value, stage: pet.stage, attributes: pet.attributes };
+}
+
+async function useBackpackItem(openid, data, accountId) {
+  const name = data.itemName;
+  if (name === '补签卡') return taskCheckin(openid, { task_id: data.task_id }, { makeup: true, accountId });
+  if (!['普通饲料', '高级饲料', '成长药水'].includes(name) ||
+      typeof data.pet_id !== 'string' || !data.pet_id ||
+      typeof data.request_id !== 'string' || !/^[\w:.-]{1,128}$/.test(data.request_id)) {
+    return { code: -1, message: '道具、宠物或使用凭据不正确' };
   }
+  const context = await rewardContext(openid, accountId);
+  if (context.code === -1) return context;
+  const receiptId = stableId('item_', accountId ? [openid, accountId, data.request_id] : [openid, data.request_id]);
+  // Keep the same roll if the SDK re-executes the transaction.
+  const xp = name === '普通饲料' ? 10 : name === '高级饲料' ? 30 : Math.random() < 0.9 ? 30 + Math.floor(Math.random() * 21) : 0;
+  const attributes = ['vitality', 'wisdom', 'luck', 'resonance'];
+  const attr = xp ? '' : attributes[Math.floor(Math.random() * attributes.length)];
+  return context.database.runTransaction(async tx => {
+    const receipt = (await tx.collection('growth_logs').doc(receiptId).get()).data;
+    const pet = (await tx.collection('pets').doc(data.pet_id).get()).data;
+    const pool = await readRewardPool(tx, context, openid);
+    if (receipt) {
+      if (receipt._openid !== openid || receipt.item_name !== name || receipt.pet_id !== data.pet_id) {
+        return { code: -1, message: '此道具使用凭据已用于其他操作' };
+      }
+      return { success: true, already_used: true, backpack: pool?.backpack,
+        pet: pet?._openid === openid && !pet.deleted_at ? backpackPetPatch(pet) : null,
+        xp_added: receipt.xp_change, attribute: receipt.attribute };
+    }
+    if (pet?._openid !== openid || pet.deleted_at) return { code: -1, message: '宠物不存在' };
+    const backpack = backpackAfterUse(pool, name);
+    if (!backpack) return { code: -1, message: '物品数量不足' };
+    const now = Date.now();
+    const experience = (Number(pet.experience) || 0) + xp;
+    const growthValue = (Number(pet.growth_value) || 0) + xp;
+    const stage = pet.is_hatched === true ? getGrowthStage(growthValue).key : 'EGG';
+    const nextAttributes = attr ? { ...(pet.attributes || {}), [attr]: (Number(pet.attributes?.[attr]) || 0) + 1 } : null;
+    const patch = attr ? { attributes: _.set(nextAttributes) } :
+      { experience, growth_value: growthValue, stage };
+    await updateTransactionRow(tx, 'pets', pet._id, { ...patch, updated_at: now });
+    await creditRewardPool(tx, context, pool, openid, 0, 0, now, { backpack });
+    await tx.collection('growth_logs').add({ data: {
+      _id: receiptId, _openid: openid, source: 'item_use', item_name: name, pet_id: pet._id,
+      xp_change: xp, attribute: attr, reason: '使用了【' + name + '】', created_at: now,
+    } });
+    return { success: true, backpack,
+      pet: backpackPetPatch({ ...pet, ...patch, ...(attr ? { attributes: nextAttributes } : {}) }),
+      xp_added: xp, attribute: attr };
+  });
+}
 
-  target.count -= 1;
-
-  if (record) {
-    await safeUpdate("user_growth_pool", { _openid: openid }, {
-      backpack: backpack,
-      updated_at: Date.now(),
-    });
-  } else {
-    // 首次使用但没有记录 → 创建记录
-    await safeAdd("user_growth_pool", {
-      _openid: openid,
-      growth_pool: 0,
-      total_earned: 0,
-      backpack: backpack,
-      created_at: Date.now(),
-      updated_at: Date.now(),
-    });
+async function settleRewardOnce(operation, openid, data, accountId) {
+  if (typeof data.request_id !== 'string' || !/^[\w:.-]{1,128}$/.test(data.request_id)) {
+    return { rejected: true, message: '操作凭据不正确' };
   }
-
-  return { success: true, backpack: backpack };
+  const result = await operation(openid, data, accountId);
+  return result.code === -1 ? { rejected: true, message: result.message } : result;
 }
 
 /** 宠物互动（V3：含反馈文案 + bond增加 + mood变化） */
 async function petInteract(openid, data) {
-  if (!data.pet_id) return { code: -1, message: "缺少宠物ID" };
-  const action = data.action || 'pet'; // feed / play / pet
-  const xpMap = { feed: 10, play: 15, pet: 5 };
-  const bondMap = { feed: 2, play: 4, pet: 3 };
-  const xp = xpMap[action] || 5;
-  const bondAdd = bondMap[action] || 2;
-
-  const pets = await safeQuery("pets", { _openid: openid });
-  // 【V8.3修复】排除已软删除的宠物
-  const pet = pets.find(p => p._id === data.pet_id && p.is_hatched === true && !p.deleted_at);
-  if (!pet) return { code: -1, message: "宠物不存在或未孵化" };
-
-  // 获取反馈文案
-  const feedback = getInteractionFeedback(action, pet.species);
-
-  // 更新 XP 和亲密度
-  const newExp = (pet.experience || 0) + xp;
-  let newBond = Math.min(1000, (pet.bond || 0) + bondAdd);
-
-  // 阶段升级检测
-  let newStage = pet.stage;
-  let newLevel = pet.level || 1;
-  if (pet.stage === 'BABY' && newExp >= 300) {
-    newStage = 'ADULT';
-    newLevel++;
-  } else {
-    const stageMaxXp = newStage === 'ADULT' ? 9999 : 300;
-    if (newExp >= stageMaxXp) { newLevel++; }
-  }
-
-  // 心情变化：互动后倾向于 happy/exited
+  if (typeof data.pet_id !== 'string' || !data.pet_id) return { code: -1, message: '缺少宠物ID' };
+  const action = data.action === 'feed' || data.action === 'play' ? data.action : 'pet';
+  const xp = { feed: 10, play: 15, pet: 5 }[action];
+  const bondAdd = { feed: 2, play: 4, pet: 3 }[action];
+  const actionName = { feed: '喂食', play: '玩耍', pet: '抚摸' }[action];
   const moodPool = ['excited', 'happy', 'happy', 'normal'];
-  const newMood = moodPool[Math.floor(Math.random() * moodPool.length)];
-  const newMoodMsg = pickMoodMessage(newMood);
+  const mood = moodPool[Math.floor(Math.random() * moodPool.length)];
+  const moodMessage = pickMoodMessage(mood);
+  const database = cloud.database({ throwOnNotFound: false });
+  return database.runTransaction(async tx => {
+    const { data: pet } = await tx.collection('pets').doc(data.pet_id).get();
+    if (pet?._openid !== openid || pet.deleted_at || pet.is_hatched !== true) {
+      return { code: -1, message: '宠物不存在或未孵化' };
+    }
 
-  await safeUpdate("pets", { _id: data.pet_id }, {
-    experience: newExp, level: newLevel, stage: newStage,
-    bond: newBond, mood: newMood, mood_message: newMoodMsg,
-    updated_at: Date.now(),
+    const previousXp = Number(pet.experience) || 0;
+    const experience = previousXp + xp;
+    const previousBond = Number(pet.bond) || 0;
+    const bond = Math.min(1000, previousBond + bondAdd);
+    const stage = getHatchedGrowthStage(pet).key;
+    const threshold = stage === 'ADULT' || stage === 'PERFECT' ? 9999 : 300;
+    const levelUp = previousXp < threshold && experience >= threshold;
+    const level = (Number(pet.level) || 1) + Number(levelUp);
+    const feedback = getInteractionFeedback(action, pet.species);
+    const now = Date.now();
+
+    await updateTransactionRow(tx, 'pets', pet._id, {
+      experience, level, stage, bond, mood, mood_message: moodMessage, updated_at: now,
+    });
+    await tx.collection('growth_logs').add({ data: {
+      _openid: openid, pet_id: pet._id, xp_change: xp, reason: actionName + ' ' + feedback,
+      source: 'interact_' + action, created_at: now,
+    } });
+    return {
+      success: true, xp_earned: xp, new_xp: experience, bond_added: Math.max(0, bond - previousBond),
+      new_bond: bond, bond_level: getBondLevel(bond), feedback, mood, mood_message: moodMessage,
+      level_up: levelUp, new_level: level, stage_changed: stage !== pet.stage, new_stage: stage,
+    };
   });
-
-  // 记录成长日志
-  const actionNames = { feed: '喂食', play: '玩耍', pet: '抚摸' };
-  await safeAdd("growth_logs", {
-    _openid: openid, xp_change: xp,
-    reason: `${actionNames[action] || '互动'} ${feedback}`,
-    source: `interact_${action}`, created_at: Date.now(),
-  });
-
-  const bondLv = getBondLevel(newBond);
-  return {
-    success: true,
-    xp_earned: xp,
-    bond_added: bondAdd,
-    new_bond: newBond,
-    bond_level: bondLv,
-    feedback,
-    mood: newMood,
-    mood_message: newMoodMsg,
-    level_up: newLevel > (pet.level || 1),
-    new_level: newLevel,
-    stage_changed: newStage !== pet.stage,
-    new_stage: newStage,
-  };
 }
 
 async function updatePet(openid, data) {
-  if (!data.id) return { code: -1, message: "缺少宠物ID" };
-  const fields = { updated_at: Date.now() };
-  ["name","stage","level","experience","species","attribute_type","personality",
-   "egg_stage","hatch_progress","is_hatched","rarity","attributes",
-   "bond","mood","mood_message","awakened",
-   "growth_value"].forEach(k => {
-    if (data[k] !== undefined) fields[k] = data[k];
+  if (!data.id || typeof data.name !== 'string' || !data.name.trim()) {
+    return { code: -1, message: '请填写有效的宠物名称' };
+  }
+  const database = cloud.database({ throwOnNotFound: false });
+  return database.runTransaction(async tx => {
+    const { data: pet } = await tx.collection('pets').doc(data.id).get();
+    if (pet?._openid !== openid || pet.deleted_at) return { code: -1, message: '宠物不存在' };
+    await updateTransactionRow(tx, 'pets', data.id, { name: data.name.trim().slice(0, 30), updated_at: Date.now() });
+    return { success: true };
   });
-  await safeUpdate("pets", { _id: data.id, _openid: openid }, fields);
-  return { success: true };
 }
 
 /** 觉醒宠物 */
 async function awakenPet(openid, data) {
-  if (!data.pet_id) return { code: -1, message: "缺少宠物ID" };
-  const pets = await safeQuery("pets", { _openid: openid });
-  // 【V8.3修复】排除已软删除的宠物
-  const pet = pets.find(p => p._id === data.pet_id && !p.deleted_at);
-  if (!pet) return { code: -1, message: "宠物不存在" };
-  if (pet.awakened) return { code: -1, message: "已经觉醒过了" };
-  if (pet.stage !== 'ADULT' && pet.stage !== 'PERFECT') return { code: -1, message: "只有成年宠物才能觉醒" };
-
-  const prefix = AWAKEN_PREFIX[pet.species] || '觉醒';
-  const awakenedName = prefix + pet.name;
-
-  await safeUpdate("pets", { _id: data.pet_id }, {
-    awakened: true,
-    name: awakenedName,
-    updated_at: Date.now(),
+  if (typeof data.pet_id !== 'string' || !data.pet_id) return { code: -1, message: '缺少宠物ID' };
+  const database = cloud.database({ throwOnNotFound: false });
+  return database.runTransaction(async tx => {
+    const { data: pet } = await tx.collection('pets').doc(data.pet_id).get();
+    if (pet?._openid !== openid || pet.deleted_at || pet.is_hatched !== true) return { code: -1, message: '宠物不存在或未孵化' };
+    if (pet.awakened) return { success: true, already_awakened: true, awakened_name: pet.name, message: '已经觉醒过了' };
+    if (!['ADULT', 'PERFECT'].includes(getHatchedGrowthStage(pet).key)) {
+      return { code: -1, message: '达到成年或完美形态后才能觉醒' };
+    }
+    const now = Date.now();
+    const awakenedName = (AWAKEN_PREFIX[pet.species] || '觉醒') + pet.name;
+    await updateTransactionRow(tx, 'pets', pet._id, { awakened: true, name: awakenedName, updated_at: now });
+    await tx.collection('growth_logs').add({ data: {
+      _openid: openid, pet_id: pet._id, xp_change: 0,
+      reason: `✨ 【${pet.name}】觉醒了！进化为【${awakenedName}】`,
+      source: 'awaken', created_at: now,
+    } });
+    return { success: true, awakened_name: awakenedName, message: `${pet.name} 觉醒成为了 ${awakenedName}！` };
   });
-
-  await safeAdd("growth_logs", {
-    _openid: openid, xp_change: 0,
-    reason: `✨ 【${pet.name}】觉醒了！进化为【${awakenedName}】`,
-    source: "awaken", created_at: Date.now(),
-  });
-
-  return { success: true, awakened_name: awakenedName, message: `${pet.name} 觉醒成为了 ${awakenedName}！` };
 }
 
 /** 释放/删除宠物（软删除，保留历史记录） */
 async function deletePet(openid, data) {
-  if (!data.pet_id) return { code: -1, message: "缺少宠物ID" };
-  const pets = await safeQuery("pets", { _openid: openid });
-  const pet = pets.find(p => p._id === data.pet_id);
-  if (!pet) return { code: -1, message: "宠物不存在" };
-  // 【V8.3修复】防止重复删除已释放的宠物
-  if (pet.deleted_at) return { code: -1, message: "该宠物已释放，无需重复操作" };
-
-  // 软删除：标记 deleted_at，保留数据用于图鉴
-  await safeUpdate("pets", { _id: data.pet_id }, {
-    deleted_at: Date.now(),
-    is_hatched: false, // 标记为非活跃
-    updated_at: Date.now(),
-  });
-
+  if (typeof data.pet_id !== 'string' || !data.pet_id) return { code: -1, message: '缺少宠物ID' };
+  const database = cloud.database({ throwOnNotFound: false });
   const rarityText = { common: '普通', rare: '稀有', epic: '史诗', legendary: '传说' };
-  await safeAdd("growth_logs", {
-    _openid: openid, xp_change: 0,
-    reason: `👋 放行了【${rarityText[pet.rarity] || ''}${pet.name}】，它回到了大自然`,
-    source: "release", created_at: Date.now(),
+  return database.runTransaction(async tx => {
+    const { data: pet } = await tx.collection('pets').doc(data.pet_id).get();
+    if (pet?._openid !== openid) return { code: -1, message: '宠物不存在' };
+    const message = `已放行【${pet.name}】`;
+    if (pet.deleted_at) return { success: true, already_released: true, message };
+    const now = Date.now();
+    await updateTransactionRow(tx, 'pets', pet._id, { deleted_at: now, is_hatched: false, updated_at: now });
+    await tx.collection('growth_logs').add({ data: {
+      _openid: openid, xp_change: 0, source: 'release', created_at: now,
+      reason: `👋 放行了【${rarityText[pet.rarity] || ''}${pet.name}】，它回到了大自然`,
+    } });
+    return { success: true, message };
   });
-
-  return { success: true, message: `已放行【${pet.name}】` };
 }
 
 /** 宠物图鉴：获取全部宠物（含已释放的） */
 async function petCollection(openid) {
-  const allPets = await safeQuery("pets", { _openid: openid });
+  const allPets = await readAll('pets', { _openid: openid });
 
   // 当前宠物（未删除）
   const current = allPets.filter(p => !p.deleted_at).map(p => ({
@@ -2397,12 +2238,9 @@ async function petCollection(openid) {
   const awakenedCount = allPets.filter(p => p.awakened === true).length;
 
   // V6: 物种收集数据（图鉴Dex）
-  const ownedSpeciesSet = new Set();
-  allPets.forEach(p => { if (p.species) ownedSpeciesSet.add(p.species); });
-  const ownedSpeciesList = [...ownedSpeciesSet];
   const allSpeciesList = SPECIES_LIST;  // V6: 使用15种物种
-  const collectedSpecies = allSpeciesList.filter(s => ownedSpeciesSet.has(s));
-  const uncollectedSpecies = allSpeciesList.filter(s => !ownedSpeciesSet.has(s));
+  const collectedSpecies = collectedPetSpecies(allPets);
+  const uncollectedSpecies = allSpeciesList.filter(species => !collectedSpecies.includes(species));
 
   // 最稀有宠物
   const rarityOrder = { legendary: 5, epic: 4, rare: 3, common: 2, unknown: 1 };
@@ -2437,7 +2275,7 @@ async function petCollection(openid) {
         collected_count: collectedSpecies.length,
         uncollected_count: uncollectedSpecies.length,
         percent: Math.round((collectedSpecies.length / allSpeciesList.length) * 100),
-        owned_species: ownedSpeciesList,
+        owned_species: collectedSpecies,
         collected_species: collectedSpecies,
         uncollected_species: uncollectedSpecies,
         is_complete: collectedSpecies.length >= allSpeciesList.length,
@@ -2448,10 +2286,10 @@ async function petCollection(openid) {
 
 // 宠物详情（V3：含全部字段 + 成长记录）
 async function petDetail(openid, petId) {
-  const pets = await safeQuery("pets", { _openid: openid });
-  // 【V8.3修复】排除已软删除的宠物
-  const pet = pets.find(p => p._id === petId && !p.deleted_at);
-  if (!pet) return { code: -1, message: "宠物不存在" };
+  if (typeof petId !== 'string' || !petId) return { code: -1, message: '宠物不存在' };
+  const { data: pets } = await db.collection('pets').where({ _id: petId, _openid: openid }).limit(1).get();
+  const pet = pets[0];
+  if (!pet || pet.deleted_at) return { code: -1, message: '宠物不存在' };
 
   const stageXpMap = { EGG: 100, BABY: 300, YOUTH: 600, ADULT: 9999, PERFECT: 9999 };
   const stageMaxXp = stageXpMap[pet.stage] || 300;
@@ -2462,10 +2300,7 @@ async function petDetail(openid, petId) {
   const companionDays = Math.max(0, Math.floor((Date.now() - hatchTime) / 86400000));
 
   // 成长记录
-  const logs = await safeQuery("growth_logs", { _openid: openid });
-  const sortedLogs = (logs || [])
-    .sort((a, b) => (b.created_at || 0) - (a.created_at || 0))
-    .slice(0, 50)
+  const sortedLogs = (await readRecentGrowthLogs(openid, 50))
     .map(l => ({
       id: l._id,
       xp_change: l.xp_change,
@@ -2579,65 +2414,200 @@ async function listAchievements(openid) {
 }
 
 // ====== 情绪 ======
+const emotionTime = mood => Number(mood?.updated_at || mood?.created_at) || 0;
+const hasMoodLabel = mood => typeof mood.mood_label === 'string' && mood.mood_label.trim();
+
+function preferLatestEmotion(previous, candidate) {
+  if (!previous) return candidate;
+  const order = emotionTime(candidate) - emotionTime(previous);
+  return order > 0 || (order === 0 && (candidate._id || '') > (previous._id || '')) ? candidate : previous;
+}
+
+function emotionSummary(mood) {
+  return { date: mood.date, mood_index: mood.mood_index, mood_label: mood.mood_label };
+}
+
 async function recordEmotion(openid, data) {
-  if (data.mood_index === undefined) return { code: -1, message: "缺少情绪值" };
-  const today = todayStr();
-  const exist = await safeQuery("emotions", { _openid: openid, date: today });
-  if (exist.length > 0) {
-    await safeUpdate("emotions", { _id: exist[0]._id }, { mood_index: data.mood_index, mood_label: data.mood_label || "", updated_at: Date.now() });
-  } else {
-    await safeAdd("emotions", { _openid: openid, mood_index: data.mood_index, mood_label: data.mood_label || "", date: today, created_at: Date.now() });
+  const index = typeof data.mood_index === 'string' && /^[0-4]$/.test(data.mood_index)
+    ? Number(data.mood_index) : data.mood_index;
+  if (!Number.isInteger(index) || index < 0 || index > 4 ||
+      (data.mood_label !== undefined && (typeof data.mood_label !== 'string' || data.mood_label.length > 24))) {
+    return { code: -1, message: '请选择有效的心情' };
   }
-  return { success: true };
+  if (data.note !== undefined && (typeof data.note !== 'string' || data.note.length > 140)) {
+    return { code: -1, message: '心情备注最多 140 字' };
+  }
+  const today = todayStr();
+  const rows = await readAll('emotions', { _openid: openid, date: today });
+  const latest = rows.reduce(preferLatestEmotion, null);
+  const id = latest?._id || stableId('mood_', [openid, today]);
+  const database = cloud.database({ throwOnNotFound: false });
+  return database.runTransaction(async tx => {
+    const emotions = tx.collection('emotions');
+    const { data: current } = await emotions.doc(id).get();
+    if ((current && (current._openid !== openid || current.date !== today)) || (!current && latest)) {
+      throw new Error('心情记录已变更，请刷新后重试');
+    }
+    if (todayStr() !== today) throw new Error('日期已更新，请重新记录');
+    const now = Date.now();
+    const note = data.note ?? current?.note ?? '';
+    const fields = {
+      mood_index: index,
+      mood_label: data.mood_label?.trim() || current?.mood_label || '',
+      updated_at: Math.max(now, emotionTime(current) + 1),
+      ...(data.note === undefined ? {} : { note }),
+    };
+    if (current) await updateTransactionRow(tx, 'emotions', id, fields);
+    else await emotions.add({ data: { _id: id, _openid: openid, date: today, created_at: now, ...fields } });
+    return { success: true, mood: { ...emotionSummary({ date: today, ...fields }), note } };
+  });
 }
 
 // ====== 成长日志 ======
-async function listGrowthLogs(openid, params) {
-  const query = { _openid: openid };
-  if (params && params.source) query.source = params.source;
-  const data = await safeQuery("growth_logs", query);
-  return { success: true, data: (data || []).sort((a, b) => (b.created_at || 0) - (a.created_at || 0)).slice(0, (params && params.limit) || 50) };
+async function readRecentGrowthLogs(openid, limit, source) {
+  const filter = { _openid: openid, ...(source ? { source } : {}) };
+  const { data } = await db.collection('growth_logs').where(filter)
+    .orderBy('created_at', 'desc').orderBy('_id', 'desc').limit(limit).get();
+  return data;
 }
 
-/** 添加成长记录（供道具使用等场景调用） */
-async function addGrowthLog(openid, data) {
-  await safeAdd("growth_logs", {
-    _openid: openid,
-    xp_change: data.xp_change || 0,
-    reason: data.reason || '使用了道具',
-    source: data.source || 'item_use',
-    created_at: Date.now(),
-  });
-  return { success: true };
+async function listGrowthLogs(openid, params) {
+  if (params.source !== undefined && (typeof params.source !== 'string' || params.source.length > 64)) {
+    return { code: -1, message: '成长记录类型无效' };
+  }
+  const requested = Number(params.limit);
+  const limit = Number.isInteger(requested) && requested > 0 ? Math.min(100, requested) : 50;
+  return { success: true, data: await readRecentGrowthLogs(openid, limit, params.source) };
+}
+
+async function getGrowthReport(openid) {
+  const today = todayStr();
+  const weekday = new Date(today + 'T00:00:00Z').getUTCDay() || 7;
+  const monday = taskRules.addDays(today, 1 - weekday);
+  const dates = Array.from({ length: 7 }, (_, index) => taskRules.addDays(monday, index));
+  const elapsed = dates.slice(0, weekday);
+  const start = Date.parse(monday + 'T00:00:00+08:00');
+  const cutoff = Date.now();
+  const owner = { _openid: openid };
+  const [tasks, goals, logs, users, moods] = await Promise.all([
+    queryTasks({ ...owner, date: _.in(elapsed) }),
+    readAll('goals', owner),
+    readAll('growth_logs', { ...owner, created_at: _.gte(start).and(_.lte(cutoff)) }),
+    db.collection('users').where(owner).limit(1).get(),
+    readAll('emotions', { ...owner, date: _.in(elapsed) }),
+  ]);
+  const completed = tasks.filter(task => task.completed === true);
+  const counts = new Map();
+  for (const task of completed) if (task.goal_id) counts.set(task.goal_id, (counts.get(task.goal_id) || 0) + 1);
+  const best = goals.filter(goal => counts.has(goal._id))
+    .sort((a, b) => counts.get(b._id) - counts.get(a._id) || a._id.localeCompare(b._id))[0];
+  const latestMood = new Map();
+  for (const mood of moods) {
+    if (hasMoodLabel(mood)) latestMood.set(mood.date, preferLatestEmotion(latestMood.get(mood.date), mood));
+  }
+  return { code: 0, data: {
+    weekLabel: monday + ' ~ ' + dates[6], completedTasks: completed.length, totalTasks: tasks.length,
+    completionRate: tasks.length ? Math.round(completed.length / tasks.length * 100) : null,
+    xpEarned: logs.length ? logs.reduce((sum, log) => sum + (Number(log.xp_change) || 0), 0) : null,
+    streakDays: users.data[0]?.streak_days ?? null,
+    topGoal: best ? { title: best.title, emoji: best.emoji || '🎯', count: counts.get(best._id) } : null,
+    moods: dates.map((date, index) => ({ date, day: '周' + '一二三四五六日'[index],
+      label: latestMood.get(date)?.mood_label || (date > today ? '未到' : '未记录') })),
+  } };
 }
 
 // ====== API Key ======
 async function saveApiKey(openid, data) {
-  if (!data.provider) return { code: -1, message: "缺少供应商" };
-  const exist = await safeQuery("api_keys", { _openid: openid, provider: data.provider });
-  // V10.7：api_key 为空时只更新 baseUrl/model，不覆盖已存储的 key
-  const hasNewKey = data.api_key && data.api_key.length >= 10
-  if (exist.length > 0) {
-    const updateFields = { base_url: data.base_url || "", model: data.model || "", updated_at: Date.now() }
-    if (hasNewKey) updateFields.api_key = data.api_key
-    await safeUpdate("api_keys", { _id: exist[0]._id }, updateFields);
-  } else {
-    if (!hasNewKey) return { code: -1, message: "首次配置必须提供 API Key" };
-    await safeAdd("api_keys", { _openid: openid, provider: data.provider, api_key: data.api_key, base_url: data.base_url || "", model: data.model || "", created_at: Date.now(), updated_at: Date.now() });
+  const { provider, expected_version: expectedVersion } = data;
+  if (!openid || typeof provider !== 'string' || !Object.hasOwn(AI_PROVIDER_DEFAULTS, provider)) {
+    return { code: -1, message: '身份或供应商无效' };
   }
-  return { success: true };
+  const clearing = data.clear === true;
+  const key = !clearing && typeof data.api_key === 'string' ? data.api_key.trim() : '';
+  if (key && (key.length < 10 || /[\s*]/.test(key))) return { code: -1, message: 'API Key 无效，请勿填写遮蔽值' };
+  let config;
+  try {
+    if (!clearing) config = normalizeAiConfig({ provider, base_url: data.base_url, model: data.model });
+  } catch {
+    return { code: -1, message: '请填写有效的 HTTPS 接口地址和模型名称' };
+  }
+
+  const changed = { code: -1, message: '服务商配置已变化，请重新读取后再操作' };
+  const database = cloud.database({ throwOnNotFound: false });
+  try {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data: users } = await database.collection('users').where({ _openid: openid })
+        .field({ _id: true, ai_config_revision: true }).limit(2).get();
+      if (users.length !== 1) return { code: -1, message: '账号资料已变化，请重新登录' };
+      const owner = users[0];
+      const rows = await queryApiKeys(openid, provider);
+      const existing = rows.find(row => row.api_key);
+      const version = existing ? apiConfigVersion(existing) : null;
+      if (expectedVersion !== undefined && expectedVersion !== version) return changed;
+      if (clearing && !rows.length) return { success: true, cleared: true };
+      if (clearing && rows.length > 30) return { code: -1, message: '旧配置重复过多，请联系管理员核对后清理' };
+      if (!clearing && !existing && !key) return { code: -1, message: '请填写 API Key' };
+      if (!clearing && !key && !canReuseApiKey(existing, config.base_url)) {
+        return { code: -1, message: '接口站点已变化，请重新填写该站点的 API Key' };
+      }
+
+      const result = await database.runTransaction(async tx => {
+        const { data: currentOwner } = await tx.collection('users').doc(owner._id).get();
+        if (currentOwner?._openid !== openid || currentOwner.status === 'banned') {
+          return { code: -1, message: '账号资料已变化，请重新登录' };
+        }
+        if (currentOwner.ai_config_revision !== owner.ai_config_revision) return null;
+        const collection = tx.collection('api_keys');
+        const timestamp = Math.max(Date.now(), (Number(currentOwner.ai_config_updated_at) || 0) + 1,
+          (Number((existing || rows[0])?.updated_at) || 0) + 1);
+        await updateTransactionRow(tx, 'users', owner._id, { ai_config_revision: _.inc(1), ai_config_updated_at: timestamp });
+        if (clearing) {
+          for (const row of rows) {
+            const document = collection.doc(row._id);
+            const { data: current } = await document.get();
+            if (current?._openid !== openid || current.provider !== provider || apiConfigVersion(current) !== apiConfigVersion(row)) {
+              throw new Error('配置记录已变化');
+            }
+            if ((await document.remove()).stats?.removed !== 1) throw new Error('配置未删除');
+          }
+          return { success: true, cleared: true };
+        }
+        const target = existing || rows[0];
+        const fields = { base_url: config.base_url, model: config.model, updated_at: timestamp, ...(key ? { api_key: key } : {}) };
+        if (target) {
+          const { data: current } = await collection.doc(target._id).get();
+          if (current?._openid !== openid || current.provider !== provider || apiConfigVersion(current) !== apiConfigVersion(target)) {
+            throw new Error('配置记录已变化');
+          }
+          await updateTransactionRow(tx, 'api_keys', target._id, fields);
+          return { success: true, version: apiConfigVersion({ ...current, ...fields }) };
+        }
+        const created = { _openid: openid, provider, created_at: timestamp, ...fields };
+        const { _id } = await collection.add({ data: created });
+        return { success: true, version: apiConfigVersion({ ...created, _id }) };
+      });
+      if (result) return result;
+    }
+    return changed;
+  } catch {
+    // SDK failures can carry credential-bearing write details.
+    return { code: -1, message: '服务商配置操作未确认，请重新读取后再试' };
+  }
+}
+
+function apiConfigVersion(row) {
+  return stableId('cfg_', [row._id, row.created_at || 0, row.updated_at || 0]);
 }
 
 async function listApiKeys(openid) {
-  const data = await safeQuery("api_keys", { _openid: openid });
-  // V10.7：返回完整 key（不再遮蔽），由前端决定如何显示。数据库查询已限定 _openid，用户只能看到自己的 key
+  const data = await queryApiKeys(openid);
   return { success: true, data: (data || []).map(k => ({
     provider: k.provider,
-    api_key: k.api_key || '',
-    api_key_masked: k.api_key ? k.api_key.slice(0, 8) + '****' : '',
+    api_key_masked: k.api_key ? '****' + k.api_key.slice(-4) : '',
     base_url: k.base_url || '',
     model: k.model || '',
-    has_key: !!(k.api_key)
+    version: apiConfigVersion(k),
+    has_key: !!(k.api_key), updated_at: k.updated_at || 0, created_at: k.created_at || 0
   })) };
 }
 
@@ -2657,24 +2627,24 @@ async function submitFeedback(openid, data) {
 // V8.4：管理员权限校验（只可信调用者身份）
 // 仅根据服务端传入的 openid 查询其自身 users 记录的 role 字段判定；
 // 不再硬编码 username 兜底，避免无关调用者因数据库中存在管理员用户名即被放行。
-async function checkAdmin(openid) {
-  if (!openid) return false;
-  try {
-    const res = await db.collection("users").where({ _openid: openid }).get();
-    if (res.data && res.data.length > 0) {
-      const adminRecord = res.data.find(u => u.role === 'admin');
-      if (adminRecord) {
-        console.log('[checkAdmin] ✅ 通过(openid)', adminRecord.username);
-        return true;
-      }
-      console.log('[checkAdmin] ❌ openid匹配但无admin, 用户列表:', res.data.map(u => u.username + '(' + u.role + ')'));
-    }
-    console.warn('[checkAdmin] 权限校验失败，openid:', (openid || '').substring(0, 10) + '...');
-    return false;
-  } catch (e) {
-    console.warn('[checkAdmin] 异常:', e.message);
-    return false;
+async function findAdminId(openid) {
+  if (!openid) return null;
+  const { data } = await db.collection('users').where({ _openid: openid, role: 'admin' }).limit(1).get();
+  return data[0]?._id || null;
+}
+async function checkAdmin(openid) { return !!await findAdminId(openid); }
+
+async function readActiveAdmin(tx, openid, adminId) {
+  const { data: actor } = await tx.collection('users').doc(adminId).get();
+  if (actor?._openid !== openid || actor.role !== 'admin' || actor.status === 'banned' || actor.cleanup_pending) {
+    throw new Error('无管理员权限');
   }
+  return actor;
+}
+
+// Keep the caller's permission valid through commit, including under snapshot isolation.
+function pinAdminAccess(tx, adminId) {
+  return updateTransactionRow(tx, 'users', adminId, { admin_access_revision: _.inc(1) });
 }
 
 // 管理员数据概览（完整版）
@@ -2683,33 +2653,23 @@ async function adminDashboard(openid) {
 
   const today = todayStr();
 
-  // 并行查询所有统计数据（用 count + safeQuery）
-  const [userCount, goalRes, petRes, fbRes, taskList, checkinList] = await Promise.all([
-    db.collection("users").count(),
-    safeQuery("goals", { status: _.neq("deleted") }),
-    safeQuery("pets", {}),
-    safeQuery("feedbacks", {}),
-    safeQuery("tasks", { date: today }),
-    safeQuery("checkins", { date: today }),
+  const [totalGoals, totalPets, totalFeedbacks, completedToday, signinsToday, petRows, feedbackRows, allUsers] = await Promise.all([
+    db.collection("goals").where({ status: _.neq("deleted") }).count(),
+    db.collection("pets").count(),
+    db.collection("feedbacks").count(),
+    db.collection("tasks").where({ date: today, completed: true }).count(),
+    db.collection("checkins").where({ date: today }).count(),
+    db.collection("pets").limit(30).get(),
+    db.collection("feedbacks").orderBy('created_at', 'desc').limit(20).get(),
+    readAll("users", {}),
   ]);
 
-  const totalGoals = await db.collection("goals").where({ status: _.neq("deleted") }).count();
-
-  const activeToday = taskList.filter(t => t.completed).length;
-  const todaySignins = checkinList.length;
-
-  // 平台总XP
-  const allUsers = await safeQuery("users", {});
-  const totalPlatformXp = allUsers.reduce((sum, u) => sum + (u.total_xp || 0), 0);
+  const totalPlatformXp = allUsers.reduce((sum, u) => sum + (Number(u.total_xp) || 0), 0);
 
   // 最近注册用户
   const recentUsers = (allUsers || []).sort((a, b) => (b.created_at || 0) - (a.created_at || 0)).slice(0, 8);
 
-  // 所有反馈
-  const feedbacks = (fbRes || []).sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
-
-  // 所有宠物
-  const allPets = (petRes || []).map(p => ({
+  const allPets = petRows.data.map(p => ({
     id: p._id, name: p.name, stage: p.stage, level: p.level,
     experience: p.experience, status: p.status, _openid: p._openid,
     created_at: p.created_at,
@@ -2727,22 +2687,24 @@ async function adminDashboard(openid) {
     code: 0,
     data: {
       stats: {
-        totalUsers: userCount.total,
+        totalUsers: allUsers.length,
         totalGoals: totalGoals.total,
-        totalPets: petRes.length,
-        totalFeedbacks: fbRes.length,
-        activeToday,
-        todaySignins,
+        totalPets: totalPets.total,
+        totalFeedbacks: totalFeedbacks.total,
+        activeToday: completedToday.total,
+        todaySignins: signinsToday.total,
         totalPlatformXp,
       },
       recentUsers: recentUsers.map(u => ({
         id: u._id, nickname: u.nickname, username: u.username, avatar: u.avatar,
         level: u.level || 1, role: u.role || 'user', status: u.status || 'active',
+        cleanupReadyAt: u.cleanup_pending?.readyAt || 0,
+        cleanupInBatch: !!u.cleanup_pending?.batchId,
         total_xp: u.total_xp || 0, streak_days: u.streak_days || 0,
         created_at: u.created_at,
       })),
-      pendingFeedbacks: feedbacks.slice(0, 20),
-      allPets: allPets.slice(0, 30),
+      pendingFeedbacks: feedbackRows.data,
+      allPets,
     },
   };
 }
@@ -2795,37 +2757,74 @@ async function adminListUsers(openid, params) {
   };
 }
 
+async function changeManagedUser(openid, userId, change) {
+  const adminId = await findAdminId(openid);
+  if (!adminId) return { code: -1, message: '无管理员权限' };
+  const database = cloud.database({ throwOnNotFound: false });
+  return database.runTransaction(async tx => {
+    const actor = await readActiveAdmin(tx, openid, adminId);
+    const user = userId === adminId ? actor : (await tx.collection('users').doc(userId).get()).data;
+    if (!user) return { code: -1, message: '用户不存在' };
+    const { patch, result } = change(user);
+    if (patch) {
+      if (adminId !== user._id) await pinAdminAccess(tx, adminId);
+      await updateTransactionRow(tx, 'users', user._id, { ...patch, updated_at: Date.now() });
+    }
+    return result;
+  });
+}
+
 // 设置用户角色
 async function adminSetRole(openid, data) {
-  if (!await checkAdmin(openid)) return { code: -1, message: "无管理员权限" };
-  if (!data.userId || !data.role) return { code: -1, message: "缺少参数" };
-  if (data.role !== 'admin' && data.role !== 'user') return { code: -1, message: "无效角色" };
-
-  const targetUser = await db.collection("users").doc(data.userId).get();
-  if (!targetUser.data) return { code: -1, message: "用户不存在" };
-
-  await safeUpdate("users", { _id: data.userId }, { role: data.role, updated_at: Date.now() });
-  return { success: true, message: `已设置为${data.role === 'admin' ? '管理员' : '普通用户'}` };
+  if (typeof data.userId !== 'string' || !data.userId) return { code: -1, message: '缺少用户ID' };
+  if (!['admin', 'user'].includes(data.role)) return { code: -1, message: '无效角色' };
+  return changeManagedUser(openid, data.userId, user => {
+    if (data.role === 'user' && user._openid === openid) {
+      return { result: { code: -1, message: '不能降级自己的管理员账号' } };
+    }
+    if (user.cleanup_pending) return { result: { code: -1, message: '请先取消待清理状态' } };
+    return {
+      patch: user.role === data.role ? null : { role: data.role },
+      result: { success: true, role: data.role, message: `已设置为${data.role === 'admin' ? '管理员' : '普通用户'}` },
+    };
+  });
 }
 
 // 设置用户状态（封禁/解封）
 async function adminSetUserStatus(openid, data) {
-  if (!await checkAdmin(openid)) return { code: -1, message: "无管理员权限" };
-  if (!data.userId || !data.status) return { code: -1, message: "缺少参数" };
-  if (data.status !== 'active' && data.status !== 'banned') return { code: -1, message: "无效状态" };
-
-  await safeUpdate("users", { _id: data.userId }, { status: data.status, updated_at: Date.now() });
-  return { success: true, message: data.status === 'banned' ? '已封禁该用户' : '已解除封禁' };
+  if (typeof data.userId !== 'string' || !data.userId) return { code: -1, message: "缺少用户ID" };
+  if (!['active', 'banned', 'cancelCleanup'].includes(data.status)) return { code: -1, message: "无效状态" };
+  return changeManagedUser(openid, data.userId, user => {
+    if (data.status === 'cancelCleanup') {
+      if (user.cleanup_pending?.batchId) return { result: { code: -1, message: '请在系统工具取消本批清理' } };
+      const status = user.cleanup_pending?.priorStatus || user.status || 'active';
+      return { patch: user.cleanup_pending ? { status, cleanup_pending: null } : null,
+        result: { success: true, status, message: '已取消待清理' } };
+    }
+    if (user.cleanup_pending) return { result: { code: -1, message: '请先取消待清理状态' } };
+    if (data.status === 'banned' && user._openid === openid) {
+      return { result: { code: -1, message: '不能封禁自己的账号' } };
+    }
+    return { patch: user.status === data.status ? null : { status: data.status },
+      result: { success: true, status: data.status, message: data.status === 'banned' ? '已封禁该用户' : '已解除封禁' } };
+  });
 }
 
 // 重置用户密码
 async function adminResetPassword(openid, data) {
   if (!await checkAdmin(openid)) return { code: -1, message: "无管理员权限" };
-  if (!data.userId || !data.newPassword) return { code: -1, message: "缺少参数" };
-  if (data.newPassword.length < 4) return { code: -1, message: "密码至少4位" };
-
-  await safeUpdate("users", { _id: data.userId }, { password: data.newPassword, updated_at: Date.now() });
-  return { success: true, message: '密码已重置' };
+  if (typeof data.userId !== 'string' || !data.userId || !data.newPassword) return { code: -1, message: "缺少参数" };
+  if (typeof data.newPassword !== 'string' || data.newPassword.length < 4 || data.newPassword.length > 1024) {
+    return { code: -1, message: "密码长度需为4至1024位" };
+  }
+  // Same credential format as login/index.js, which is packaged independently.
+  const salt = crypto.randomBytes(16).toString('hex');
+  const digest = crypto.scryptSync(data.newPassword, salt, 64, { N: 32768, r: 8, p: 3, maxmem: 64 * 1024 * 1024 });
+  return changeManagedUser(openid, data.userId, user => {
+    if (user.cleanup_pending) return { result: { code: -1, message: '请先取消待清理状态' } };
+    return { patch: { password: 'scrypt-v1:' + salt + ':' + digest.toString('hex') },
+      result: { success: true, message: '密码已重置' } };
+  });
 }
 
 // 获取用户详情
@@ -2928,9 +2927,10 @@ async function adminListPets(openid, params) {
       page,
       list: (listRes.data || []).map(p => {
         const owner = userMap[p._openid];
+        const hatched = p.is_hatched === true;
         return {
-          id: p._id, name: p.name, stage: p.stage, level: p.level,
-          experience: p.experience, status: p.status,
+          id: p._id, name: p.name, stage: hatched ? getHatchedGrowthStage(p).key : 'EGG', level: p.level,
+          experience: p.experience, mood: p.mood, status: p.status, is_hatched: hatched, deleted_at: p.deleted_at,
           ownerName: (owner && (owner.nickname || owner.username)) || '未知',
           ownerId: (owner && owner._id) || '',
           created_at: p.created_at,
@@ -2943,15 +2943,40 @@ async function adminListPets(openid, params) {
 // 编辑宠物
 async function adminEditPet(openid, data) {
   if (!await checkAdmin(openid)) return { code: -1, message: "无管理员权限" };
-  if (!data.petId) return { code: -1, message: "缺少宠物ID" };
-
-  const fields = { updated_at: Date.now() };
-  ['name', 'stage', 'status', 'level', 'experience'].forEach(k => {
-    if (data[k] !== undefined) fields[k] = data[k];
+  if (typeof data.petId !== 'string' || !data.petId) return { code: -1, message: "缺少宠物ID" };
+  const targetStage = GROWTH_STAGE_THRESHOLDS.find(entry => entry.key === data.stage);
+  const mood = data.mood === 'calm' ? 'normal' : data.mood;
+  if ((data.stage !== undefined && !targetStage) ||
+      (mood !== undefined && !Object.hasOwn(MOOD_MESSAGES, mood)) ||
+      (data.level !== undefined && (!Number.isSafeInteger(data.level) || data.level < 1 || data.level > 99)) ||
+      (data.experience !== undefined && (!Number.isSafeInteger(data.experience) || data.experience < 0)) ||
+      (data.name !== undefined && (typeof data.name !== 'string' || !data.name.trim()))) {
+    return { code: -1, message: '宠物资料不正确' };
+  }
+  const database = cloud.database({ throwOnNotFound: false });
+  return database.runTransaction(async tx => {
+    const { data: pet } = await tx.collection('pets').doc(data.petId).get();
+    if (!pet || pet.deleted_at) return { code: -1, message: '宠物不存在或已放行' };
+    const hatched = pet.is_hatched === true;
+    if (targetStage && (targetStage.key !== 'EGG') !== hatched) {
+      return { code: -1, message: '蛋与已孵化宠物之间请通过原孵化流程转换' };
+    }
+    const fields = {};
+    if (data.name !== undefined) fields.name = data.name.trim().slice(0, 30);
+    if (data.status !== undefined) fields.status = data.status;
+    if (data.level !== undefined) fields.level = data.level;
+    if (data.experience !== undefined) fields.experience = data.experience;
+    if (mood !== undefined && mood !== pet.mood) {
+      fields.mood = mood;
+      fields.mood_message = pickMoodMessage(mood);
+    }
+    if (targetStage) {
+      fields.stage = targetStage.key;
+      if (hatched && getHatchedGrowthStage(pet).key !== targetStage.key) fields.growth_value = targetStage.minGrowth;
+    }
+    if (Object.keys(fields).length) await updateTransactionRow(tx, 'pets', data.petId, { ...fields, updated_at: Date.now() });
+    return { success: true, message: '宠物信息已更新' };
   });
-
-  await safeUpdate("pets", { _id: data.petId }, fields);
-  return { success: true, message: '宠物信息已更新' };
 }
 
 // 发送系统广播
@@ -2967,156 +2992,242 @@ async function adminBroadcast(openid, data) {
   return { success: true, message: '广播发布成功' };
 }
 
-/**
- * V8.3 管理员数据清理：删除所有非管理员账号及其关联数据
- * 仅保留 role='admin' 的用户（如 lzk）
- * 用途：测试阶段清理残留数据，正式上线前执行一次
- */
-async function adminCleanupNonAdmin(callerOpenid) {
-  if (!await checkAdmin(callerOpenid)) return { code: -1, message: "无管理员权限" };
+// Keep each administrative cleanup inside one bounded database transaction.
+const ACCOUNT_CLEANUP_LIMIT = 50;
+// Deployment must keep every app and login writer below this window.
+const ACCOUNT_CLEANUP_DRAIN_MS = 60_000;
+const ACCOUNT_CLEANUP_BATCH_DOC = 'admin-cleanup-batch';
+const ACCOUNT_COLLECTIONS = {
+  pets: 'deletedPets', user_growth_pool: 'deletedPools', growth_logs: 'deletedLogs',
+  goals: 'deletedGoals', tasks: 'deletedTasks', checkins: 'deletedCheckins',
+  achievements: 'deletedAchievements', emotions: 'deletedEmotions', capsules: 'deletedCapsules',
+  ai_plans: 'deletedAiRecords', api_keys: 'deletedApiKeys', feedbacks: 'deletedFeedbacks',
+  pet_letters: 'deletedLetters',
+};
 
-  const _ = db.command;
-  const result = {
-    deletedUsers: 0, deletedPets: 0, deletedPools: 0, deletedLogs: 0,
-    keptUsers: [], errors: []
-  };
-
+async function readCleanupRows(collection, filter, limit) {
   try {
-    // 1. 找出所有非管理员用户
-    const allUsers = await safeQuery("users", {});
-    const admins = allUsers.filter(u => u.role === 'admin');
-    const nonAdmins = allUsers.filter(u => u.role !== 'admin');
-
-    result.keptUsers = admins.map(u => u.username || u._id);
-
-    console.log('[Cleanup] 管理员保留:', result.keptUsers.length, '非管理员待清理:', nonAdmins.length);
-
-    // 2. 逐个清理非管理员数据
-    for (const user of nonAdmins) {
-      const uid = user._id;
-      const uOpenid = user._openid;
-      const uname = user.username || uid;
-
-      try {
-        // 删除该用户的宠物
-        if (uOpenid) {
-          const pets = await safeQuery("pets", { _openid: uOpenid });
-          for (const pet of pets) {
-            await db.collection("pets").doc(pet._id).remove();
-            result.deletedPets++;
-          }
-        }
-
-        // 删除该用户的经验池
-        if (uOpenid) {
-          const pools = await safeQuery("user_growth_pool", { _openid: uOpenid });
-          for (const pool of pools) {
-            await db.collection("user_growth_pool").doc(pool._id).remove();
-            result.deletedPools++;
-          }
-        }
-
-        // 删除该用户的成长日志
-        if (uOpenid) {
-          const logs = await safeQuery("growth_logs", { _openid: uOpenid });
-          for (const log of logs) {
-            await db.collection("growth_logs").doc(log._id).remove();
-            result.deletedLogs++;
-          }
-        }
-
-        // 删除用户记录
-        await db.collection("users").doc(uid).remove();
-        result.deletedUsers++;
-
-      } catch (e) {
-        result.errors.push(uname + ': ' + e.message);
-      }
-    }
-
-    console.log('[Cleanup] 完成:', JSON.stringify(result));
-    return { code: 0, success: true, data: result, message: '清理完成' };
-
-  } catch (e) {
-    return { code: -1, message: '清理失败: ' + e.message };
+    const fields = collection === 'users'
+      ? { _id: true, _openid: true, role: true, username: true, cleanup_pending: true }
+      : { _id: true };
+    const { data } = await db.collection(collection).where(filter).field(fields).limit(limit).get();
+    return data;
+  } catch (error) {
+    if (collection !== 'users' && (error.errCode === -502005 || error.code === 'DATABASE_COLLECTION_NOT_EXIST')) return [];
+    throw error;
   }
 }
 
-/**
- * V8.3 管理员删除单个用户及其所有关联数据
- */
-async function adminDeleteUser(callerOpenid, data) {
-  if (!await checkAdmin(callerOpenid)) return { code: -1, message: "无管理员权限" };
-  if (!data.userId) return { code: -1, message: "缺少用户ID" };
+function cleanupPending(readyAt) {
+  const seconds = Math.max(1, Math.ceil((readyAt - Date.now()) / 1000));
+  return { code: -1, reason: 'ACCOUNT_CLEANUP_PENDING', message: '账号已暂停，请在 ' + seconds + ' 秒后再次确认清理' };
+}
 
-  const _ = db.command;
-  const userId = data.userId;
+async function readCleanupBatch(database) {
+  return (await database.collection('account_claims').doc(ACCOUNT_CLEANUP_BATCH_DOC).get()).data;
+}
 
-  try {
-    // 查找目标用户
-    const userRes = await db.collection("users").doc(userId).get();
-    if (!userRes.data) return { code: -1, message: "用户不存在" };
-    const targetUser = userRes.data;
+function cleanupBatchView(batch) {
+  return { status: batch?.status || 'idle', batchId: batch?.id || null,
+    targetCount: batch?.targetIds.length || 0, readyAt: batch?.readyAt || 0,
+    ...(batch?.status === 'done' ? batch.receipt : {}) };
+}
 
-    // 不允许删除管理员
-    if (targetUser.role === 'admin') {
-      return { code: -1, message: "不能删除管理员账号" };
-    }
-
-    const uOpenid = targetUser._openid;
-    const uname = targetUser.username || userId;
-    let deletedPets = 0, deletedPools = 0, deletedLogs = 0;
-
-    // 删除该用户的宠物
-    if (uOpenid) {
-      const pets = await safeQuery("pets", { _openid: uOpenid });
-      for (const pet of pets) {
-        await db.collection("pets").doc(pet._id).remove();
-        deletedPets++;
+async function prepareAccountCleanup(database, caller, targets, previousBatch) {
+  const bulk = previousBatch !== undefined;
+  const token = crypto.randomBytes(12).toString('hex');
+  return database.runTransaction(async tx => {
+    await readActiveAdmin(tx, caller.openid, caller.id);
+    await pinAdminAccess(tx, caller.id);
+    const users = tx.collection('users');
+    const readyAt = Date.now() + ACCOUNT_CLEANUP_DRAIN_MS;
+    if (bulk) {
+      const current = await readCleanupBatch(tx);
+      if ((current?.id || null) !== (previousBatch?.id || null) || current?.status === 'pending') {
+        throw new Error('清理批次已变化，请重新打开确认');
       }
     }
-
-    // 删除该用户的经验池
-    if (uOpenid) {
-      const pools = await safeQuery("user_growth_pool", { _openid: uOpenid });
-      for (const pool of pools) {
-        await db.collection("user_growth_pool").doc(pool._id).remove();
-        deletedPools++;
+    for (const target of targets) {
+      const { data: user } = await users.doc(target._id).get();
+      if (!user || user.role === 'admin' || user._openid !== target._openid) {
+        throw new Error('待删除账号已变更，请刷新后重试');
       }
-    }
-
-    // 删除该用户的成长日志
-    if (uOpenid) {
-      const logs = await safeQuery("growth_logs", { _openid: uOpenid });
-      for (const log of logs) {
-        await db.collection("growth_logs").doc(log._id).remove();
-        deletedLogs++;
+      if (user.cleanup_pending) {
+        if (!bulk && !user.cleanup_pending.batchId) return cleanupPending(user.cleanup_pending.readyAt);
+        throw new Error('账号已有待清理操作，请先处理原操作');
       }
+      await updateTransactionRow(tx, 'users', user._id, {
+        status: 'banned',
+        cleanup_pending: { token, readyAt, priorStatus: user.status || 'active', ...(bulk ? { batchId: token } : {}) },
+        updated_at: Date.now(),
+      });
     }
+    if (!bulk) return cleanupPending(readyAt);
+    const batch = { id: token, status: 'pending', targetIds: targets.map(user => user._id), readyAt, receipt: null };
+    if (previousBatch) {
+      await updateTransactionRow(tx, 'account_claims', ACCOUNT_CLEANUP_BATCH_DOC, batch);
+    } else {
+      await tx.collection('account_claims').add({ data: { _id: ACCOUNT_CLEANUP_BATCH_DOC, ...batch } });
+    }
+    return cleanupBatchView(batch);
+  });
+}
 
-    // 删除用户记录
-    await db.collection("users").doc(userId).remove();
+async function collectAccountDocuments(targets) {
+  const documents = [];
+  let recordCount = targets.length;
+  if (recordCount > ACCOUNT_CLEANUP_LIMIT) throw new Error('本批账号过多，请分开处理');
+  for (const user of targets) {
+    if (user.role === 'admin') throw new Error('不能删除管理员账号');
+    if (!user._openid) continue;
+    const { data: owners } = await db.collection('users').where({ _openid: user._openid }).limit(2).get();
+    if (owners.length !== 1 || owners[0]._id !== user._id) throw new Error('账号归属不唯一，清理已停止');
 
-    console.log('[adminDeleteUser] 已删除:', uname, 'pets:', deletedPets, 'pools:', deletedPools, 'logs:', deletedLogs);
-    return { code: 0, success: true, data: { username: uname, deletedPets, deletedPools, deletedLogs }, message: '已删除' };
-  } catch (e) {
-    return { code: -1, message: '删除失败: ' + e.message };
+    for (const [collection, counter] of Object.entries(ACCOUNT_COLLECTIONS)) {
+      const rows = await readCleanupRows(collection, { _openid: user._openid }, ACCOUNT_CLEANUP_LIMIT - recordCount + 1);
+      recordCount += rows.length;
+      if (recordCount > ACCOUNT_CLEANUP_LIMIT) throw new Error('关联记录超过本次事务上限，请在维护窗口分批处理');
+      for (const row of rows) documents.push({ collection, counter, id: row._id, owner: user._openid });
+    }
   }
+  return documents;
+}
+
+async function deleteAccounts(database, caller, targets, documents, keptUsers, batch) {
+  return database.runTransaction(async tx => {
+    await readActiveAdmin(tx, caller.openid, caller.id);
+    if (targets.length) await pinAdminAccess(tx, caller.id);
+    if (batch) {
+      const current = await readCleanupBatch(tx);
+      if (current?.id !== batch.id) throw new Error('清理批次已变化，请重新打开确认');
+      if (current.status === 'done') return cleanupBatchView(current);
+      if (current.status !== 'pending') throw new Error('清理批次已取消');
+    }
+    const counts = { deletedUsers: 0, deletedPets: 0, deletedPools: 0, deletedLogs: 0, keptUsers, errors: [] };
+    const users = tx.collection('users');
+    for (const target of targets) {
+      const { data: current } = await users.doc(target._id).get();
+      if (!current || current.role === 'admin' || current._openid !== target._openid || current.status !== 'banned' ||
+          !current.cleanup_pending || current.cleanup_pending.token !== target.cleanup_pending.token ||
+          current.cleanup_pending.batchId !== target.cleanup_pending.batchId ||
+          current.cleanup_pending.readyAt > Date.now()) {
+        throw new Error('待删除账号已变更，请刷新后重试');
+      }
+      if (current._openid) {
+        // Keep a registration marker even for accounts created before the claims collection existed.
+        const claims = tx.collection('account_claims');
+        const id = 'wechat-' + crypto.createHash('sha256').update(current._openid).digest('hex');
+        const { data: claim } = await claims.doc(id).get();
+        if (claim && claim.user_id !== current._id) throw new Error('微信账号登记已变更，请核对后再清理');
+        if (!claim) await claims.add({ data: { _id: id, user_id: current._id } });
+      }
+    }
+    for (const item of documents) {
+      const doc = tx.collection(item.collection).doc(item.id);
+      const { data: current } = await doc.get();
+      if (current?._openid !== item.owner) throw new Error('关联记录已变更，请刷新后重试');
+      const result = await doc.remove();
+      if (result.stats?.removed !== 1) throw new Error('关联记录未删除');
+      counts[item.counter] = (counts[item.counter] || 0) + 1;
+    }
+    for (const target of targets) {
+      const result = await users.doc(target._id).remove();
+      if (result.stats?.removed !== 1) throw new Error('账号记录未删除');
+      counts.deletedUsers++;
+    }
+    if (batch) {
+      const completed = { ...batch, status: 'done', receipt: counts };
+      await updateTransactionRow(tx, 'account_claims', ACCOUNT_CLEANUP_BATCH_DOC, {
+        status: completed.status, receipt: completed.receipt,
+      });
+      return cleanupBatchView(completed);
+    }
+    return counts;
+  });
+}
+
+async function cancelAccountCleanup(database, caller, batch) {
+  return database.runTransaction(async tx => {
+    await readActiveAdmin(tx, caller.openid, caller.id);
+    await pinAdminAccess(tx, caller.id);
+    const current = await readCleanupBatch(tx);
+    if (current?.id !== batch.id) throw new Error('清理批次已变化，请重新打开确认');
+    if (current.status === 'cancelled') return cleanupBatchView(current);
+    if (current.status !== 'pending') throw new Error('清理已完成，无法取消');
+    for (const id of current.targetIds) {
+      const { data: user } = await tx.collection('users').doc(id).get();
+      if (user?.cleanup_pending?.batchId !== current.id) continue;
+      await updateTransactionRow(tx, 'users', id, {
+        status: user.cleanup_pending.priorStatus, cleanup_pending: null, updated_at: Date.now(),
+      });
+    }
+    await updateTransactionRow(tx, 'account_claims', ACCOUNT_CLEANUP_BATCH_DOC, { status: 'cancelled' });
+    return cleanupBatchView({ ...current, status: 'cancelled' });
+  });
+}
+
+async function adminCleanupNonAdmin(callerOpenid, data) {
+  const adminId = await findAdminId(callerOpenid);
+  if (!adminId) return { code: -1, message: '无管理员权限' };
+  if (!['status', 'prepare', 'finish', 'cancel'].includes(data.phase)) {
+    return { code: -1, message: '请使用新版管理后台确认清理批次' };
+  }
+  const database = cloud.database({ throwOnNotFound: false });
+  const caller = { openid: callerOpenid, id: adminId };
+  const batch = await readCleanupBatch(database);
+  const reply = view => ({ code: 0, data: view });
+  if (data.phase === 'status') return reply(cleanupBatchView(batch));
+  if (data.batchId !== (batch?.id || null)) throw new Error('清理批次已变化，请重新打开确认');
+  if (data.phase === 'prepare') {
+    if (batch?.status === 'pending') throw new Error('已有待确认批次，请先完成或取消');
+    const targets = await readCleanupRows('users', { role: _.neq('admin') }, ACCOUNT_CLEANUP_LIMIT + 1);
+    if (targets.some(user => user.cleanup_pending)) throw new Error('有账号正在单独清理，请先处理原操作');
+    if (!targets.length) return reply({ ...cleanupBatchView(batch), noTargets: true });
+    await collectAccountDocuments(targets);
+    return reply(await prepareAccountCleanup(database, caller, targets, batch || null));
+  }
+  if (!batch) throw new Error('当前没有待处理的清理批次');
+  if (data.phase === 'cancel') return reply(await cancelAccountCleanup(database, caller, batch));
+  if (batch.status === 'done') return reply(cleanupBatchView(batch));
+  if (batch.status !== 'pending') throw new Error('清理批次已取消');
+  if (batch.readyAt > Date.now()) return reply(cleanupBatchView(batch));
+  let targets, documents;
+  try {
+    targets = await readCleanupRows('users', { _id: _.in(batch.targetIds) }, ACCOUNT_CLEANUP_LIMIT + 1);
+    if (targets.length !== batch.targetIds.length || targets.some(user => user.cleanup_pending?.batchId !== batch.id)) {
+      throw new Error('原批次账号已变化，请取消后重新确认');
+    }
+    documents = await collectAccountDocuments(targets);
+  } catch (error) {
+    const current = await readCleanupBatch(database);
+    if (current?.id === batch.id && current.status === 'done') return reply(cleanupBatchView(current));
+    throw error;
+  }
+  const admins = await readAll('users', { role: 'admin' });
+  return reply(await deleteAccounts(database, caller, targets, documents, admins.map(user => user.username || user._id), batch));
+}
+
+async function adminDeleteUser(callerOpenid, data) {
+  const adminId = await findAdminId(callerOpenid);
+  if (!adminId) return { code: -1, message: '无管理员权限' };
+  if (typeof data.userId !== 'string' || !data.userId) return { code: -1, message: '缺少用户ID' };
+  const database = cloud.database({ throwOnNotFound: false });
+  const { data: user } = await database.collection('users').doc(data.userId).get();
+  if (!user) return { code: -1, message: '用户不存在' };
+  if (user.cleanup_pending?.batchId) return { code: -1, message: '请在系统工具处理本批清理' };
+  const caller = { openid: callerOpenid, id: adminId };
+  if (user.cleanup_pending?.readyAt > Date.now()) return cleanupPending(user.cleanup_pending.readyAt);
+  const documents = await collectAccountDocuments([user]);
+  if (!user.cleanup_pending) return prepareAccountCleanup(database, caller, [user]);
+  const counts = await deleteAccounts(database, caller, [user], documents, []);
+  return { code: 0, success: true, data: { ...counts, username: user.username || user._id }, message: '已删除' };
 }
 
 // ====== V8.6 AI 时间胶囊 ======
 async function myCapsules(openid) {
-  try {
-    const res = await db.collection('capsules')
-      .where({ _openid: openid })
-      .orderBy('createdAt', 'desc')
-      .limit(50)
-      .get()
-    return { code: 0, data: res.data || [] }
-  } catch (e) {
-    console.warn('[myCapsules] 查询失败:', e.message)
-    return { code: 0, data: [] }
-  }
+  const res = await db.collection('capsules').where({ _openid: openid })
+    .orderBy('createdAt', 'desc').limit(50).get();
+  return { code: 0, data: res.data || [] };
 }
 
 async function saveCapsule(openid, data) {
@@ -3145,11 +3256,20 @@ async function saveCapsule(openid, data) {
 /**
  * 调用大模型 API（OpenAI 兼容格式）
  */
-function callLLM(baseUrl, apiKey, model, messages, maxTokens) {
+function callLLM(baseUrl, apiKey, model, messages, maxTokens, options = {}) {
   const mt = maxTokens || 2000
   return new Promise((resolve, reject) => {
+    let deadline
+    const done = (error, content) => { clearTimeout(deadline); if (error) reject(error); else resolve(content) }
     const url = new URL(baseUrl.replace(/\/+$/, '') + '/chat/completions')
-    const body = JSON.stringify({ model, messages, stream: false, temperature: 0.7, max_tokens: mt })
+    const payload = { model, messages, stream: false, temperature: 0.7, max_tokens: mt }
+    // Opt in only for the coach and the official endpoint whose JSON contract was checked.
+    if (options.jsonObject && url.hostname === 'api.deepseek.com') {
+      payload.response_format = { type: 'json_object' }; payload.temperature = 0.2
+    }
+    if (url.hostname === 'api.deepseek.com' && /^(deepseek-flash|deepseek-v4-)/.test(model)) payload.thinking = { type: 'disabled' }
+    const body = JSON.stringify(payload)
+    const redact = text => String(text).split(apiKey).join('[已隐藏]')
 
     const req = https.request({
       hostname: url.hostname,
@@ -3161,7 +3281,7 @@ function callLLM(baseUrl, apiKey, model, messages, maxTokens) {
         'Authorization': 'Bearer ' + apiKey,
         'Content-Length': Buffer.byteLength(body)
       },
-      timeout: 30000
+      timeout: options.timeoutMs || 30000
     }, (res) => {
       let data = ''
       res.on('data', chunk => data += chunk)
@@ -3179,11 +3299,8 @@ function callLLM(baseUrl, apiKey, model, messages, maxTokens) {
               errMsg = errJson.message
             }
           } catch (e) { /* 用原始 data */ }
-          if (!errMsg.includes(data.slice(0, 80).trim())) {
-            errMsg += ' | ' + data.slice(0, 200)
-          }
-          console.warn('[callLLM] 非200响应:', res.statusCode, errMsg)
-          reject(new Error(errMsg))
+          console.warn('[callLLM] 非200响应:', res.statusCode)
+          done(new Error(redact(errMsg)))
           return
         }
 
@@ -3193,26 +3310,28 @@ function callLLM(baseUrl, apiKey, model, messages, maxTokens) {
           // OpenAI 兼容格式的业务错误
           if (json.error) {
             const msg = json.error.message || json.error.code || 'API 返回错误'
-            reject(new Error(msg))
+            done(new Error(redact(msg)))
             return
           }
           // Qwen/百炼 非兼容模式的错误
           if (json.code && json.code !== 0 && json.code !== '0') {
-            reject(new Error(json.message || json.code || 'API 返回错误'))
+            done(new Error(redact(json.message || json.code || 'API 返回错误')))
             return
           }
           // 提取回复内容
           const content = json.choices && json.choices[0] && json.choices[0].message
             ? json.choices[0].message.content
             : ''
-          resolve(content)
+          done(null, options.usage ? { content, usage: json.usage } : content)
         } catch (e) {
-          reject(new Error('解析响应失败: ' + data.slice(0, 200)))
+          done(new Error('模型返回了无法解析的响应'))
         }
       })
     })
-    req.on('error', (e) => reject(new Error('网络错误: ' + e.message)))
-    req.on('timeout', () => { req.destroy(); reject(new Error('请求超时（30秒）')) })
+    req.on('error', (e) => done(new Error('网络错误: ' + redact(e.message))))
+    const expire = () => { done(new Error('请求超时（' + Math.round((options.timeoutMs || 30000) / 1000) + '秒）')); req.destroy() }
+    req.on('timeout', expire)
+    if (options.timeoutMs) deadline = setTimeout(expire, options.timeoutMs)
     req.write(body)
     req.end()
   })
@@ -3221,42 +3340,72 @@ function callLLM(baseUrl, apiKey, model, messages, maxTokens) {
 /**
  * 获取用户的 API Key 配置
  */
-async function getUserApiConfig(openid, provider) {
+const AI_PROVIDER_DEFAULTS = {
+  qwen: { base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
+  deepseek: { base_url: 'https://api.deepseek.com', model: 'deepseek-flash' },
+  openai: { base_url: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+  gemini: { base_url: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-1.5-flash' },
+  custom: { base_url: '', model: '' }
+};
+function normalizeAiConfig(config) {
+  const defaults = Object.prototype.hasOwnProperty.call(AI_PROVIDER_DEFAULTS, config.provider) ? AI_PROVIDER_DEFAULTS[config.provider] : null;
+  if (!defaults) throw new Error('不支持的模型供应商');
+  const base_url = String(config.base_url || defaults.base_url).trim().replace(/\/+$/, '');
+  const model = String(config.model || defaults.model).trim();
+  const url = new URL(base_url);
+  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || !model) throw new Error('请填写有效的 HTTPS 接口地址和模型名称');
+  return { ...config, base_url, model };
+}
+function canReuseApiKey(config, nextBaseUrl) {
   try {
-    const keys = await safeQuery('api_keys', { _openid: openid })
-    if (Array.isArray(keys) && keys.length > 0) {
-      // 如果指定了 provider，找对应那个
-      if (provider) {
-        const match = keys.find(k => k.provider === provider)
-        if (match) return match
-      }
-      // 返回第一个有值的
-      const any = keys.find(k => k.api_key)
-      if (any) return any
-    }
-    return null
-  } catch (e) {
-    return null
+    return new URL(normalizeAiConfig(config).base_url).origin === new URL(nextBaseUrl).origin;
+  } catch {
+    return false;
   }
+}
+async function queryApiKeys(openid, provider) {
+  if (!openid) throw new Error('身份未就绪');
+  const filter = { _openid: openid };
+  if (provider) filter.provider = provider;
+  const keys = [];
+  for (let skip = 0; ; skip += 100) {
+    const page = await db.collection('api_keys').where(filter).skip(skip).limit(100).get();
+    keys.push(...page.data);
+    if (page.data.length < 100) break;
+  }
+  return keys.sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0) ||
+    Number(b.created_at || 0) - Number(a.created_at || 0) || String(a.provider).localeCompare(String(b.provider)) ||
+    String(b._id).localeCompare(String(a._id)));
+}
+async function getUserApiConfig(openid, provider) {
+  const keys = await queryApiKeys(openid, provider);
+  const config = keys.find(k => k.api_key);
+  return config ? normalizeAiConfig(config) : null;
+}
+async function resolveAiRequest(openid, data) {
+  const provider = data.provider;
+  const config = data.apiKey
+    ? normalizeAiConfig({ provider, api_key: data.apiKey, base_url: data.baseUrl, model: data.model })
+    : await getUserApiConfig(openid, provider);
+  if (!config) throw new Error('请先保存所选供应商的 API Key 配置');
+  const final = normalizeAiConfig({ ...config, base_url: data.baseUrl || config.base_url, model: data.model || config.model });
+  if (!data.apiKey && !canReuseApiKey(config, final.base_url)) {
+    throw new Error('接口站点已变化，请重新填写该站点的 API Key');
+  }
+  return { apiKey: final.api_key, baseUrl: final.base_url, model: final.model, provider: final.provider };
 }
 
 /**
  * 测试连接
  */
 async function aiTestConnection(openid, data) {
-  const { apiKey, baseUrl, model, provider } = data
-  const key = apiKey || ''
-  if (!key || key.length < 10) {
-    return { code: -1, message: 'API Key 无效' }
-  }
-  const url = baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1'
-  const mdl = model || 'qwen-plus'
-
   try {
-    await callLLM(url, key, mdl, [
+    const { apiKey, baseUrl, model } = await resolveAiRequest(openid, data || {});
+    if (!apiKey || apiKey.length < 10) return { code: -1, message: 'API Key 无效' };
+    await callLLM(baseUrl, apiKey, model, [
       { role: 'user', content: '你好，请回复"连接成功"' }
     ])
-    return { code: 0, message: '连接成功！模型: ' + mdl }
+    return { code: 0, message: '连接成功！模型: ' + model }
   } catch (e) {
     return { code: -1, message: '连接失败: ' + e.message }
   }
@@ -3271,18 +3420,8 @@ async function aiChat(openid, data) {
     return { code: -1, message: '消息不能为空' }
   }
 
-  // 优先从请求中取配置，否则从数据库读取
-  let apiKey = data.apiKey, baseUrl = data.baseUrl, model = data.model
-
-  if (!apiKey) {
-    const config = await getUserApiConfig(openid, provider)
-    if (!config) return { code: -1, message: '请先在 AI 配置中设置 API Key' }
-    apiKey = config.api_key
-    baseUrl = config.base_url || 'https://dashscope.aliyuncs.com/compatible-mode/v1'
-    model = config.model || 'qwen-plus'
-  }
-
   try {
+    const { apiKey, baseUrl, model } = await resolveAiRequest(openid, data);
     const reply = await callLLM(baseUrl, apiKey, model, messages)
     return { code: 0, data: { reply } }
   } catch (e) {
@@ -3294,21 +3433,66 @@ async function aiChat(openid, data) {
  * V9.1 异步生成任务 — 第1步：创建计划记录，秒级返回
  */
 async function aiStartGenerate(openid, data) {
-  const { planState, messages, provider } = data || {}
+  const { planState, messages, provider, request_id: requestId } = data || {}
+  if (requestId !== undefined && (typeof requestId !== 'string' || !/^[\w:.-]{1,128}$/.test(requestId))) {
+    return { code: -1, message: '生成请求编号无效' }
+  }
   // V10.6：允许空对话直接生成（用户点"生成计划"按钮，即使没聊过也能生成）
   const safeMessages = (messages && Array.isArray(messages) && messages.length > 0) ? messages : []
+  if (data.draft_meta && (!Number.isSafeInteger(data.draft_meta.expected_revision) || data.draft_meta.expected_revision < 0 ||
+      !/^[\w:.-]{1,128}$/.test(data.draft_meta.conversation_id || ''))) return { code: -1, message: '请先明确用户目标并恢复正确的草案版本' }
 
-  try {
-    // 自动创建集合（首次使用时 ai_plans 可能不存在）
-    try { await db.createCollection('ai_plans') } catch (_) { /* 已存在 */ }
-    const res = await safeAdd('ai_plans', {
+  const planRow = async getDraft => {
+    let safeState = planState || {}
+    if (data.draft_meta) {
+      const current = await getDraft()
+      if (current.revision !== data.draft_meta.expected_revision) throw new Error('云端已有新版本，请先恢复草案')
+      const previous = current.draft && current.draft.conversation_id === data.draft_meta.conversation_id ? current.draft : null
+      const known = new Set((previous && previous.messages || []).map(m => m.id))
+      safeState = plannerContext.derive(safeMessages.filter(m => !known.has(m.id)), previous && previous.context).values
+      for (const [field, value] of Object.entries(data.user_edits || {})) {
+        if (!plannerContext.FIELDS.includes(field) || typeof value !== 'string' || value.length > 500) throw new Error('用户要求格式不正确')
+        safeState[field] = value
+      }
+      if (!safeState.what) throw new Error('请先说明你想完成的目标')
+    }
+    return {
       _openid: openid,
-      planState: planState || {},
+      kind: 'plan_generation',
+      planState: safeState,
       messages: safeMessages,
+      provider: provider || '',
+      draft_meta: data.draft_meta || null,
+      user_edits: data.user_edits || {},
       status: 'pending',
       createdAt: Date.now()
+    }
+  }
+
+  try {
+    await ensureCollection('ai_plans')
+    const receipt = (id, status) => ({ code: 0, data: { plan_id: id, status } })
+    if (!requestId) {
+      const row = await planRow(() => plannerDrafts.get(openid))
+      return receipt((await safeAdd('ai_plans', row))._id, 'pending')
+    }
+    const id = stableId('plan_start_', [openid, requestId])
+    const fingerprint = stableId('', [planState || {}, safeMessages, provider || '', data.draft_meta || null, data.user_edits || {}])
+    const database = cloud.database({ throwOnNotFound: false })
+    return await database.runTransaction(async tx => {
+      const plans = tx.collection('ai_plans')
+      const { data: previous } = await plans.doc(id).get()
+      if (previous) {
+        if (previous._openid !== openid || previous.kind !== 'plan_generation' || previous.steward_run_id ||
+            previous.start_fingerprint !== fingerprint) {
+          return { code: -1, message: '同一生成请求不能提交不同内容' }
+        }
+        return receipt(id, previous.status)
+      }
+      const row = await planRow(() => plannerDrafts.getInTransaction(openid, tx))
+      await plans.add({ data: { ...row, _id: id, start_fingerprint: fingerprint } })
+      return receipt(id, 'pending')
     })
-    return { code: 0, data: { plan_id: res._id, status: 'pending' } }
   } catch (e) {
     return { code: -1, message: '创建任务失败: ' + e.message }
   }
@@ -3317,40 +3501,71 @@ async function aiStartGenerate(openid, data) {
 /**
  * V9.1 异步生成任务 — 第2步：调用 LLM 生成并写回结果
  */
-async function aiDoGenerate(openid, data) {
+async function generationResult(openid, planId, plan) {
+  if (!plan.draft_meta) return plan.result
+  try {
+    const current = await plannerDrafts.get(openid)
+    return { ...plan.result, ...(current.draft?.source_plan_id === planId ? { draft: current.draft } : {}) }
+  } catch (error) {
+    return { ...plan.result, draft_error: '模型结果已确认，云端草案暂未读到' }
+  }
+}
+
+async function aiDoGenerate(openid, data, control = {}) {
   const { plan_id, provider } = data || {}
   if (!plan_id) return { code: -1, message: '缺少 plan_id' }
+  const database = cloud.database({ throwOnNotFound: false })
+  const token = crypto.randomBytes(16).toString('hex')
+  let claimed = false
+  const finish = (status, fields) => database.runTransaction(async tx => {
+    const row = tx.collection('ai_plans').doc(plan_id)
+    const { data: current } = await row.get()
+    if (!current || current._openid !== openid || current.generation_token !== token ||
+        current.status !== 'running' || generationLease.expired(current, Date.now())) return false
+    await updateTransactionRow(tx, 'ai_plans', plan_id, { ...fields, status, generation_token: '', lease_until: 0, updatedAt: Date.now() })
+    return true
+  })
 
   try {
-    // 自动创建集合（首次使用时 ai_plans 可能不存在）
-    try { await db.createCollection('ai_plans') } catch (_) { /* 已存在 */ }
-    const docs = await safeQuery('ai_plans', { _id: plan_id, _openid: openid })
-    if (!docs || docs.length === 0) return { code: -1, message: '任务不存在' }
-
-    const plan = docs[0]
-    if (plan.kind === 'plan_publication') return { code: -1, message: '发布记录不能用于生成任务' }
+    const receipt = await database.runTransaction(async tx => {
+      if (control.guard) await control.guard(tx)
+      const { data: plan } = await tx.collection('ai_plans').doc(plan_id).get()
+      if (!plan || plan._openid !== openid) return { rejected: '任务不存在' }
+      if (plan.steward_run_id && control.runId !== plan.steward_run_id) return { rejected: '请从森林管家的协作入口处理这份规划' }
+      if (plan.kind && plan.kind !== 'plan_generation') {
+        return { rejected: plan.kind === 'plan_publication' ? '发布记录不能用于生成任务' : '这类记录不能用于生成任务' }
+      }
+      if (plan.status === 'done' && plan.result) return { cached: plan }
+      const at = Date.now()
+      if (plan.status === 'running' && !generationLease.expired(plan, at)) return { running: true }
+      if (plan.status === 'running') throw new Error('上次生成已中断，请确认后重新发起')
+      if (plan.status === 'failed') throw new Error(plan.error || '上次生成失败，请重新发起')
+      if (plan.status && plan.status !== 'pending') throw new Error('当前生成状态不可执行')
+      if (plan.draft_meta && (await plannerDrafts.getInTransaction(openid, tx)).revision !== plan.draft_meta.expected_revision) {
+        const message = '云端已有新草案，请先恢复草案'
+        await updateTransactionRow(tx, 'ai_plans', plan_id, { status: 'failed', error: message, updatedAt: at })
+        return { rejected: message }
+      }
+      await updateTransactionRow(tx, 'ai_plans', plan_id, {
+        status: 'running', generation_token: token, lease_until: at + generationLease.LEASE_MS, updatedAt: at,
+      })
+      return { plan }
+    })
+    if (receipt.cached) return { code: 0, data: await generationResult(openid, plan_id, receipt.cached) }
+    if (receipt.running) return { code: 0, data: { status: 'running', plan_id } }
+    if (receipt.rejected) return { code: -1, message: receipt.rejected }
+    claimed = true
+    const plan = receipt.plan
     const messages = plan.messages || []
 
-    // 已生成过直接返回
-    if (plan.status === 'done' && plan.result) {
-      return { code: 0, data: plan.result }
-    }
-
     // 获取 API 配置
-    let apiKey = data.apiKey, baseUrl = data.baseUrl, model = data.model
-    if (!apiKey) {
-      const config = await getUserApiConfig(openid, provider)
-      if (!config) return { code: -1, message: '请先在 AI 配置中设置 API Key' }
-      apiKey = config.api_key
-      baseUrl = config.base_url || 'https://dashscope.aliyuncs.com/compatible-mode/v1'
-      model = config.model || 'qwen-plus'
-    }
+    const { apiKey, baseUrl, model } = await resolveAiRequest(openid, { ...data, provider: plan.provider || provider });
 
     // 构建提取任务的 prompt（注入已收集的规划信息）
     const ps = plan.planState || {}
     const hasContext = !!(ps.what || ps.why || ps.deadline || ps.dailyTime || ps.level)
     const planContext = hasContext
-      ? `用户目标：${ps.what || '未指定'}，动机：${ps.why || '未说明'}，周期：${ps.deadline || '未指定'}，每日可投入：${ps.dailyTime || '未指定'}，当前水平：${ps.level || '新手'}。`
+      ? `用户目标：${ps.what || '未指定'}，动机：${ps.why || '未说明'}，周期：${ps.deadline || '未指定'}，每日可投入：${ps.dailyTime || '未指定'}，当前水平：${ps.level || '未说明'}，限制：${ps.constraints || '未说明'}。未说明的信息只能作为草案假设，不能称为用户已确认。`
       : '用户尚未提供具体规划信息，请生成一个通用的每日成长计划（如：阅读、运动、学习等健康习惯）。'
 
     const extractPrompt = {
@@ -3386,10 +3601,11 @@ ${planContext}
 只返回JSON，不要任何其他文字。`
     }
 
+    if (control.guard) await db.runTransaction(control.guard)
     const reply = await callLLM(baseUrl, apiKey, model, [...messages.map(m => ({
       role: m.role === 'ai' ? 'assistant' : m.role,
       content: m.content
-    })), extractPrompt])
+    })), extractPrompt], undefined, { timeoutMs: control.timeoutMs || 18000 })
 
     let jsonStr = reply.trim()
 
@@ -3416,41 +3632,31 @@ ${planContext}
     try {
       parsed = JSON.parse(jsonStr)
     } catch (e) {
-      console.warn('[aiDoGenerate] JSON解析失败，使用本地模板兜底', { rawPreview: reply.slice(0, 100) })
-      // 返回本地模板
-      const context = planContext || '通用成长计划'
-      return { code: 0, data: {
-        goal: { title: ps.what || '我的成长计划', period: ps.deadline || '30天', stages: [{ name: '适应期', duration: '第1-7天', milestone: '建立基础' }, { name: '提升期', duration: '第8-15天', milestone: '逐步增强' }, { name: '巩固期', duration: '第16-30天', milestone: '稳定执行' }] },
-        tasks: [
-          { title: '了解目标相关基础知识', xp_reward: 10, stage: 1, estimated_minutes: 15 },
-          { title: '制定每日执行计划', xp_reward: 10, stage: 1, estimated_minutes: 10 },
-          { title: '执行当日练习任务', xp_reward: 10, stage: 2, estimated_minutes: 20 },
-          { title: '记录进度与心得', xp_reward: 10, stage: 2, estimated_minutes: 5 },
-          { title: '回顾并优化方法', xp_reward: 20, stage: 3, estimated_minutes: 15 },
-          { title: '完成阶段性目标并总结', xp_reward: 30, stage: 3, estimated_minutes: 30 }
-        ]
-      }}
+      throw new Error('模型未返回有效计划JSON，本次没有生成可确认的模型草案')
     }
+    if (!parsed || typeof parsed !== 'object' || !parsed.goal || typeof parsed.goal.title !== 'string' || !parsed.goal.title.trim() ||
+        !Array.isArray(parsed.tasks) || !parsed.tasks.length || parsed.tasks.length > 20 ||
+        parsed.tasks.some(task => !task || typeof task.title !== 'string' || !task.title.trim())) throw new Error('模型计划缺少有效目标或任务')
     const result = {
-      goal: parsed.goal || { title: '我的成长计划' },
-      tasks: Array.isArray(parsed.tasks) ? parsed.tasks : []
+      goal: parsed.goal,
+      tasks: parsed.tasks,
+      source: 'model'
     }
 
     // 写回结果
+    if (!await finish('done', { result: _.set(result), error: '' })) throw new Error('生成已中断，本次结果未保存')
     try {
-      await db.collection('ai_plans').doc(plan_id).update({
-        data: { result: result, status: 'done', updatedAt: Date.now() }
-      })
-    } catch (e) { console.warn('[aiDoGenerate] 写回失败:', e.message) }
-
-    return { code: 0, data: result }
+      const draft = await plannerDrafts.saveGenerated(openid, plan_id, plan, result, control.guard)
+      return { code: 0, data: { ...result, ...(draft ? { draft } : {}) } }
+    } catch (error) {
+      return { code: 0, data: { ...result, draft_error: error.message || '模型稿已生成，但云端版本未保存，请保留本机稿后重试' } }
+    }
   } catch (e) {
     // 标记失败
-    try {
-      await db.collection('ai_plans').doc(plan_id).update({
-        data: { status: 'failed', error: e.message, updatedAt: Date.now() }
-      })
-    } catch (e2) { /* 忽略 */ }
+    if (claimed) {
+      try { await finish('failed', { error: String(e.message || e).slice(0, 500) }) }
+      catch (error) { console.warn('[AI计划] 未能确认生成失败状态') }
+    }
     return { code: -1, message: '生成失败: ' + e.message }
   }
 }
@@ -3459,20 +3665,29 @@ ${planContext}
  * V9.1 轮询计划状态
  */
 async function aiPollPlan(openid, data) {
-  const { plan_id } = data || {}
-  if (!plan_id) return { code: -1, message: '缺少 plan_id' }
+  const { plan_id: planId, request_id: requestId } = data || {}
+  const byRequest = requestId !== undefined
+  if (byRequest && (planId !== undefined || typeof requestId !== 'string' || !/^[\w:.-]{1,128}$/.test(requestId))) {
+    return { code: -1, message: '生成请求编号无效' }
+  }
+  if (!byRequest && (typeof planId !== 'string' || !planId)) return { code: -1, message: '生成任务编号无效' }
+  const plan_id = byRequest ? stableId('plan_start_', [openid, requestId]) : planId
 
   try {
-    const docs = await safeQuery('ai_plans', { _id: plan_id, _openid: openid })
-    if (!docs || docs.length === 0) return { code: -1, message: '任务不存在' }
-
-    const plan = docs[0]
+    const database = cloud.database({ throwOnNotFound: false })
+    const { data: plan } = await database.collection('ai_plans').doc(plan_id).get()
+    if (!plan && byRequest) return { code: 0, data: { status: 'missing' } }
+    if (!plan || plan._openid !== openid) return { code: -1, message: '任务不存在' }
+    if (plan.kind && plan.kind !== 'plan_generation') return { code: -1, message: '这类记录不是生成任务' }
+    const expired = generationLease.expired(plan, Date.now())
+    const status = expired ? 'failed' : plan.status || 'unknown'
     return {
       code: 0,
       data: {
-        status: plan.status || 'unknown',
-        result: plan.status === 'done' ? (plan.result || null) : null,
-        error: plan.status === 'failed' ? (plan.error || '') : ''
+        ...(byRequest ? { plan_id } : {}),
+        status,
+        result: status === 'done' && plan.result ? await generationResult(openid, plan_id, plan) : null,
+        error: expired ? '上次生成已中断，请确认后重新发起' : status === 'failed' ? (plan.error || '') : ''
       }
     }
   } catch (e) {
@@ -3490,15 +3705,9 @@ async function aiPlannerChat(openid, data) {
     return { code: -1, message: '消息不能为空' }
   }
 
-  let apiKey = data.apiKey, baseUrl = data.baseUrl, model = data.model
-
-  if (!apiKey) {
-    const config = await getUserApiConfig(openid, provider)
-    if (!config) return { code: -1, message: '请先在 AI 配置中设置 API Key' }
-    apiKey = config.api_key
-    baseUrl = config.base_url || 'https://dashscope.aliyuncs.com/compatible-mode/v1'
-    model = config.model || 'qwen-plus'
-  }
+  let apiKey, baseUrl, model;
+  try { ({ apiKey, baseUrl, model } = await resolveAiRequest(openid, data)); }
+  catch (error) { return { code: -1, message: error.message }; }
 
   // ===== Agent 系统提示词 =====
   const agentSystemPrompt = {
@@ -3578,17 +3787,29 @@ exports.main = async (event, context) => {
   const { action, data } = event;
 
   try {
+    const { data: accounts } = await db.collection('users').where({ _openid: openid })
+      .field({ _id: true, status: true, cleanup_pending: true, requires_session_id: true }).limit(2).get();
+    if (accounts.some(account => account.status === 'banned')) {
+      return { code: -1, reason: 'ACCOUNT_BANNED', message: accounts.some(account => account.cleanup_pending)
+        ? '账号正在等待清理，请联系管理员' : '账号已封禁，请联系管理员' };
+    }
+    if (accounts.length !== 1 || (event.accountId !== undefined && event.accountId !== accounts[0]._id) ||
+        (accounts[0].requires_session_id && event.accountId !== accounts[0]._id)) {
+      return { code: -1, reason: 'ACCOUNT_REQUIRED', message: '账号会话已失效，请重新登录或更新小程序' };
+    }
     switch (action) {
       case "getDashboard":      return await getDashboard(openid);
       case "updateUser":        return await updateUser(openid, data || {});
       case "dailyCheckin":      return await dailyCheckin(openid);
       case "listGoals":         return await listGoals(openid);
       case "createGoal":        return await createGoal(openid, data || {});
+      case "createGoalOnce":    return await createGoalOnce(openid, accounts[0]._id, data || {});
       case "updateGoal":        return await updateGoal(openid, data || {});
       case "deleteGoal":        return await deleteGoal(openid, data?.id || "");
       case "getGoalDetail":     return await getGoalDetail(openid, data?.id || "");
       case "listTasks":         return await listTasks(openid, data || {});
       case "createTask":        return await createTask(openid, data || {});
+      case "createTaskOnce":    return await createTaskOnce(openid, accounts[0]._id, data || {});
       case "taskCheckin":       return await taskCheckin(openid, data || {});
       case "repairGoalDays":     return await repairGoalDays(openid, data || {});
       case "listPets":          return await listPets(openid);
@@ -3600,14 +3821,21 @@ exports.main = async (event, context) => {
       case "updateChatContext":   return await updateChatContext(openid, data || {});
       case "getGrowthPool":     return await getGrowthPool(openid);
       case "allocatePool":      return await allocatePool(openid, data || {});
+      case "allocatePoolOnce":  return await settleRewardOnce(allocatePool, openid, data || {}, accounts[0]._id);
       case "refreshEgg":        return await refreshEgg(openid, data || {});
       case "claimStarterXp":    return await claimStarterXp(openid);
       case "claimChildrenDayGift": return await claimChildrenDayGift(openid);
-      case "getBackpack":        return await getBackpack(openid);
+      case "getBackpack":        return await getBackpack(openid, data);
       case "useBackpackItem":    return await useBackpackItem(openid, data || {});
-      case "syncEverOwnedSpecies": return await syncEverOwnedSpecies(openid, data || {});
+      case "useBackpackItemOnce": return await settleRewardOnce(useBackpackItem, openid, data || {}, accounts[0]._id);
+      case "syncEverOwnedSpecies": return await syncEverOwnedSpecies(openid);
       case "petDetail":         return await petDetail(openid, (data && data.petId) || '');
       case "petInteract":       return await petInteract(openid, data || {});
+      case "petChatPets":       return await petChat.pets(openid);
+      case "petChatGet":        return await petChat.get(openid, data || {});
+      case "petChatFacts":      return await petChat.facts(openid, data || {});
+      case "petChatChange":     return await petChat.change(openid, data || {});
+      case "petChatSend":       return await petChat.send(openid, data || {});
       case "awakenPet":         return await awakenPet(openid, data || {});
       case "deletePet":         return await deletePet(openid, data || {});
       case "petCollection":     return await petCollection(openid);
@@ -3620,7 +3848,7 @@ exports.main = async (event, context) => {
       case "listAchievements":  return await listAchievements(openid);
       case "recordEmotion":     return await recordEmotion(openid, data || {});
       case "listGrowthLogs":    return await listGrowthLogs(openid, data || {});
-      case "addGrowthLog":      return await addGrowthLog(openid, data || {});
+      case "getGrowthReport":   return await getGrowthReport(openid);
       case "saveApiKey":        return await saveApiKey(openid, data || {});
       case "listApiKeys":       return await listApiKeys(openid);
       case "submitFeedback":    return await submitFeedback(openid, data || {});
@@ -3638,7 +3866,7 @@ exports.main = async (event, context) => {
       case "adminEditPet":         return await adminEditPet(openid, data || {});
       case "adminBroadcast":       return await adminBroadcast(openid, data || {});
       // ===== V8.3 数据清理（一次性工具）=====
-      case "adminCleanupNonAdmin": return await adminCleanupNonAdmin(openid);
+      case "adminCleanupNonAdmin": return await adminCleanupNonAdmin(openid, data || {});
       case "adminDeleteUser": return await adminDeleteUser(openid, data || {});
       // ===== V8.6 AI 时间胶囊 =====
       case "myCapsules":        return await myCapsules(openid);
@@ -3650,6 +3878,28 @@ exports.main = async (event, context) => {
       case "aiStartGenerate":   return await aiStartGenerate(openid, data || {});
       case "aiDoGenerate":      return await aiDoGenerate(openid, data || {});
       case "aiPollPlan":        return await aiPollPlan(openid, data || {});
+      case "getPlannerDraft":   return { code: 0, data: await plannerDrafts.get(openid) };
+      case "getPlannerReview":  return { code: 0, data: await plannerReviews.get(openid, data || {}) };
+      case "reviewPlannerDraft": return { code: 0, data: await plannerReviews.review(openid, data || {}) };
+      case "getStewardRun": return { code: 0, data: await getStewardRuns().get(openid, data || {}) };
+      case "getCoachGoals": return { code: 0, data: await coachService.listGoals(openid) };
+      case "getAdjustmentWorkspace": return { code: 0, data: await getAdjustmentService().get(openid, data || {}) };
+      case "startAdjustment": return { code: 0, data: await getAdjustmentService().start(openid, data || {}) };
+      case "stepAdjustment": return { code: 0, data: await getAdjustmentService().step(openid, data || {}) };
+      case "saveAdjustment": return { code: 0, data: await getAdjustmentService().save(openid, data || {}) };
+      case "cancelAdjustment": return { code: 0, data: await getAdjustmentService().cancel(openid, data || {}) };
+      case "checkAdjustment": return { code: 0, data: await getAdjustmentService().check(openid, data || {}) };
+      case "applyAdjustment": return { code: 0, data: await getAdjustmentService().apply(openid, data || {}) };
+      case "getAdjustmentApplication": return { code: 0, data: await getAdjustmentService().applicationStatus(openid, data || {}) };
+      case "getCoachWorkspace": return { code: 0, data: await coachService.get(openid, data || {}) };
+      case "saveCoachFeedback": return { code: 0, data: await coachService.saveFeedback(openid, data || {}) };
+      case "reviewCoach": return { code: 0, data: await coachService.review(openid, data || {}) };
+      case "startStewardRun": return { code: 0, data: await getStewardRuns().start(openid, data || {}) };
+      case "stepStewardRun": return { code: 0, data: await getStewardRuns().step(openid, data || {}) };
+      case "cancelStewardRun": return { code: 0, data: await getStewardRuns().cancel(openid, data || {}) };
+      case "savePlannerDraft":  return { code: 0, data: await (data && data.steward !== undefined
+        ? getStewardRuns().saveDraft(openid, data) : plannerDrafts.save(openid, data || {})) };
+      case "clearPlannerDraft": return { code: 0, data: await plannerDrafts.clear(openid, data || {}) };
       case "publishAiPlan":     return await publishAiPlan(openid, data || {});
       default:                  return { code: -1, message: "未知操作: " + action };
     }

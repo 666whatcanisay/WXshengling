@@ -8,6 +8,7 @@
     "pages/growth/growth",
     "pages/achievements/achievements",
     "pages/ai/ai",
+    "pages/forest-steward/forest-steward",
     "pages/mine/mine",
     "pages/login/login",
     "pages/ai-config/ai-config",
@@ -25,6 +26,9 @@
     "navigationBarTextStyle": "white",
     "backgroundColor": "#2D4A3E"
   },
+  "subPackages": [
+    { "root": "pet-art", "pages": ["gallery/index"] }
+  ],
   "tabBar": {
     "custom": true,
     "color": "#7A8A8A",

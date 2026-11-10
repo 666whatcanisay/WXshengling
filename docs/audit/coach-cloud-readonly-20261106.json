@@ -1,0 +1,28 @@
+{
+  "inspectedAt": "2026-11-06T09:34:35.168Z",
+  "readOnly": true,
+  "goalsRead": 27,
+  "goalsComplete": true,
+  "hasGoal": true,
+  "period": [
+    "2026-10-31",
+    "2026-11-06"
+  ],
+  "complete": true,
+  "pastTasks": 0,
+  "completed": 0,
+  "todayPending": 0,
+  "feedbackRevision": 5,
+  "reportStatus": "",
+  "latestStoredReportStatus": "done",
+  "latestReportIsCurrent": false,
+  "latestReportAttempt": 1,
+  "latestReportFailureKind": "",
+  "feedbackHasNote": true,
+  "latestReportFeedbackRevision": 4,
+  "observations": null,
+  "suggestions": null,
+  "functionInvocations": false,
+  "modelCalls": false,
+  "businessWrites": false
+}

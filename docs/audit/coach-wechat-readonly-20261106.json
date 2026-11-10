@@ -1,0 +1,33 @@
+{
+  "date": "2026-11-06",
+  "source": "user-returned WeChat Developer Tools Console",
+  "result": {
+    "ok": true,
+    "goalsRead": 27,
+    "goalsComplete": true,
+    "hasGoal": true,
+    "period": [
+      "2026-10-31",
+      "2026-11-06"
+    ],
+    "complete": true,
+    "pastTasks": 0,
+    "completed": 0,
+    "todayPending": 0,
+    "feedbackRevision": 0,
+    "reportStatus": ""
+  },
+  "verifies": [
+    "native caller goal list and coach workspace readable",
+    "complete seven-day query for the inspected goal"
+  ],
+  "notVerified": [
+    "visual layout",
+    "feedback save and restore",
+    "AI model report",
+    "manager sharing",
+    "report invalidation"
+  ],
+  "businessWrites": false,
+  "modelCalls": false
+}

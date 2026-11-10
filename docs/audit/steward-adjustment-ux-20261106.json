@@ -1,0 +1,89 @@
+{
+  "stage": "D042",
+  "date": "2026-11-06",
+  "scope": "Local steward adjustment UI and guarded action routing only",
+  "node": "v24.22.2",
+  "verify": {
+    "command": "npm run verify",
+    "exitCode": 0,
+    "assertions": 1927,
+    "newGuidedFlowAssertions": 53,
+    "cloudWrites": false,
+    "realModelRequests": false
+  },
+  "compilation": {
+    "wcc": true,
+    "wcsc": true
+  },
+  "render": {
+    "checks": 132,
+    "states": [
+      "ready",
+      "empty",
+      "ended",
+      "capped",
+      "loading",
+      "done",
+      "dirty",
+      "stale",
+      "running",
+      "failed",
+      "conflict",
+      "error",
+      "noGoal",
+      "applied",
+      "pending",
+      "unsupported",
+      "blockedRules",
+      "retry",
+      "saved"
+    ]
+  },
+  "layout": {
+    "contentWidths": [
+      320,
+      375
+    ],
+    "cases": 12,
+    "globalStylesIncluded": true,
+    "approximateHtml": true,
+    "overflow": false,
+    "screenshotsInspected": 3
+  },
+  "review": {
+    "existingBackendGuardsRetained": true,
+    "clientDirectDatabaseAdded": false,
+    "secretsAdded": false
+  },
+  "cloudDeployment": false,
+  "miniProgramPublication": false,
+  "nativeVisualVerified": false,
+  "phoneVerified": false,
+  "nextStage": "Discuss pet event/context/confirmed preference scope; not implemented",
+  "files": [
+    {
+      "file": "miniprogram/utils/adjustmentPresentation.js",
+      "sha256": "c380638c4127e84902b45bbc2ccfe95146d693fc2e1ec72b1ba2963fb3bb720e"
+    },
+    {
+      "file": "miniprogram/utils/adjustmentWorkspace.js",
+      "sha256": "d00495142bfd45895ad844f5cd0c65c63e1864e17beb81adfb8ab4d44f7c1225"
+    },
+    {
+      "file": "miniprogram/pages/forest-steward/forest-steward.js",
+      "sha256": "162ab70b9f0b5c3d385cbe00107f76164bba7f79d1a7ca4ab2aa0b1b624373ce"
+    },
+    {
+      "file": "miniprogram/pages/forest-steward/forest-steward.wxml",
+      "sha256": "873efe8f3f5dfe8bc93cefb5acf2fff9117cb531a5f865b9ffdc43c9cb486934"
+    },
+    {
+      "file": "miniprogram/pages/forest-steward/forest-steward.wxss",
+      "sha256": "368e17bfeb0944aa4a329ed4ef2f948f4cdc69c6890cd2655ec57547f0740a1b"
+    },
+    {
+      "file": "tests/adjustment-guided-flow.cjs",
+      "sha256": "4afeb070d92cba4bd5813a53fddb576a0b9aa1a571b0fafb3b66aba5eb858cd7"
+    }
+  ]
+}

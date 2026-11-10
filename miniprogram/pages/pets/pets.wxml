@@ -19,6 +19,17 @@
         <text class="leaf-icon-right">🌿</text>
       </view>
 
+      <view wx:if="{{rewardStorageError}}" class="card empty-diary-card" bindtap="refreshRewardPending">
+        <text class="empty-msg">{{rewardStorageError}}</text>
+      </view>
+      <view wx:if="{{allocationPending}}" class="action-row-card">
+        <button class="btn-wood" bindtap="openAllocateModal" disabled="{{rewardBusy}}">继续确认灌注 · {{allocationPending.request.amount}} 点</button>
+      </view>
+      <view wx:if="{{itemPending}}" class="action-row-card">
+        <text class="empty-msg">{{itemPending.request.itemName}} · {{itemPending.label}}</text>
+        <button class="btn-wood" bindtap="resumeBackpackItem" disabled="{{rewardBusy}}">继续确认道具使用</button>
+      </view>
+
       <!-- ===== 未读事件提示 ===== -->
       <view class="unread-events-bar" wx:if="{{unreadEvents.length > 0}}" bindtap="showEventDetail" data-id="{{unreadEvents[0].id}}">
         <text class="ue-icon">💌</text>
@@ -199,8 +210,13 @@
           </view>
 
           <!-- 宠物展示区（图片优先，emoji兜底）-->
-          <view class="pet-display-area pet-display-enhanced" style="{{dp.colorLayerStyle}}">
-            <view class="pet-emoji-wrap {{interactBounceClass}} {{dp.app.moodEffect.animClass}}">
+          <view class="pet-display-area pet-display-enhanced" style="{{dp.portrait ? '' : dp.colorLayerStyle}}">
+            <view wx:if="{{dp.portrait}}" class="{{currentSwiperIndex === index ? interactBounceClass : ''}}">
+              <pet-portrait active="{{campVisible && currentSwiperIndex === index}}" species="{{dp.portrait.species}}"
+                form="{{dp.portrait.form}}" theme="{{dp.portrait.theme}}" label="{{dp._speciesName}}"
+                color-style="{{dp.colorLayerStyle}}" fallback-emoji="{{dp.app.fallbackEmoji}}" />
+            </view>
+            <view wx:else class="pet-emoji-wrap {{interactBounceClass}} {{dp.app.moodEffect.animClass}}">
               <!-- 优先显示云存储图片 -->
               <image wx:if="{{dp.app.baseSprite}}" class="pet-image-overlay" src="{{dp.app.baseSprite}}" mode="aspectFit" data-index="{{index}}" binderror="onImageError" />
               <!-- 图片加载失败或无图片时显示emoji -->
@@ -316,7 +332,7 @@
               <button class="btn-interact interact-play" data-type="play" bindtap="petInteract">
                 <text class="interact-icon">🎾</text><text class="interact-label">玩耍</text>
               </button>
-              <button class="btn-interact interact-pat" data-type="pat" bindtap="petInteract">
+              <button class="btn-interact interact-pat" data-type="pet" bindtap="petInteract">
                 <text class="interact-icon">👋</text><text class="interact-label">抚摸</text>
               </button>
             </view>
@@ -350,7 +366,10 @@
 
           <!-- ===== 背包面板 ===== -->
           <view wx:if="{{activeSection === 'backpack'}}" class="section-content">
-            <view wx:if="{{bagEmpty}}" class="card empty-diary-card">
+            <view wx:if="{{backpackLoadError}}" class="card empty-diary-card" bindtap="loadData">
+              <text class="empty-msg">背包读取失败，点击重试</text>
+            </view>
+            <view wx:elif="{{bagEmpty}}" class="card empty-diary-card">
               <text class="empty-msg">背包空空如也</text>
             </view>
             <view wx:else class="backpack-grid">
@@ -531,6 +550,7 @@
       </view>
       <!-- 确认按钮 -->
       <view class="reveal-actions">
+        <button wx:if="{{_revealPetId}}" class="btn-leaf reveal-confirm-btn" bindtap="chatWithRevealedPet">和它说第一句话</button>
         <button class="btn-leaf reveal-confirm-btn" bindtap="closeHatchReveal">太棒了！去看看它 ✨</button>
       </view>
     </view>
@@ -663,12 +683,15 @@
       <!-- 标题 -->
       <view class="fountain-modal-header">
         <text class="fountain-modal-icon">⛲</text>
-        <text class="fountain-modal-title">分配经验</text>
-        <text class="fountain-modal-pool">可用: {{fountainPoolValue}} 点</text>
+        <text class="fountain-modal-title">{{allocationPending ? '确认上次灌注' : '分配经验'}}</text>
+        <text wx:if="{{!allocationPending}}" class="fountain-modal-pool">可用: {{fountainPoolValue}} 点</text>
       </view>
 
+      <view wx:if="{{allocationPending}}" class="fountain-amount-section">
+        <text class="fountain-label">给 {{allocationPending.label}} 灌注 {{allocationPending.request.amount}} 点，继续确认会使用原请求。</text>
+      </view>
       <!-- 选择目标 -->
-      <view class="fountain-target-section">
+      <view wx:else class="fountain-target-section">
         <text class="fountain-label">选择目标：</text>
         <scroll-view scroll-y class="fountain-target-list">
           <view
@@ -690,7 +713,7 @@
       </view>
 
       <!-- 输入数量 -->
-      <view class="fountain-amount-section">
+      <view wx:if="{{!allocationPending}}" class="fountain-amount-section">
         <text class="fountain-label">分配数量：</text>
         <view class="fountain-input-row">
           <input
@@ -715,8 +738,8 @@
 
       <!-- 按钮 -->
       <view class="fountain-actions">
-        <button class="btn-wood fountain-cancel-btn" bindtap="closeAllocateModal">取消</button>
-        <button class="btn-leaf fountain-confirm-btn" bindtap="confirmAllocate">确认灌注 💧</button>
+        <button class="btn-wood fountain-cancel-btn" bindtap="closeAllocateModal">{{allocationPending ? '稍后确认' : '取消'}}</button>
+        <button class="btn-leaf fountain-confirm-btn" bindtap="confirmAllocate" disabled="{{rewardBusy}}">{{allocationPending ? '继续确认' : '确认灌注 💧'}}</button>
       </view>
     </view>
   </view>

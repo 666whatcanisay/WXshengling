@@ -228,6 +228,7 @@
 }
 
 /* V10.7 已配置 key 状态提示 */
+.config-note { display: block; color: #B9C5A4; font-size: 22rpx; line-height: 1.8; margin-top: 14rpx; }
 .key-status-badge {
   display: flex; align-items: center; gap: 8rpx;
   margin-top: 10rpx; padding: 8rpx 16rpx;

@@ -44,7 +44,10 @@ Page({
     wxLoginLoading: false,
   },
 
-  onLoad() {
+  onLoad(options) {
+    if (options?.reason === 'account-banned') {
+      wx.showToast({ title: '账号已封禁，请联系管理员', icon: 'none' })
+    }
     const cached = wx.getStorageSync('cloud_userInfo')
     if (cached && cached.nickname) {
       this.setData({ hasCachedUser: true })

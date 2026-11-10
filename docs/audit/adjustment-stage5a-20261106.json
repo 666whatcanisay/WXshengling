@@ -1,0 +1,23 @@
+{
+  "status": "deployed-and-source-verified",
+  "envId": "cloud1-d5gz9j6zh654f4b36",
+  "function": "app-node24",
+  "runtime": "Nodejs24.11",
+  "changedFiles": [
+    "index.js",
+    "lib/adjustmentRules.js",
+    "lib/adjustmentService.js",
+    "lib/stewardGraph.cjs"
+  ],
+  "preservedFiles": 3786,
+  "expectedTotalFiles": 3790,
+  "incrementalZipFiles": [
+    "index.js",
+    "lib/adjustmentRules.js",
+    "lib/adjustmentService.js",
+    "lib/stewardGraph.cjs"
+  ],
+  "databaseWrites": false,
+  "modelCalls": false,
+  "miniProgramPublish": false
+}

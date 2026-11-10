@@ -27,7 +27,7 @@ async function ensureCollection(name) {
 }
 
 exports.main = async (event, context) => {
-  const collections = ["users", "goals", "tasks", "pets", "checkins", "achievements", "emotions", "growth_logs", "api_keys", "feedbacks", "ai_plans", "user_growth_pool", "capsules", "announcements"];
+  const collections = ["users", "account_claims", "goals", "tasks", "pets", "checkins", "achievements", "emotions", "growth_logs", "api_keys", "feedbacks", "ai_plans", "user_growth_pool", "capsules", "announcements"];
 
   const results = [];
   for (const name of collections) {

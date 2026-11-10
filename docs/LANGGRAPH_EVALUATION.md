@@ -2,6 +2,30 @@
 
 日期：2026-11-04。状态：隔离本地实验完成，**助手推荐、尚未正式采用**。未改业务源码或 UI，未部署、未调用真实模型、未写云端数据。
 
+## 2026-11-06首条实际协作实现（D038，正常主链已通过）
+
+阶段1/2正常真实主链已通过，用户要求继续。LangGraph1.6.1/core1.3.4/checkpoint1.2.2已用于管家生产源码的有界图，严格TS+2.7MB CJS产物（无外部npm运行包），沿用wx SDK。管理协调/规划/规则/审核/等待用户，实际业务handler与Page/SDK离线传输共1375项检查，其中新增63后台/25客户端，含独立进程恢复、取消fencing、节点回执和跨步重试保护；用户已批准五文件部署并下载核对，已有稿/新需求云端主链和用户重进继续正常通过；等待确认时取消及第4版草案/审核保留也已由用户与云端核对通过；云端故障/持续性能及运行中取消竞态仍未完整验收，不把旧15项实验替代这些证据。
+
+本首轮选择前台分段推进、关闭页面暂停后续、重进只读并主动继续；这替代“首轮先新建worker”的前置条件，未宣称实现持续后台执行。检查点用窄范围BaseCheckpointSaver+既有ai_plans/doc事务，不直接搬旧CloudBaseSaver全套依赖/API/集合。后续若需要独立后台、子图/通用存储再按真实约束重新评估；具体取舍/部署准备见FOREST_STEWARD_WORKFLOW.md。下文D035及更早保持历史记录。
+
+## 2026-11-06最新复审（D035，仅规划）
+
+D034已真实确认当前Node24业务入口和DeepSeek配置/聊天/生成可用，耗时3.1/4.9秒是成功样本；生产LangGraph/checkpointer/异步派发仍未接入。当前角色和路线见MULTI_AGENT_ROADMAP.md，替代下方历史段落中已过时的“云端仍未升级/业务仍16”为现状的解读。
+
+重新比较后首选仍是LangGraph核心StateGraph配合现有模型适配、原生native门面与业务工具；独立审核可先调用同一Critic函数，多步协作再进入图。真实需求是有界分支/修订/确认恢复，不要求每角色完整子图或先上Agent Server/AG-UI。此前隔离依赖以固定版本为基线，上线前复核最小产物、模块格式及peer关系，不直接搬433MB实验node_modules，也不为追新批量升级业务SDK。
+
+30秒是已部署app-node24的配置，不是平台硬限制。当前官方[函数配置](https://docs.cloudbase.net/cli-v1/functions/configs)列出普通函数更长可配置范围；传输渠道、SDK超时与执行时限要分别试验。先验证同环境独立Node24事件执行器/可信服务端派发及真实持久恢复，再因证据选择HTTP/CloudRun，避免预先把复杂基础设施当必选。SCF Event到CloudBase资源的权限/映射仍未知，不能用普通callFunction或未await Promise伪造后台保障。
+
+官方[自定义工作流](https://docs.langchain.com/oss/javascript/langchain/multi-agent/custom-workflow)允许代码/模型/Agent混合节点；[持久化](https://docs.langchain.com/oss/javascript/langgraph/persistence)区分线程检查点与跨线程存储；[故障与幂等](https://docs.langchain.com/oss/javascript/langgraph/fault-tolerance)明确节点可能重放、外部副作用仍由业务去重。保留publishAiPlan作为唯一正式发布提交工具，运行日志/checkpoint不是业务回执。本轮仅复核资料和设计，没有新代码/安装/模型调用/云资源变更或新兼容性测试。
+
+## 2026-11-06设计复核（D029，未实施）
+
+用户要求保留规划师体验、先设计多Agent层，旧教练可暂不处理。具体草案见[MULTI_AGENT_DESIGN.md](MULTI_AGENT_DESIGN.md)。首选有界StateGraph+管理节点+独立规划/审核节点，后续分析和宠物侧向协作；复用现有模型兼容接口，不强制通用Supervisor/AG-UI或重做聊天UI。
+
+新核对：project.config.json基础库3.14.3，官方[集成调用前提](https://docs.cloudbase.net/integration/usage)列wx.cloud.callHTTPFunction最低3.15.2。为控制前端改动，部署首选方向改为保留native门面，专项验证同环境Node24异步worker及持久检查点；[腾讯SCF Invoke](https://cloud.tencent.com/document/api/583/17243)支持Event，但CloudBase资源映射/执行角色权限尚未在本环境验证。不能以官方能力存在当成这条链已跑通，或把页面轮询/未await的后台Promise当作执行保障。
+
+官方[自定义工作流](https://docs.langchain.com/oss/javascript/langchain/multi-agent/custom-workflow)、[子图](https://docs.langchain.com/oss/javascript/langgraph/use-subgraphs)、[暂停恢复](https://docs.langchain.com/oss/javascript/langgraph/interrupts)支持本稿的模块化思路；正式API以锁定依赖和实验为准。CloudBase配置页/Agent部署页/FAQ关于时限口径不一致，不引用某最大秒数作为本环境保证。本轮没有安装/升级、重跑或部署实验，现有15项隔离证据边界保留。
+
 ## 2026-11-05当前事实与讨论位置
 
 以下11月4日运行环境条目是历史评估。D023至D026后，app-node24/login-node24/init-node24已Active/Nodejs24.11；新业务限量联调、前端编译连接与真实登录对照通过。旧app保留Node16服务已发布包，并已补权限/打卡核心修正。LangGraph本身仍只有隔离15项实验，没有真实模型/生产检查点/后台执行接入；Node24不自动解决app的30秒时限。

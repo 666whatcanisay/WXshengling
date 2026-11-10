@@ -24,6 +24,7 @@
 .preview-inner {
   padding: 20rpx 24rpx;
 }
+.portrait-gallery-link { margin-bottom: 18rpx; padding: 18rpx; color: #edca83; text-align: center; }
 
 /* ===== 头部 ===== */
 .preview-header {

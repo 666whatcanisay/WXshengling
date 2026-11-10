@@ -1,8 +1,18 @@
 // ========== AI 伙伴小屋 - 全功能版（V8.6 网格布局 + 功能完善）==========
 
 const cloudApi = require("../../utils/cloudApi")
+const aiNavigation = require('../../utils/aiNavigation').createNavigation(wx, getApp)
 const schedule = require('../../utils/planSchedule')
+const toolbox = require('../../utils/forestToolbox')
 const publicationDraft = require('../../utils/planPublicationDraft').createDraftStore(wx, getApp)
+const partnerWorkspace = require('../../utils/aiPartnerWorkspace').createWorkspace({ wx, cloudApi, schedule, publicationDraft })
+const aiModels = require('../../utils/aiModelConfig')
+const aiConfigSelector = aiModels.createSelector(wx, getApp)
+const plannerContext = require('../../utils/plannerContext')
+const draftWorkspace = require('../../utils/plannerDraftWorkspace').createWorkspace({ wx, cloudApi, schedule, publicationDraft, contextRules: plannerContext })
+const reviewWorkspace = require('../../utils/plannerReviewWorkspace').createWorkspace({ cloudApi, publicationDraft })
+const coachWorkspace = require('../../utils/coachWorkspace').createWorkspace({ wx, cloudApi, publicationDraft })
+const petChatWorkspace = require('../../utils/petChatWorkspace').createWorkspace({ wx, getApp, cloudApi })
 
 // 性能日志工具
 function log(tag, msg, data) {
@@ -42,7 +52,6 @@ const FORTUNE_TEMPLATES = [
 ]
 
 // ===== 昵称生成规则 =====
-const NICKNAME_PREFIXES = ['代码', '数据', '算法', '云端', '量子', '赛博', '数字', '智能', '星光', '晨曦']
 const NICKNAME_SUFFIXES = ['驯龙师', '炼金术士', '召唤师', '构筑者', '织梦人', '探险家', '领航员', '建筑师', '探索者', '猎人']
 
 // ===== 目标命名模板 =====
@@ -66,9 +75,6 @@ const TRANSLATE_ENCOURAGE = [
 
 // ===== 打字机计时器（全局唯一，避免多个 timer 冲突） =====
 let typewriterTimer = null
-
-// ===== 番茄钟计时器 =====
-let pomodoroTimer = null
 
 // ===== 待办任务池 =====
 const TODO_POOL = [
@@ -343,23 +349,11 @@ const CHALLENGE_POOL = [
   { text: '听一首喜欢的歌', xp: 5, icon: '🎵' },
 ]
 
-// ===== 宠物聊天回复（V8.6 扩充） =====
-const REPLIES = [
-  "🐾 主人今天也很努力呢！",
-  "🐾 我也想像主人一样厉害！",
-  "🐾 今天有好好完成任务吗？",
-  "🐾 主人加油，我会一直陪着你的！",
-  "🐾 最喜欢和主人聊天了！",
-  "🐾 今天天气真好，适合出去走走哦～",
-  "🐾 完成目标的感觉是不是很棒？",
-  "🐾 累了就休息一下，我一直在这儿～",
-  "🐾 主人最近进步好大，我都有点崇拜了！",
-  "🐾 🌸 今天的你也超级棒！",
-]
-
 Page({
   data: {
     mode: "menu",
+    toolboxExpanded: false,
+    toolCategoriesExpanded: { discipline: false, fun: false, creative: false },
 
     // 规划师（V11.0 统一状态架构）
     planMessages: [], planInput: "", planScrollTop: 0, scrollIntoView: '',
@@ -386,10 +380,14 @@ Page({
       encouragementCount: 0,
     },
     planStatus: '',
-    // 教练
-    coachResult: "", coachStats: null, coachLoading: false,
-    // 聊天
-    messages: [], chatInput: "", petName: "小蛋", petEmoji: "🐾",
+    generationRecoveryAvailable: false,
+    plannerAiStatus: '', plannerAiProvider: '',
+    ...draftWorkspace.data,
+    ...reviewWorkspace.data,
+    // 独立专业伙伴的前端工作区
+    ...partnerWorkspace.data,
+    ...coachWorkspace.data,
+    ...petChatWorkspace.data,
     // 答案之书
     oracleQuestion: "", oracleResult: null, oracleAnimating: false,
     // 今日运势
@@ -404,7 +402,8 @@ Page({
     futureInput: "", futureLetter: null,
     // 时间胶囊
     capsuleText: "", capsuleSaved: false, capsuleDate: '', capsuleOpenDate: '',
-    myCapsules: [],
+    myCapsules: [], capsuleLoading: false, capsuleLoadError: false, capsuleSaving: false,
+    capsuleHistoryExpanded: false, capsuleUnconfirmed: false,
     // 随机挑战
     challenge: null, challengeDone: false,
     // 聊天滚动
@@ -421,14 +420,17 @@ Page({
     pomodoroRunning: false,
     pomodoroStatus: '准备开始',
     pomodoroFormattedTime: '25:00',
+    pomodoroTask: null,
 
     // ===== 今日待办抽签 =====
-    drawnTodo: null,
+    drawnTodo: null, todoStatus: 'idle', todoCount: 0,
 
     // ===== 专注宣言 =====
     focusInput: '',
+    focusObstacle: '',
     focusOath: '',
     focusHistory: [],
+    focusHistoryExpanded: false,
 
     // ===== 拖延急救 =====
     delayOptions: [
@@ -475,48 +477,83 @@ Page({
   },
 
   onShow() {
+    this.syncToolboxOwner()
+    this._refreshPomodoro()
+    if (this.data.pomodoroRunning) this._startPomodoroTimer()
+    if (this.data.showToolSheet && this.data.activeTool === 'todoDraw') this.loadTodayTodos()
+    if (this.data.mode === 'capsule') this.loadCapsules()
+    this.syncPlannerDraftOwner()
+    this.refreshGenerationRecovery()
+    this.syncPartnerOwner()
     this._restorePendingPublication()
+    const plannerIntent = aiNavigation.takePartnerIntent()
+    if (plannerIntent && plannerIntent.mode !== 'plan') {
+      if (this._pendingPublication || this.data.publicationPending) {
+        wx.showToast({ title: '请先处理上次待确认的发布原稿', icon: 'none' })
+      } else {
+        this.setData({ mode: plannerIntent.mode })
+        if (plannerIntent.mode === 'coach' && plannerIntent.goalId && this.saveCoachFeedback()) {
+          this.setData({ coachGoalId: plannerIntent.goalId,
+            ...(schedule.validDate(plannerIntent.date) && plannerIntent.date <= schedule.today() ? { coachDate: plannerIntent.date } : {}) })
+          this.restoreCoachFeedback()
+        }
+      }
+    } else if (plannerIntent) {
+      this.setData({ mode: 'plan' })
+      // Keep any existing conversation and, especially, a pending publication.
+      if (!this.data.planMessages.length && !this._pendingPublication) this.initPlanChat()
+      if (plannerIntent.prompt) {
+        if (this.data.planInput.trim() && this.data.planInput !== plannerIntent.prompt) {
+          wx.showModal({
+            title: '保留哪段输入？',
+            content: '规划师输入框里还有未发送的文字。是否用管家的新需求替换？新需求也保留在管家的本机草稿中。',
+            confirmText: '使用新需求', cancelText: '保留原文',
+            success: res => {
+              if (res.confirm && plannerIntent.scope === publicationDraft.accountScope()) this.setData({ planInput: plannerIntent.prompt })
+            }
+          })
+        } else this.setData({ planInput: plannerIntent.prompt })
+      }
+    }
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 3 })
     }
-    this.loadPetInfo()
-    this.loadCapsules()
+    if (this.data.mode === 'chat') this.enterPetChat(plannerIntent?.mode === 'chat' ? plannerIntent.petId : '', true)
+    const partnerLoad = this.data.mode === 'coach' ? this.loadCoachGoals() : undefined
+    const reviewLoad = this.data.mode === 'review' ? (plannerIntent?.stewardRunId ? this.openStewardHandoff(plannerIntent)
+      : plannerIntent && plannerIntent.refreshDraft ? this.refreshReviewWorkspace(true) : this.loadReviewDraft()) : undefined
     log('onShow', 'AI页面加载', { mode: this.data.mode })
+    return partnerLoad || reviewLoad
   },
 
-  // ===== 加载宠物信息 =====
-  async loadPetInfo() {
-    try {
-      const res = await cloudApi.petOverview()
-      const pets = Array.isArray(res) ? res : (res && res.data || [])
-      if (pets.length > 0) {
-        const active = pets[0]
-        this.setData({
-          petName: active.name || '小蛋',
-          petEmoji: active.emoji || '🐾'
-        })
-      }
-    } catch (e) {
-      // 静默降级
-    }
-  },
+  ...partnerWorkspace.methods,
+  ...draftWorkspace.methods,
+  ...reviewWorkspace.methods,
+  ...coachWorkspace.methods,
+  ...petChatWorkspace.methods,
 
   // ===== 加载时间胶囊 =====
   async loadCapsules() {
+    const owner = this._toolboxOwner
+    const loadId = this._capsuleLoadId = (this._capsuleLoadId || 0) + 1
+    this.setData({ capsuleLoading: true, capsuleLoadError: false })
     try {
       const res = await cloudApi.myCapsules()
-      if (res && Array.isArray(res)) {
-        const now = Date.now()
-        const capsules = res.map(c => ({
-          _id: c._id,
-          text: c.text || '',
-          created_date: c.created_date || '',
-          can_open: (c.unlock_at || 0) <= now
-        }))
-        this.setData({ myCapsules: capsules })
-      }
+      if (!Array.isArray(res)) throw new Error('无法读取胶囊')
+      if (loadId !== this._capsuleLoadId || owner !== toolbox.owner(getApp)) return
+      const now = Date.now()
+      const pending = this._capsuleUnconfirmed
+      const recovered = pending && res.find(c => c._id && c.unlock_at === pending.unlock_at && c.text === pending.text)
+      if (recovered) this._showCapsuleReceipt(recovered, pending.text)
+      this.setData({ myCapsules: res.map(c => ({
+        _id: c._id, text: c.text || '', created_date: c.created_date || '',
+        can_open: (c.unlock_at || 0) <= now,
+        open_date: Number.isFinite(c.unlock_at) ? schedule.today(c.unlock_at) : '',
+      })) })
     } catch (e) {
-      // 静默降级
+      if (loadId === this._capsuleLoadId && owner === toolbox.owner(getApp)) this.setData({ capsuleLoadError: true })
+    } finally {
+      if (loadId === this._capsuleLoadId && owner === toolbox.owner(getApp)) this.setData({ capsuleLoading: false })
     }
   },
 
@@ -527,6 +564,8 @@ Page({
 
   /** 统一更新 plannerState，自动计算 missingFields 和 readyToGenerate */
   _updatePlannerState(updates) {
+    const draftChanged = updates.generatedGoal !== undefined || updates.generatedTasks !== undefined || updates.goalContext !== undefined
+    if (updates.generatedTasks !== undefined || updates.generatedGoal !== undefined) this._plannerDraftScope = publicationDraft.accountScope()
     const ps = { ...this.data.plannerState }
     if (updates.goalContext) {
       ps.goalContext = { ...ps.goalContext, ...updates.goalContext }
@@ -553,12 +592,13 @@ Page({
     ps.missingFields = ALL_FIELDS.filter(k => !ps.goalContext[k])
     ps.readyToGenerate = !!ps.goalContext.what && ps.missingFields.length <= 2 && (!ps.generatedTasks || ps.generatedTasks.length === 0)
     this.setData({ plannerState: ps, ...extraData })
+    if (draftChanged) this.markPlannerDraftDirty()
   },
 
   /** 基于 goalContext 生成稳定哈希 planId */
   _computePlanId() {
     const ctx = this.data.plannerState.goalContext
-    const str = `${ctx.what}|${ctx.why}|${ctx.deadline}|${ctx.dailyTime}|${ctx.level}`
+    const str = JSON.stringify(plannerContext.FIELDS.map(field => ctx[field] || ''))
     let hash = 0
     for (let i = 0; i < str.length; i++) {
       hash = ((hash << 5) - hash) + str.charCodeAt(i)
@@ -567,27 +607,64 @@ Page({
     return 'plan_' + hash.toString(36)
   },
 
+  // ===== 菜单展开（只影响入口展示，不触发功能或云调用） =====
+  openForestSteward() {
+    wx.navigateTo({ url: '/pages/forest-steward/forest-steward' })
+  },
+  openCoachInSteward(e) {
+    if (this._partnerScope !== publicationDraft.accountScope()) return
+    if (!this.data.coachReport || this.data.coachReport.status !== 'done' || this.data.coachReportExpired || this.data.coachCloudDirty || this.data.coachCloudConflict) return
+    const report = this.data.coachReport, index = e?.currentTarget?.dataset?.index
+    const suggestion = index !== undefined && report.result?.suggestions?.[index]
+      ? { report_id: report.id, fingerprint: report.fingerprint, index: Number(index) } : null
+    return aiNavigation.openSteward({ goalId: this.data.coachGoalId, date: this.data.coachDate, suggestion })
+  },
+
+  toggleToolbox() {
+    this.setData({ toolboxExpanded: !this.data.toolboxExpanded })
+  },
+
+  toggleToolCategory(e) {
+    const category = e.currentTarget.dataset.category
+    if (!['discipline', 'fun', 'creative'].includes(category)) return
+    this.setData({
+      [`toolCategoriesExpanded.${category}`]: !this.data.toolCategoriesExpanded[category]
+    })
+  },
+
   // ===== 模式切换 =====
   switchMode(e) {
     const mode = e.currentTarget.dataset.mode
+    if (this.data.mode === 'chat' && mode !== 'chat') this.pausePetChat()
+    if (this.data.mode === 'coach' && !this.saveCoachFeedback()) return
+    if (this.data.mode === 'coach' || this.data.mode === 'review') this.leavePartnerWorkspace()
     log('模式切换', `→ ${mode}`)
     this.setData({ mode })
 
     if (mode === 'plan') {
-      // 每次进入规划师都开启全新对话
-      this.initPlanChat()
+      return this.openPlannerWorkspace()
     }
+    if (mode === 'review') this.loadReviewDraft()
+    if (mode === 'coach') this.loadCoachGoals()
+    if (mode === 'capsule') this.loadCapsules()
+    if (mode === 'chat') return this.enterPetChat()
   },
 
   /** 清空对话，重新开始 */
   resetPlanChat() {
     if (this._restorePendingPublication()) return
+    const recovery = this._readGenerationRecovery()
+    const key = this._generationStorageKey()
+    const session = getApp().globalData.userInfo
     wx.showModal({
       title: '重新开始',
-      content: '确定要清空当前对话，开始新的规划吗？',
+      content: recovery ? '确定清空当前对话并放弃恢复上次生成，开始新的规划吗？' : '确定要清空当前对话，开始新的规划吗？',
       confirmText: '确定',
-      success: (res) => {
-        if (res.confirm) {
+      success: async (res) => {
+        if (res.confirm && key === this._generationStorageKey() && session === getApp().globalData.userInfo) {
+          if (!await this.clearCloudPlannerDraft()) return
+          if (key !== this._generationStorageKey() || session !== getApp().globalData.userInfo) return
+          this._clearGenerationRecovery(recovery)
           log('Agent', '用户主动清空对话')
           this.initPlanChat()
         }
@@ -646,6 +723,13 @@ Page({
 
   initPlanChat() {
     if (this._restorePendingPublication()) return
+    this._plannerGenerationId = (this._plannerGenerationId || 0) + 1
+    this._generationChecking = false
+    this._pendingPlanGeneration = null
+    this._draftLoadId = (this._draftLoadId || 0) + 1
+    this._requirementsRevision = 0
+    this._draftUserEdits = {}
+    this.setData({ plannerContextSources: {}, draftAssumptions: [], draftSource: '' })
     // 测试模式：预填模拟对话
     if (this.data.planTestMode) {
       const mockMessages = [
@@ -737,29 +821,37 @@ Page({
   onPlanChatInput(e) { this.setData({ planInput: e.detail.value }) },
 
   sendPlanMessage() {
+    if (this._pendingDraftSave || this._draftSaveInFlight) return wx.showToast({ title: '请先确认草案保存结果，再继续聊天', icon: 'none' })
     // 用户新消息 → 立即停止上一次打字机输出
     this.stopTypewriter()
 
     const text = this.data.planInput.trim()
     if (!text || this.data.plannerState.loading) return
+    if (this.data.publicationPending || this._pendingPublication) return wx.showToast({ title: '请先处理待确认发布原稿', icon: 'none' })
 
     // 记录用户消息
-    const msgs = [...this.data.planMessages, { role: 'user', content: text }]
+    const userMessage = { id: 'user_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2), role: 'user', content: text }
+    const msgs = [...this.data.planMessages, userMessage]
     this.setData({ planMessages: msgs, planInput: '' })
     this.scrollPlanToBottom()
 
     // 更新回合计数与意图
     const intent = this.detectIntent(text)
+    this.collectPlannerUserMessage(text, userMessage.id)
     const turnCount = this.data.plannerState.turnCount + 1
     log('Agent', `意图=${intent} | 回合=${turnCount}`, { text: text.substring(0, 50) })
     this._updatePlannerState({ turnCount, lastIntent: intent })
+    const turnGeneration = this._plannerGenerationId, turnScope = publicationDraft.accountScope()
+    const currentTurn = () => turnGeneration === this._plannerGenerationId && turnScope === publicationDraft.accountScope()
 
     // ═══════════ 双路径架构 ═══════════
 
     // ===== 快路径（本地处理，即时响应）=====
+    if (['DIRECT_GENERATE', 'GENERATE_PLAN'].includes(intent)) return this.generatePlanTasks()
     if (this._isFastPathIntent(intent)) {
       this._updatePlannerState({ loading: true })
       setTimeout(() => {
+        if (!currentTurn()) return
         this._dispatchLocal(intent, text)
         this._updatePlannerState({ loading: false })
         this.scrollPlanToBottom()
@@ -770,9 +862,11 @@ Page({
     // ===== 慢路径（AI Agent 或本地降级）=====
     this._updatePlannerState({ loading: true })
     this._callAIOrFallback(text).then(() => {
+      if (!currentTurn()) return
       this._updatePlannerState({ loading: false })
       this.scrollPlanToBottom()
     }).catch(() => {
+      if (!currentTurn()) return
       this._updatePlannerState({ loading: false })
     })
   },
@@ -846,6 +940,7 @@ Page({
         await this._callAIPlanner(text)
         return
       } catch (e) {
+        this.setData({ plannerAiStatus: aiModels.readableError(e) + ' 当前改用本地规则回复，未得到模型回复。' })
         log('Agent', 'AI 失败，降级到本地状态机:', e.message || e)
         // 降级：继续走本地逻辑
       }
@@ -863,11 +958,18 @@ Page({
   /**
    * 检查是否有可用的 API Key
    */
-  async _checkApiKey() {
+  async _checkApiKey(preferredProvider) {
     try {
       const keys = await cloudApi.myApiKeys()
-      return keys && Array.isArray(keys) && keys.length > 0 && keys.some(k => k.api_key)
+      this._activeAiConfig = preferredProvider
+        ? aiModels.publicConfigs(keys).find(key => key.provider === preferredProvider && key.has_key) || null
+        : aiConfigSelector.select(keys)
+      this.setData({ plannerAiProvider: this._activeAiConfig ? this._activeAiConfig.provider + ' / ' + this._activeAiConfig.model : '',
+        plannerAiStatus: this._activeAiConfig ? '' : '尚未配置可用模型，当前使用本地规则回复。' })
+      return !!this._activeAiConfig
     } catch (e) {
+      this._activeAiConfig = null
+      this.setData({ plannerAiStatus: 'AI 配置读取失败，当前使用本地规则回复。' })
       return false
     }
   },
@@ -876,25 +978,28 @@ Page({
    * 调用 AI 规划师 Agent（云端 LLM）
    */
   async _callAIPlanner(text) {
+    const generation = this._plannerGenerationId, scope = publicationDraft.accountScope()
     const t0 = Date.now()
     log('[Planner]', 'AI调用开始')
 
     // 构建发送给 AI 的对话历史（只取最近 20 条，避免超 token）
     const history = this.data.planMessages.slice(-20).map(m => ({
       role: m.role === 'assistant' ? 'assistant' : 'user',
-      content: m.content
+      content: m.fullContent || m.content
     }))
 
     const res = await cloudApi.aiPlannerChat({
       messages: history,
-      provider: 'qwen'
+      provider: (this._activeAiConfig || aiConfigSelector.select(await cloudApi.myApiKeys()) || {}).provider
     })
 
     const elapsed = Date.now() - t0
+    if (generation !== this._plannerGenerationId || scope !== publicationDraft.accountScope()) return
     const reply = (res && res.reply) || ''
     if (!reply) throw new Error('AI 返回空回复')
 
     log('[Planner]', `AI调用成功 耗时 ${elapsed}ms`, { replyLen: reply.length })
+    this.setData({ plannerAiStatus: '' })
 
     // 追加 AI 回复
     this._appendReply(reply)
@@ -907,30 +1012,8 @@ Page({
    * 从 AI 回复中隐式提取可能的目标信息（补充 goalContext）
    */
   _extractFromAIReply(reply) {
-    const ctx = { ...this.data.plannerState.goalContext }
-    let changed = false
-
-    // 如果还没确定目标，尝试从 AI 回复中提取
-    if (!ctx.what) {
-      const what = this._extractWhat(reply)
-      if (what) { ctx.what = what; changed = true }
-    }
-
-    // 如果 AI 提到了时间周期
-    if (!ctx.deadline) {
-      const tf = this._extractDeadline(reply)
-      if (tf) { ctx.deadline = tf; changed = true }
-    }
-
-    // 如果 AI 提到了每日投入
-    if (!ctx.dailyTime) {
-      const dt = this._extractDailyTime(reply)
-      if (dt) { ctx.dailyTime = dt; changed = true }
-    }
-
-    if (changed) {
-      this._updatePlannerState({ goalContext: ctx })
-    }
+    // Model suggestions remain visible in the reply, never become user facts.
+    return reply
   },
 
   /**
@@ -1027,17 +1110,6 @@ Page({
     typewriterTimer = setTimeout(tick, speed)
   },
 
-  /** 页面卸载时清理打字机 timer + 关闭弹窗 */
-  onUnload() {
-    this.stopTypewriter()
-    this.setData({ showPlanModal: false })
-  },
-
-  /** 页面隐藏（切 Tab）时关闭弹窗，避免残留 */
-  onHide() {
-    this.setData({ showPlanModal: false })
-  },
-
   /** 追加一条对话消息（role=assistant 走打字机，user 直接显示） */
   _appendReply(content, role = 'assistant') {
     if (content === undefined || content === null || content === '') return
@@ -1087,22 +1159,7 @@ Page({
 
   /** 用户想直接生成（用默认值补齐缺失信息） */
   _handleDirectGenerate() {
-    const ctx = { ...this.data.plannerState.goalContext }
-    const defaults = []
-    if (!ctx.deadline) { ctx.deadline = '30天'; defaults.push('周期→30天') }
-    if (!ctx.dailyTime) { ctx.dailyTime = '20分钟'; defaults.push('每日→20分钟') }
-    if (!ctx.level) { ctx.level = '新手'; defaults.push('水平→新手') }
-    if (!ctx.constraints) { ctx.constraints = '无'; defaults.push('约束→无') }
-
-    let reply = '好的，直接给你安排上！'
-    if (defaults.length > 0) {
-      reply += '\n\n我帮你补了：`' + defaults.join('、') + '`'
-    }
-    reply += '\n\n' + this._buildPlanSummary(ctx)
-
-    this._updatePlannerState({ goalContext: ctx })
-    this._appendReply(reply)
-    setTimeout(() => this.doAssess(ctx), 300)
+    return this.generatePlanTasks()
   },
 
   /** 生成规划摘要 */
@@ -1191,38 +1248,18 @@ Page({
 
   /** 用户想生成任务 */
   _tryGeneratePlan(ctx) {
-    // 检查信息是否足够
-    const missing = this._getMissingKeys(ctx)
-
-    // 信息不足 → 自动补齐默认值再生成
-    if (missing.length > 2 || !ctx.what) {
-      const defaults = []
-      if (!ctx.what) { ctx.what = '成长计划'; defaults.push('目标→成长计划') }
-      if (!ctx.deadline) { ctx.deadline = '30天'; defaults.push('周期→30天') }
-      if (!ctx.dailyTime) { ctx.dailyTime = '20分钟'; defaults.push('每日→20分钟') }
-      if (!ctx.level) { ctx.level = '新手'; defaults.push('水平→新手') }
-      if (!ctx.constraints) { ctx.constraints = '无'; defaults.push('约束→无') }
-
-      this._updatePlannerState({ goalContext: ctx })
-
-      let hint = '好的，我帮你补齐了信息'
-      if (defaults.length > 0) hint += '：`' + defaults.join('、') + '`'
-      hint += '\n\n' + this._buildPlanSummary(ctx)
-      hint += '\n\n点击下方 **🎯 生成任务** 按钮，我来为你拆解具体步骤！'
-
-      const msgs = [...this.data.planMessages, { role: 'assistant', content: hint }]
-      this.setData({ planMessages: msgs, planScrollTop: 99999 })
-      return
-    }
-
-    // 信息足够 → 走评估+规划流程
-    this.doAssess(ctx)
+    if (!ctx.what) return this._appendReply('先告诉我一个想完成的目标，比如“我想学游泳”。其他信息可以之后补充。')
+    this._appendReply(this._buildPlanSummary(ctx) + '\n\n未说明的信息不会当成你的要求。可以随时点“生成计划”，再核对草案里的建议。')
   },
 
   /** 用户想换目标 */
   _handleChangeGoal() {
+    this._plannerGenerationId = (this._plannerGenerationId || 0) + 1
+    this._draftUserEdits = {}
+    const context = this.data.plannerState.goalContext.what ? { ...this.data.plannerState.goalContext } : plannerContext.empty()
+    this.setData({ plannerContextSources: context.what ? this.data.plannerContextSources : {}, draftAssumptions: [] })
     this._updatePlannerState({
-      goalContext: { what: '', why: '', deadline: '', dailyTime: '', level: '', constraints: '' },
+      goalContext: context,
       phase: 'collecting',
       mood: 'neutral',
       encouragementCount: 0,
@@ -1235,26 +1272,15 @@ Page({
     this.setData({ planStatus: '' })
 
     this.setData({ editableTasks: [] })
-    return '好的，我们从头来过！🔄\n\n这次想做什么呢？随便说，比如"我想学吉他"、"我想减肥"、"我想早起"...'
+    return context.what ? '好的，已换成“' + context.what + '”。可以继续补充要求，或直接生成草案。' : '好的，我们从头来过！🔄\n\n这次想做什么呢？随便说，比如"我想学吉他"、"我想减肥"、"我想早起"...'
   },
 
   /** 用户想调整某个字段 */
   _handleAdjustGoal(text, ctx) {
     // 尝试从文本中提取要改的内容
-    const updated = { ...ctx }
-    let changed = ''
-
-    // 时间调整
-    const timeMatch = text.match(/(\d+)\s*(天|周|个月)/)
-    if (timeMatch) { updated.deadline = timeMatch[1] + timeMatch[2]; changed = '时间周期' }
-
-    // 每日投入调整
-    const dailyMatch = text.match(/(\d+)\s*(分钟|小时)/)
-    if (dailyMatch) { updated.dailyTime = dailyMatch[1] + dailyMatch[2]; changed = changed || '每日投入' }
-
-    // 难度调整
-    if (/简单点|降低难度|轻松一点/.test(text)) { updated.level = '新手'; changed = changed || '难度' }
-    if (/难一点|提高难度|挑战大一点/.test(text)) { updated.level = '进阶'; changed = changed || '难度' }
+    const fields = plannerContext.extract(text)
+    const updated = { ...ctx, ...fields }
+    const changed = Object.keys(fields).length ? '你明确说明的信息' : ''
 
     this._updatePlannerState({ goalContext: updated })
 
@@ -1397,16 +1423,7 @@ Page({
   // ═══════════ 提取器（智能字段解析）═══════════
 
   _extractWhat(text) {
-    const patterns = [
-      /(?:我想|我要|目标是|打算)(.{1,30}?)(?:[，。,.的]|$)/,
-      /(?:想|要|打算)(?:学|练|养成|完成|做|实现)(.{2,30}?)(?:[，。,.的]|$)/,
-      /^(.{2,25})$/  // 短句直接当目标（如"跑步""学英语"）
-    ]
-    for (const p of patterns) {
-      const m = text.match(p)
-      if (m && m[1] && m[1].length >= 1 && m[1].length <= 30) return m[1].trim()
-    }
-    return null
+    return plannerContext.goal(text, true) || null
   },
 
   _extractWhy(text) {
@@ -1436,28 +1453,8 @@ Page({
 
   /** 通用提取：一次尝试提取所有缺失字段 */
   _extractAnyInfo(text, currentCtx) {
-    const result = { fields: {}, changed: false, summary: '' }
-    const updates = []
-
-    if (!currentCtx.why) {
-      const why = this._extractWhy(text)
-      if (why) { result.fields.why = why; updates.push(`动机：${why}`); result.changed = true }
-    }
-    if (!currentCtx.deadline) {
-      const dl = this._extractDeadline(text)
-      if (dl) { result.fields.deadline = dl; updates.push(`周期：${dl}`); result.changed = true }
-    }
-    if (!currentCtx.dailyTime) {
-      const dt = this._extractDailyTime(text)
-      if (dt) { result.fields.dailyTime = dt; updates.push(`每日：${dt}`); result.changed = true }
-    }
-    if (!currentCtx.level) {
-      const lv = this._extractLevel(text)
-      if (lv) { result.fields.level = lv; updates.push(`水平：${lv}`); result.changed = true }
-    }
-
-    result.summary = updates.join('、') || ''
-    return result
+    const fields = plannerContext.extract(text)
+    return { fields, changed: Object.keys(fields).some(field => fields[field] !== currentCtx[field]), summary: Object.values(fields).join('、') }
   },
 
   // ═══════════ 辅助方法 ═══════════
@@ -1715,9 +1712,104 @@ Page({
 
   // ═══════════ Layer 2: Reasoning（AI 生成任务） ═══════════
 
-  async generatePlanTasks() {
+  _generationStorageKey() {
+    const scope = publicationDraft.accountScope()
+    return scope ? 'planner_generation_v1:' + scope : ''
+  },
+
+  _readGenerationRecovery() {
+    const key = this._generationStorageKey()
+    try {
+      const entry = key && wx.getStorageSync(key)
+      if (entry?.version !== 1 || !/^[\w:.-]{1,128}$/.test(entry.requestId || '') ||
+          !entry.payload?.planState?.what || !Array.isArray(entry.payload.messages) || typeof entry.provider !== 'string') return null
+      return entry
+    } catch { return null }
+  },
+
+  refreshGenerationRecovery() {
+    this.setData({ generationRecoveryAvailable: !!this._readGenerationRecovery() })
+  },
+
+  _saveGenerationRecovery(pending) {
+    const key = this._generationStorageKey()
+    if (!key) return false
+    const { requestId, id, payload, provider, conversationId, baseRevision } = pending
+    try {
+      wx.setStorageSync(key, { version: 1, requestId, id: id || '', payload, provider, conversationId, baseRevision })
+      this.setData({ generationRecoveryAvailable: true })
+      return true
+    } catch { return false }
+  },
+
+  _clearGenerationRecovery(pending) {
+    if (pending && this._readGenerationRecovery()?.requestId === pending.requestId) {
+      try { wx.removeStorageSync(this._generationStorageKey()) } catch { /* The receipt can still be read later. */ }
+    }
+    this._pendingPlanGeneration = null
+    this.refreshGenerationRecovery()
+  },
+
+  async resumePlannerGeneration() {
+    if (this._generationChecking || this._generationRecoveryChecking || this.data.plannerState.loading || this._restorePendingPublication()) return
+    const entry = this._readGenerationRecovery()
+    if (!entry) return this.refreshGenerationRecovery()
+    const messages = this.data.planMessages.filter(message => message.role === 'user')
+    const storedMessages = new Map(entry.payload.messages.filter(message => message.role === 'user').map(message => [message.id, message.content]))
+    const hasNewMessages = messages.some(message => storedMessages.get(message.id) !== (message.fullContent || message.content || ''))
+    if (this._plannerSteward || this._pendingDraftSave || this._draftSaveInFlight || this.data.planInput.trim() ||
+        (this.data.plannerState.generatedGoal ? this.data.draftCloudState !== 'saved' : hasNewMessages)) {
+      return wx.showToast({ title: '请先保留当前对话或未保存的草案', icon: 'none' })
+    }
+    const session = getApp().globalData.userInfo
+    const key = this._generationStorageKey()
+    const serial = this._draftEditSerial
+    const conversation = this._plannerConversationId
+    const generation = this._plannerGenerationId
+    const previousMessages = this.data.planMessages
+    const isCurrent = () => key === this._generationStorageKey() && session === getApp().globalData.userInfo &&
+      serial === this._draftEditSerial && conversation === this._plannerConversationId &&
+      generation === this._plannerGenerationId && previousMessages === this.data.planMessages &&
+      !this.data.planInput.trim() && !this._pendingDraftSave && !this._draftSaveInFlight &&
+      !this._pendingPublication && this.data.mode === 'plan'
+    this._generationRecoveryChecking = true
+    const pending = { ...entry, session }
+    try {
+      const cloud = await cloudApi.getPlannerDraft()
+      if (!isCurrent()) return
+      if (cloud.revision !== entry.baseRevision) {
+        const receipt = await cloudApi.aiPollPlan(entry.id ? { plan_id: entry.id } : { request_id: entry.requestId })
+        if (!isCurrent()) return
+        const planId = entry.id || receipt?.plan_id
+        if (planId && receipt?.status === 'done' && cloud.draft?.source_plan_id === planId) {
+          this.applyPlannerDraft(cloud.draft)
+          this._clearGenerationRecovery(pending)
+          this.setData({ showPlanModal: true })
+        } else {
+          wx.showToast({ title: '云端已有新版本，已保留原生成回执', icon: 'none' })
+        }
+        return
+      }
+    } catch {
+      if (isCurrent()) wx.showToast({ title: '暂时无法核对云端草案，请重试', icon: 'none' })
+      return
+    } finally { this._generationRecoveryChecking = false }
+    this._plannerConversationId = entry.conversationId
+    this._plannerCloudRevision = entry.baseRevision
+    this._plannerBaseKnown = !!entry.payload.draft_meta
+    this._draftUserEdits = entry.payload.user_edits || {}
+    const context = plannerContext.derive(entry.payload.messages)
+    this._requirementsRevision = context.revision
+    this._updatePlannerState({ goalContext: entry.payload.planState, lastPlanId: '' })
+    this.setData({ planMessages: entry.payload.messages, plannerContextSources: context.sources, showPlanModal: false })
+    this._pendingPlanGeneration = pending
+    return this.generatePlanTasks(pending)
+  },
+
+  async generatePlanTasks(recovery) {
     if (this._restorePendingPublication()) return
-    if (this.data.plannerState.loading) return
+    if (this._plannerSteward) return wx.showToast({ title: '请修改当前协作稿，或先开始新对话', icon: 'none' })
+    if (this.data.plannerState.loading || this._generationChecking || this._generationRecoveryChecking) return
     const fields = this.data.plannerState.goalContext
     const t0 = Date.now()
     log('生成任务', '开始', { testMode: this.data.planTestMode, fields })
@@ -1731,7 +1823,7 @@ Page({
 
     // ═══ 幂等检查：相同 goalContext 已生成过任务 ═══
     const currentPlanId = this._computePlanId()
-    if (this.data.plannerState.lastPlanId === currentPlanId && this.data.plannerState.generatedTasks) {
+    if (this.data.plannerState.lastPlanId === currentPlanId && this.data.editableTasks.length) {
       log('生成任务', '幂等命中，跳过重复生成')
       wx.showToast({ title: '任务已生成，无需重复', icon: 'none' })
       return
@@ -1786,16 +1878,21 @@ Page({
     }
 
     // ═══ 正常模式：调用真实 AI API ═══
-    let hasKey = false
-    try {
-      const keys = await cloudApi.myApiKeys()
-      hasKey = keys && Array.isArray(keys) && keys.length > 0 && keys.some(k => k.api_key)
-    } catch (e) { /* 忽略 */ }
-    log('生成任务', `阶段1-检查Key 耗时 ${Date.now() - t0}ms, hasKey=${hasKey}`)
-
-    if (!hasKey) {
-      wx.showToast({ title: '请先配置 API Key', icon: 'none' })
+    this._generationChecking = true
+    const generation = this._plannerGenerationId = (this._plannerGenerationId || 0) + 1
+    const owner = publicationDraft.owner()
+    const session = getApp().globalData.userInfo
+    const currentGeneration = () => generation === this._plannerGenerationId && owner === publicationDraft.owner() &&
+      session === getApp().globalData.userInfo
+    try { await this.ensurePlannerBase() }
+    catch (error) {
+      if (currentGeneration()) { this._generationChecking = false; this.setData({ draftCloudState: 'error', draftCloudError: String(error && error.message || error) }) }
       return
+    }
+    if (!currentGeneration()) return
+    if (this._pendingDraftSave) {
+      await this.savePlannerDraft()
+      if (this._pendingDraftSave || !currentGeneration()) { if (currentGeneration()) this._generationChecking = false; return }
     }
 
     this._updatePlannerState({ loading: true })
@@ -1805,38 +1902,110 @@ Page({
     // ═══ 30 秒超时保护 ═══
     let timedOut = false
     const timeoutId = setTimeout(() => {
+      if (!currentGeneration()) return
       timedOut = true
-      log('生成任务', '⏰ 30秒超时，降级到本地模板')
-      const local = this._generateLocalTemplate(fields)
-      this.setData({ planStatus: '⚠️ 生成超时，已使用本地模板' })
-      this._updatePlannerState({
-        generatedGoal: local.goal,
-        generatedTasks: local.tasks,
-        loading: false,
-        phase: 'generating',
-        lastPlanId: currentPlanId,
-        errorMessage: '',
-      })
-      this.setData({ scrollIntoView: 'page-bottom-anchor' })
+      this._generationChecking = false
+      this.setData({ planStatus: '等待超时，云端可能仍在处理。可再次点生成核对原请求，或恢复云端稿。', draftCloudError: '可点“恢复云端稿”查询已保存结果。' })
+      this._updatePlannerState({ loading: false, phase: 'error' })
     }, 30000)
 
     try {
-      // Step 1: 创建计划记录 → 秒级返回
-      const startRes = await cloudApi.aiStartGenerate({
-        planState: { what: fields.what, why: fields.why, deadline: fields.deadline, dailyTime: fields.dailyTime, level: fields.level },
-        messages: this.data.planMessages,
-        provider: 'qwen'
-      })
-      log('生成任务', `阶段3-aiStartGenerate完成 耗时 ${Date.now() - t0}ms`)
+      const recovering = recovery && recovery === this._pendingPlanGeneration
+      const startPayload = recovering ? recovery.payload : {
+        planState: { what: fields.what, why: fields.why, deadline: fields.deadline, dailyTime: fields.dailyTime, level: fields.level, constraints: fields.constraints },
+        messages: this.data.planMessages.slice(-40).map(m => ({ id: m.id, role: m.role, content: m.fullContent || m.content || '' })),
+        user_edits: this._draftUserEdits || {},
+        ...(this._plannerBaseKnown ? { draft_meta: { expected_revision: this._plannerCloudRevision, conversation_id: this._plannerConversationId } } : {}),
+      }
+      const binding = JSON.stringify([owner, this._plannerConversationId, this._plannerCloudRevision, currentPlanId, startPayload])
+      let pending = this._pendingPlanGeneration
+      if (recovering) pending.binding = binding
+      if (pending?.binding !== binding || pending.session !== session) pending = null
+      let planId = pending?.id || ''
+      const readOriginal = async () => {
+        try {
+          const receipt = await cloudApi.aiPollPlan(planId ? { plan_id: planId } : { request_id: pending.requestId })
+          return typeof receipt?.status === 'string' ? receipt : { status: 'unknown' }
+        } catch { return { status: 'unknown' } }
+      }
+      const waitForResult = (message = '云端生成结果尚未确认。可再次点生成核对原请求，或恢复云端稿。') => {
+        this.setData({ planStatus: message })
+        this._updatePlannerState({ loading: false, phase: 'error' })
+      }
+      const stored = this._readGenerationRecovery()
+      if (stored && stored.requestId !== pending?.requestId) {
+        return waitForResult('还有待确认的生成。请先恢复上次生成，或重新开始对话。')
+      }
+      let genRes
+      if (pending) {
+        const receipt = await readOriginal()
+        if (timedOut || !currentGeneration()) return
+        if (!planId && receipt.plan_id) {
+          planId = pending.id = receipt.plan_id
+          this._saveGenerationRecovery(pending)
+        }
+        if (receipt.status === 'done') {
+          if (!planId || !receipt.result) return waitForResult()
+          genRes = receipt.result
+        } else if (receipt.status === 'failed') {
+          this._clearGenerationRecovery(pending)
+          pending = null
+          planId = ''
+        } else if (!(receipt.status === 'pending' && planId) && !(receipt.status === 'missing' && !planId)) {
+          return waitForResult()
+        }
+      }
+      let provider = pending?.provider
+      if (!genRes) {
+        const hasKey = await this._checkApiKey(provider)
+        if (timedOut || !currentGeneration()) return
+        if (!hasKey) {
+          const message = provider ? '原任务尚需调用模型，请先恢复原服务商的 API Key' : '请先配置 API Key'
+          wx.showToast({ title: message, icon: 'none' })
+          return waitForResult(message)
+        }
+        provider ||= this._activeAiConfig.provider
+      }
+      if (!planId) {
+        pending ||= { requestId: publicationDraft.newId(), binding, session, provider, payload: startPayload,
+          conversationId: this._plannerConversationId, baseRevision: this._plannerCloudRevision || 0 }
+        if (!this._saveGenerationRecovery(pending)) return waitForResult('本机无法保存生成回执，请释放存储后重试')
+        this._pendingPlanGeneration = pending
+        try {
+          const startRes = await cloudApi.aiStartGenerate({ ...startPayload, provider, request_id: pending.requestId })
+          planId = startRes?.plan_id || ''
+          if (!planId) throw new Error('未收到生成编号')
+        } catch (error) {
+          if (!timedOut && currentGeneration()) {
+            return waitForResult('创建结果尚未确认。可再次点生成核对原请求。' + aiModels.readableError(error))
+          }
+          return
+        }
+        if (!currentGeneration()) return
+        pending.id = planId
+        this._saveGenerationRecovery(pending)
+        if (timedOut) return
+      }
 
-      if (timedOut) { clearTimeout(timeoutId); return }
-      const planId = (startRes && startRes.plan_id) || ''
-      if (!planId) throw new Error('创建任务失败')
-
-      this.setData({ planStatus: '🤖 AI 正在生成任务...' })
-
-      // Step 2: 执行生成 → 5-15秒
-      const genRes = await cloudApi.aiDoGenerate({ plan_id: planId, provider: 'qwen' })
+      if (!genRes) {
+        this.setData({ planStatus: '🤖 AI 正在生成任务...' })
+        try {
+          genRes = await cloudApi.aiDoGenerate({ plan_id: planId, provider })
+        } catch (error) {
+          if (timedOut || !currentGeneration()) return
+          if (typeof cloudApi.aiPollPlan !== 'function') throw error
+          const receipt = await readOriginal()
+          if (timedOut || !currentGeneration()) return
+          if (receipt.status === 'failed') {
+            this._clearGenerationRecovery(pending)
+            throw error
+          }
+          if (receipt.status !== 'done') return waitForResult()
+          genRes = receipt.result
+        }
+      }
+      if (timedOut || !currentGeneration()) return
+      if (genRes?.status === 'running') return waitForResult()
       log('生成任务', `阶段4-aiDoGenerate完成 耗时 ${Date.now() - t0}ms`, {
         hasGoal: !!genRes,
         goalTitle: genRes && genRes.goal && genRes.goal.title,
@@ -1844,12 +2013,11 @@ Page({
         rawPreview: JSON.stringify(genRes).slice(0, 150)
       })
 
-      if (timedOut) { clearTimeout(timeoutId); return }
+      if (timedOut || !currentGeneration()) { clearTimeout(timeoutId); return }
 
       if (!genRes || !genRes.tasks || genRes.tasks.length === 0) {
         throw new Error('未能生成任务，请多补充一些信息后重试')
       }
-
       clearTimeout(timeoutId)
       this.setData({ planStatus: '✅ 生成完成！' })
 
@@ -1870,6 +2038,7 @@ Page({
         date: t.date,
       }))
 
+      this._restoringPlannerDraft = !!genRes.draft
       this._updatePlannerState({
         generatedGoal: goal,
         generatedTasks: tasks,
@@ -1879,6 +2048,15 @@ Page({
         sourcePlanId: planId,
         errorMessage: '',
       })
+      this._restoringPlannerDraft = false
+      if (genRes.draft) {
+        this.acceptGeneratedPlannerDraft(genRes.draft)
+        this._clearGenerationRecovery(pending)
+      }
+      else {
+        this.setData({ draftSource: genRes.source || 'model', draftCloudState: 'dirty', draftCloudError: genRes.draft_error || '模型结果已返回，云端版本尚未确认；请恢复云端稿核对，或保存当前稿。' })
+        if (this.persistPlannerWorkingCopy()) this._clearGenerationRecovery(pending)
+      }
       log('生成任务', `✅ 正常模式完成 总耗时 ${Date.now() - t0}ms, tasks=${tasks.length}`)
       console.log('[AI计划] 生成成功 tasks=', tasks)
       this.setData({ showPlanModal: true })
@@ -1886,9 +2064,9 @@ Page({
       wx.showToast({ title: '已生成 ' + tasks.length + ' 个任务，请编辑后发布', icon: 'none' })
     } catch (e) {
       clearTimeout(timeoutId)
-      if (timedOut) return
+      if (timedOut || !currentGeneration()) return
       log('生成任务', `❌ 异常 耗时 ${Date.now() - t0}ms`, e)
-      const errMsg = (e && (e.message || e.errMsg)) || '生成失败'
+      const errMsg = aiModels.readableError(e)
 
       // ═══ 失败降级：使用本地模板兜底 ═══
       const local = this._generateLocalTemplate(fields)
@@ -1899,6 +2077,7 @@ Page({
       this.setData({
         planMessages: msgs,
         planStatus: '⚠️ API 失败，已使用本地模板',
+        draftSource: 'local_template',
       })
       this._updatePlannerState({
         generatedGoal: local.goal,
@@ -1912,6 +2091,9 @@ Page({
       this.setData({ showPlanModal: true })
       console.log('[AI计划] 打开编辑弹窗 showPlanModal=true')
       wx.showToast({ title: '已生成 ' + local.tasks.length + ' 个任务，请编辑后发布', icon: 'none' })
+    } finally {
+      clearTimeout(timeoutId)
+      if (currentGeneration()) this._generationChecking = false
     }
   },
 
@@ -1964,13 +2146,16 @@ Page({
 
   onPlanGoalTitle(e) {
     if (this.data.publicationPending) return
+    this._draftUserEdits = { ...this._draftUserEdits, what: e.detail.value }
     const goal = { ...this.data.plannerState.generatedGoal, title: e.detail.value }
-    this._updatePlannerState({ generatedGoal: goal })
+    this._updatePlannerState({ generatedGoal: goal, goalContext: { what: e.detail.value } })
   },
   onPlanDays(e) {
     if (this.data.publicationPending) return
     const days = schedule.durationDays(e.detail.value)
+    this._draftUserEdits = { ...this._draftUserEdits, deadline: days ? days + '天' : '' }
     this.setData({ planDays: e.detail.value, planEndDate: days ? schedule.endDate(this.data.planStartDate, days) : '' })
+    this._updatePlannerState({ goalContext: { deadline: days ? days + '天' : '' } })
   },
   onPlanStartDate(e) {
     if (this.data.publicationPending) return
@@ -1983,6 +2168,7 @@ Page({
       return { ...task, date: schedule.addDays(start, offset) }
     })
     this.setData({ planStartDate: start, planEndDate: days ? schedule.endDate(start, days) : '', editableTasks: tasks })
+    this.markPlannerDraftDirty()
   },
   editPlanTaskDate(e) {
     if (this.data.publicationPending) return
@@ -1990,6 +2176,7 @@ Page({
     const index = Number(e.currentTarget.dataset.index)
     if (tasks[index]) tasks[index].date = e.detail.value
     this.setData({ editableTasks: tasks })
+    this.markPlannerDraftDirty()
   },
   editPlanTaskMinutes(e) {
     if (this.data.publicationPending) return
@@ -1997,6 +2184,7 @@ Page({
     const index = Number(e.currentTarget.dataset.index)
     if (tasks[index]) tasks[index].estimated_minutes = e.detail.value
     this.setData({ editableTasks: tasks })
+    this.markPlannerDraftDirty()
   },
   editPlanTaskTitle(e) {
     if (this.data.publicationPending) return
@@ -2004,6 +2192,7 @@ Page({
     const tasks = Array.isArray(this.data.editableTasks) ? this.data.editableTasks.slice() : []
     if (tasks[index]) tasks[index].title = e.detail.value
     this.setData({ editableTasks: tasks })
+    this.markPlannerDraftDirty()
   },
   setPlanTaskXp(e) {
     if (this.data.publicationPending) return
@@ -2012,6 +2201,7 @@ Page({
     const tasks = Array.isArray(this.data.editableTasks) ? this.data.editableTasks.slice() : []
     if (tasks[index]) tasks[index].xp_reward = xp
     this.setData({ editableTasks: tasks })
+    this.markPlannerDraftDirty()
   },
   deletePlanTask(e) {
     if (this.data.publicationPending) return
@@ -2019,6 +2209,7 @@ Page({
     const tasks = Array.isArray(this.data.editableTasks) ? this.data.editableTasks.slice() : []
     if (index >= 0 && index < tasks.length) tasks.splice(index, 1)
     this.setData({ editableTasks: tasks })
+    this.markPlannerDraftDirty()
   },
   addPlanTask() {
     if (this.data.publicationPending) return
@@ -2026,6 +2217,7 @@ Page({
     tasks.push({ title: '新的成长任务', xp_reward: 10, stage: 1, estimated_minutes: 20, date: this.data.planStartDate || getTodayStr() })
     log('编辑任务', 'addPlanTask', { newCount: tasks.length })
     this.setData({ editableTasks: tasks })
+    this.markPlannerDraftDirty()
   },
   /** 关闭弹窗（× / 取消按钮），不丢失任务数据 */
   closePlanModal() {
@@ -2037,6 +2229,7 @@ Page({
 
   backToPlanChat() {
     if (this.data.publicationPending) return
+    if (this._pendingDraftSave || this._draftSaveInFlight) return wx.showToast({ title: '请先确认草案保存结果', icon: 'none' })
     this._updatePlannerState({ generatedGoal: null, generatedTasks: null, phase: 'planning' })
     this.setData({ planStatus: '', showPlanModal: false, editableTasks: [] })
   },
@@ -2045,20 +2238,16 @@ Page({
 
   _restorePendingPublication() {
     try {
-      if (this._pendingPublication && this._pendingPublication.owner !== publicationDraft.owner()) {
-        this._pendingPublication = null
-        this._updatePlannerState({ generatedGoal: null, generatedTasks: [], phase: 'idle',
-          goalContext: { what: '', why: '', deadline: '', dailyTime: '', level: '', constraints: '' } })
-        this.setData({ showPlanModal: false, publicationPending: false, publicationMessage: '' })
-      }
+      this.syncPlannerDraftOwner()
       if (this._publicationInFlight) return true
       const saved = publicationDraft.load()
       if (!saved) return false
       this._pendingPublication = saved
       const request = saved.request
+      this._plannerSteward = request.steward || null
       this._updatePlannerState({ generatedGoal: request.goal, generatedTasks: request.tasks,
         sourcePlanId: request.source_plan_id || '', phase: 'generating', goalContext: saved.context || {} })
-      this.setData({ mode: 'plan', showPlanModal: true, editableTasks: request.tasks,
+      this.setData({ mode: 'plan', showPlanModal: true, editableTasks: request.tasks, stewardDraft: !!request.steward,
         planDays: request.goal.target_days, planStartDate: request.goal.start_date,
         planEndDate: schedule.endDate(request.goal.start_date, request.goal.target_days), publicationPending: true,
         publicationMessage: '上次发布尚待确认，点击继续确认即可安全重试。草稿暂时锁定，避免重复创建。' })
@@ -2070,11 +2259,22 @@ Page({
   },
 
   async publishPlanTasks() {
+    this.syncPlannerDraftOwner()
     if (this._publicationInFlight) return
+    if (!this._pendingPublication && (this._pendingDraftSave || this._draftSaveInFlight)) return wx.showToast({ title: '请先确认草案保存结果，再发布', icon: 'none' })
     if (!this._pendingPublication) {
       if (this._restorePendingPublication() && !this._pendingPublication) return
     }
     if (!this._pendingPublication) {
+      const steward = this._plannerSteward
+      if (steward) {
+        const current = this.plannerReviewBinding()
+        const checked = this.data.auditRules
+        if (!current || current.draft_id !== steward.binding.draft_id) return wx.showToast({ title: '请先保存当前协作稿', icon: 'none' })
+        if (!checked || checked.binding.draft_id !== current.draft_id || checked.status !== 'done' || checked.rules.error_count) {
+          return wx.showToast({ title: '请先检查当前版本并处理规则问题', icon: 'none' })
+        }
+      }
       const goal = this.data.plannerState.generatedGoal
       const goalTitle = (goal && goal.title || '').trim()
       const days = schedule.durationDays(this.data.planDays)
@@ -2093,6 +2293,8 @@ Page({
       const stages = goal.stages || []
       if (!Array.isArray(stages) || stages.length > 20 || stages.some(s => !s || [['name', 80], ['duration', 80], ['milestone', 200]].some(([key, limit]) => typeof (s[key] || '') !== 'string' || (s[key] || '').length > limit))) return wx.showToast({ title: '阶段内容过长或格式不正确', icon: 'none' })
       const request = { publication_id: publicationDraft.newId(), source_plan_id: this.data.plannerState.sourcePlanId || '',
+        ...(steward ? { steward } : {}),
+        ...(this._plannerBaseKnown ? { cloud_draft_revision: this._plannerCloudRevision } : {}),
         goal: { title: goalTitle, target_days: days, start_date: start,
           stages: stages.map(s => ({ name: (s.name || '').trim(), duration: (s.duration || '').trim(), milestone: (s.milestone || '').trim() })) }, tasks }
       try {
@@ -2102,35 +2304,48 @@ Page({
       }
     }
     const saved = this._pendingPublication
-    if (saved.owner !== publicationDraft.owner()) {
+    if (!publicationDraft.owns(saved)) {
       this._restorePendingPublication()
       return wx.showToast({ title: '账号已变化，请重新确认草稿', icon: 'none' })
     }
-    this._publicationInFlight = true
+    this._publicationInFlight = saved
+    const isCurrent = () => this._publicationInFlight === saved && publicationDraft.owns(saved)
     this._updatePlannerState({ phase: 'publishing' })
     this.setData({ publicationPending: true, publicationMessage: '正在确认发布结果，请稍候。' })
     wx.showLoading({ title: '确认发布中...', mask: true })
     try {
       const result = await cloudApi.publishAiPlan(saved.request)
+      if (!isCurrent()) return
+      if (result?.rejected === true) {
+        publicationDraft.clear(saved)
+        this._pendingPublication = null
+        this.setData({ publicationPending: false, publicationMessage: '', showPlanModal: true })
+        this._updatePlannerState({ phase: 'generating' })
+        await this.restorePlannerDraft()
+        if (isCurrent()) this.setData({ draftCloudError: result.message })
+        return
+      }
       if (!result || result.success !== true || !result.goal_id || result.created_count !== saved.request.tasks.length) throw new Error('发布结果未确认，请重试')
-      if (saved.owner !== publicationDraft.owner()) return
-      try { publicationDraft.clear(saved.owner) } catch (error) { console.warn('[AI发布] 草稿缓存清理失败', error.message) }
+      try { publicationDraft.clear(saved) } catch (error) { console.warn('[AI发布] 草稿缓存清理失败', error.message) }
       this._pendingPublication = null
       this._updatePlannerState({ generatedGoal: null, generatedTasks: [], phase: 'idle' })
       this.setData({ planStatus: '', showPlanModal: false, editableTasks: [], publicationPending: false, publicationMessage: '' })
+      this.retirePublishedPlannerDraft(saved.request)
       wx.showToast({ title: result.already_published ? '已确认此前发布成功' : '已发布' + result.created_count + '项任务', icon: 'success' })
       setTimeout(() => {
-        if (saved.owner === publicationDraft.owner()) wx.navigateTo({ url: '/pages/goal-detail/goal-detail?id=' + result.goal_id })
+        if (publicationDraft.owns(saved)) wx.navigateTo({ url: '/pages/goal-detail/goal-detail?id=' + result.goal_id })
       }, 1200)
     } catch (error) {
-      if (saved.owner !== publicationDraft.owner()) return
+      if (!isCurrent()) return
       this._updatePlannerState({ phase: 'generating' })
       const message = String(error && (error.message || error.errMsg) || error || '发布失败')
       this.setData({ showPlanModal: true, publicationMessage: '结果尚未确认，草稿已保留。请点击继续确认发布。' })
       wx.showToast({ title: message.slice(0, 40), icon: 'none' })
     } finally {
-      this._publicationInFlight = false
-      wx.hideLoading()
+      if (this._publicationInFlight === saved) {
+        this._publicationInFlight = null
+        wx.hideLoading()
+      }
     }
   },
 
@@ -2176,114 +2391,11 @@ Page({
     return ''
   },
 
-  // ===== AI 教练（V8.6：连接真实数据） =====
-  async getCoachAdvice() {
-    if (this.data.coachLoading) return
-    this.setData({ coachLoading: true })
-    log('教练', '请求分析')
-
-    try {
-      // 尝试获取真实成长数据
-      let dashboard = null
-      try { dashboard = await cloudApi.dashboard() } catch (e) { /* 忽略 */ }
-      let goalCount = 0, totalCheckins = 0, streakDays = 0
-
-      if (dashboard && dashboard.todayGrowth) {
-        goalCount = (dashboard.goals || []).length
-        totalCheckins = dashboard.todayGrowth.completedTasks || 0
-        streakDays = dashboard.todayGrowth.streakDays || 0
-      }
-
-      const adviceList = [
-        '💡 本周建议：适当增加休息日的轻松任务，避免倦怠',
-        '💡 你的节奏很稳，继续保持！可以适当增加一点挑战',
-        '💡 最近打卡频率不错，考虑把目标难度提升 10%',
-        '💡 连续打卡的你已经在形成好习惯了，为自己骄傲吧！',
-        '💡 下一步建议：把大目标拆成更小的步骤，每天完成一点点',
-      ]
-      const advice = adviceList[Math.floor(Math.random() * adviceList.length)]
-
-      this.setData({
-        coachStats: {
-          goalCount: goalCount || 3,
-          totalCheckins: totalCheckins || 0,
-          streakDays: streakDays || 0
-        },
-        coachResult: `📊 进行中目标：${goalCount || 3} 个\n🔥 累计打卡：${totalCheckins || 0} 次\n📅 连续打卡：${streakDays || 0} 天\n\n${advice}`
-      })
-    } catch (e) {
-      // 降级到 mock 数据
-      this.setData({
-        coachStats: { goalCount: 3, totalCheckins: 12, streakDays: 7 },
-        coachResult: "📊 最近有 5 条成长记录\n🔥 已连续 7 天打卡\n👍 继续保持这个节奏，你很棒！\n\n💡 本周建议：适当增加休息日的轻松任务，避免倦怠"
-      })
-    }
-
-    this.setData({ coachLoading: false })
-    wx.showToast({ title: "分析完成", icon: "success" })
-  },
-
-  // ===== 宠物聊天（V8.6：增加亲密度互动） =====
-  onChatInput(e) { this.setData({ chatInput: e.detail.value }) },
-  sendChat() {
-    const text = this.data.chatInput.trim()
-    if (!text) return
-    const msgs = [...this.data.messages, { role: "user", content: text }]
-    this.setData({ messages: msgs, chatInput: "" })
-
-    // V8.6：尝试通过云函数与宠物互动
-    const that = this
-    setTimeout(async () => {
-      // 根据用户消息内容匹配回复
-      let reply
-      const lower = text.toLowerCase()
-      if (/累|困|不想|放弃/i.test(text)) {
-        reply = '主人累了就休息一下吧～我会一直在这里陪着你的 🛌'
-      } else if (/开心|高兴|棒|好耶|哈哈/i.test(text)) {
-        reply = '看到主人开心我也好开心！🐾✨'
-      } else if (/吃|饿|饭/i.test(text)) {
-        reply = '主人记得按时吃饭哦！身体健康最重要～🍎'
-      } else if (/早|晚安|睡了/i.test(text)) {
-        reply = '晚安主人～做个好梦，明天见 🌙'
-      } else if (/喜欢|爱|可爱/i.test(text)) {
-        reply = '我也最喜欢主人了！💕🐾'
-      } else if (/加油|努力|目标|任务/i.test(text)) {
-        reply = '主人加油！我们一起完成今天的任务吧 💪'
-      } else if (/\?|？|什么|怎么|为什么/i.test(text)) {
-        reply = '这个问题有点难呢...不过我相信主人一定能找到答案！🐾'
-      } else {
-        reply = REPLIES[Math.floor(Math.random() * REPLIES.length)]
-      }
-
-      // 尝试调用宠物互动增加亲密度
-      try {
-        const pets = await cloudApi.petOverview()
-        if (pets && Array.isArray(pets) && pets.length > 0) {
-          const activePet = pets[0]
-          if (activePet._id || activePet.id) {
-            await cloudApi.petInteract((activePet._id || activePet.id), 'chat')
-          }
-        }
-      } catch (e) {
-        // 互动失败不影响聊天
-      }
-
-      msgs.push({ role: "ai", content: reply })
-      that.setData({ messages: msgs })
-      that.scrollToChatBottom()
-    }, 600)
-  },
-  scrollToChatBottom() {
-    const that = this
-    setTimeout(() => { that.setData({ scrollTop: 99999 }) }, 100)
-  },
-
   // ===== 答案之书 =====
   onOracleInput(e) { this.setData({ oracleQuestion: e.detail.value }) },
   askOracle() {
     const q = this.data.oracleQuestion.trim()
     if (!q) return wx.showToast({ title: "请输入你的问题", icon: "none" })
-    log('答案之书', '提问', { question: q })
 
     // 翻牌动画
     this.setData({ oracleAnimating: true, oracleResult: null })
@@ -2325,28 +2437,23 @@ Page({
   onTranslateInput(e) { this.setData({ translateInput: e.detail.value }) },
   doTranslate() {
     const text = this.data.translateInput.trim()
-    if (!text) return wx.showToast({ title: "请输入要翻译的内容", icon: "none" })
-    log('成长翻译', '翻译', { input: text })
-
-    // 检测中文/英文
-    const isChinese = /[\u4e00-\u9fa5]/.test(text)
-    const mockTranslate = isChinese
-      ? text.split('').map(c => /[\u4e00-\u9fa5]/.test(c) ? String.fromCharCode(c.charCodeAt(0) + 65248) : c).join('')
-      : text.split(' ').map(w => w.split('').reverse().join('')).join(' ')
+    if (!text) return wx.showToast({ title: '先写下现在的感受', icon: 'none' })
 
     // 根据关键词匹配鼓励语
     let encourage = TRANSLATE_ENCOURAGE[Math.floor(Math.random() * TRANSLATE_ENCOURAGE.length)]
+    let nextStep = '写下我现在最想推进的一件事，再给它留 5 分钟。'
     const lower = text.toLowerCase()
     if (/累|难|不行|放弃|坚持不住/i.test(lower)) {
       encourage = '你已经走了这么远，不要低估自己。每一次坚持都在悄悄改变你。'
+      nextStep = '把事情拆到只剩一个动作，比如打开资料、列出第一条，做完再决定要不要继续。'
     } else if (/开心|成功|完成|进步/i.test(lower)) {
       encourage = '太棒了！你的努力不会说谎，继续保持这个节奏！'
+      nextStep = '记下今天做对的一步，下次遇到同样的任务可以再用。'
     }
 
     this.setData({
-      translateResult: { original: text, translated: mockTranslate, encourage }
+      translateResult: { original: text, nextStep, encourage }
     })
-    wx.showToast({ title: '翻译完成 ✨', icon: 'success' })
   },
 
   // ===== 昵称生成器 =====
@@ -2354,16 +2461,11 @@ Page({
   generateNickname() {
     const keywords = this.data.nicknameInput.trim()
     if (!keywords) return wx.showToast({ title: "请输入关键词", icon: "none" })
-    log('昵称生成', keywords)
-
-    const words = keywords.split(/[\s,，、]+/).filter(w => w.length > 0)
-    const results = []
-    for (let i = 0; i < Math.min(8, words.length * 2 + 2); i++) {
-      const prefix = NICKNAME_PREFIXES[Math.floor(Math.random() * NICKNAME_PREFIXES.length)]
-      const suffix = NICKNAME_SUFFIXES[Math.floor(Math.random() * NICKNAME_SUFFIXES.length)]
-      results.push(`${prefix}${suffix}`)
-    }
-    this.setData({ nicknames: [...new Set(results)] })
+    const words = [...new Set(keywords.split(/[\s,，、]+/).filter(Boolean).slice(0, 4).map(word => Array.from(word).slice(0, 8).join('')))]
+    if (!words.length) return wx.showToast({ title: '请填一个昵称关键词', icon: 'none' })
+    const offset = Math.floor(Math.random() * NICKNAME_SUFFIXES.length)
+    this.setData({ nicknames: Array.from({ length: 6 }, (_, i) =>
+      words[i % words.length] + NICKNAME_SUFFIXES[(offset + i) % NICKNAME_SUFFIXES.length]) })
   },
 
   // ===== 目标命名器 =====
@@ -2371,18 +2473,8 @@ Page({
   generateGoalName() {
     const name = this.data.goalNameInput.trim()
     if (!name) return wx.showToast({ title: "请输入原始目标名", icon: "none" })
-    log('目标命名', name)
-
-    let names = GOAL_NAME_MAP[name]
-    if (!names) {
-      const prefixes = ['终极', '超级', '史诗级', '传奇', '觉醒', '突破', '飞跃', '蜕变']
-      const suffixes = ['计划', '行动', '挑战', '之旅', '工程', '战役', '革命', '大作战']
-      names = []
-      for (let i = 0; i < 5; i++) {
-        names.push(prefixes[Math.floor(Math.random() * prefixes.length)] + suffixes[Math.floor(Math.random() * suffixes.length)])
-      }
-    }
-    this.setData({ goalNames: names })
+    const names = Object.prototype.hasOwnProperty.call(GOAL_NAME_MAP, name) ? GOAL_NAME_MAP[name] : []
+    this.setData({ goalNames: [...new Set([name, ...names, name + ' · 每日一步', name + ' · 成长计划'])] })
   },
 
   // ===== 复制/使用功能 =====
@@ -2393,8 +2485,7 @@ Page({
   },
   useGoalName(e) {
     const name = e.currentTarget.dataset.name || ''
-    if (!name) return
-    wx.setClipboardData({ data: name, success: () => wx.showToast({ title: '已复制「' + name + '」✓', icon: 'success' }) })
+    if (name) aiNavigation.openNewGoal(name)
   },
 
   // ===== 未来来信 =====
@@ -2402,7 +2493,6 @@ Page({
   generateFutureLetter() {
     const dream = this.data.futureInput.trim()
     if (!dream) return wx.showToast({ title: "写下你的愿望吧", icon: "none" })
-    log('未来来信', dream)
 
     const letter = `亲爱的过去的我：
 
@@ -2410,13 +2500,13 @@ Page({
 
 还记得当初你写下「${dream}」这个愿望的那一天吗？
 
-我可以肯定地告诉你——它实现了。不仅如此，你在这条路上收获的远比想象中多得多。
+想象一下，当你向这个愿望迈出一大步时，回头最想感谢的是哪一次小小的开始？
 
 那些觉得枯燥的日子、想要放弃的瞬间，现在回头看，都是最珍贵的礼物。
 
 所以请一定坚持下去。不要在意一时快慢，你正走在属于自己的正确道路上。
 
-未来的每一天都在感谢现在努力的你。
+今天给自己留一个小任务吧：选一个能在 5 分钟内开始的动作，写下来，做完再决定下一步。
 
 —— 来自三年后的你 ✨`
 
@@ -2429,43 +2519,59 @@ Page({
     })
   },
 
-  // ===== 时间胶囊（V8.6：云端持久化） =====
+  copyToolText(e) {
+    const value = e.currentTarget.dataset.text
+    if (value) wx.setClipboardData({ data: value })
+  },
+
+  // ===== 时间胶囊 =====
   onCapsuleInput(e) { this.setData({ capsuleText: e.detail.value }) },
   async saveCapsule() {
+    if (this.data.capsuleSaving) return
     const text = this.data.capsuleText.trim()
     if (!text) return wx.showToast({ title: "写下你想对未来的自己说的话", icon: "none" })
-    const now = new Date()
-    const openTime = now.getTime() + 30 * 24 * 60 * 60 * 1000
+    const owner = this._toolboxOwner
+    const epoch = this._toolboxEpoch
+    if (!owner || getApp().isOfflineMode) return wx.showToast({ title: '请联网登录后封存', icon: 'none' })
+    const now = Date.now()
+    const openTime = now + 30 * 24 * 60 * 60 * 1000
+    const request = { text, unlock_at: openTime, created_date: schedule.today(now).replace(/-/g, '.') }
+    this.setData({ capsuleSaving: true, capsuleUnconfirmed: false })
 
     try {
-      // 尝试保存到云端
-      if (cloudApi.saveCapsule) {
-        await cloudApi.saveCapsule({
-          text: text,
-          unlock_at: openTime,
-          created_date: now.getFullYear() + '.' + String(now.getMonth()+1).padStart(2,'0') + '.' + String(now.getDate()).padStart(2,'0')
-        })
-      }
+      const saved = await cloudApi.saveCapsule(request)
+      if (epoch !== this._toolboxEpoch || owner !== toolbox.owner(getApp) || this._toolboxUnloaded) return
+      if (!saved?._id) throw new Error('未收到保存回执')
+      this._showCapsuleReceipt(saved, text)
     } catch (e) {
-      // 云端保存失败，仅本地显示
-      log('胶囊', '云端保存失败，仅本地', e)
+      if (epoch !== this._toolboxEpoch || owner !== toolbox.owner(getApp) || this._toolboxUnloaded) return
+      this._capsuleUnconfirmed = request
+      this.setData({ capsuleUnconfirmed: true, capsuleHistoryExpanded: true })
+    } finally {
+      if (epoch === this._toolboxEpoch && owner === toolbox.owner(getApp) && !this._toolboxUnloaded) {
+        this.setData({ capsuleSaving: false })
+        this.loadCapsules()
+      }
     }
-
-    const openDate = new Date(openTime)
-    this.setData({
-      capsuleSaved: true,
-      capsuleDate: now.getFullYear() + '.' + String(now.getMonth()+1).padStart(2,'0') + '.' + String(now.getDate()).padStart(2,'0'),
-      capsuleOpenDate: openDate.getFullYear() + '.' + String(openDate.getMonth()+1).padStart(2,'0') + '.' + String(openDate.getDate()).padStart(2,'0'),
-    })
-    wx.showToast({ title: '胶囊已封存 ⏳', icon: 'success' })
-
-    // 刷新胶囊列表
-    this.loadCapsules()
   },
+  _showCapsuleReceipt(saved, text) {
+    this._capsuleUnconfirmed = null
+    const sameDraft = this.data.capsuleText.trim() === text
+    this.setData({
+      capsuleSaved: sameDraft, capsuleUnconfirmed: false,
+      capsuleText: sameDraft ? '' : this.data.capsuleText,
+      capsuleDate: saved.created_date, capsuleOpenDate: schedule.today(saved.unlock_at),
+    })
+    wx.showToast({ title: '胶囊已封存', icon: 'success' })
+  },
+  toggleCapsuleHistory() {
+    this.setData({ capsuleHistoryExpanded: !this.data.capsuleHistoryExpanded })
+  },
+  writeAnotherCapsule() { this.setData({ capsuleSaved: false }) },
   openCapsule(e) {
     const id = e.currentTarget.dataset.id
     const capsule = (this.data.myCapsules || []).find(c => c._id === id)
-    if (capsule) {
+    if (capsule?.can_open) {
       wx.showModal({
         title: '📦 时间胶囊',
         content: '「' + capsule.text + '」\n\n——封存于 ' + capsule.created_date,
@@ -2483,15 +2589,14 @@ Page({
   },
   completeChallenge() {
     if (!this.data.challenge || this.data.challengeDone) return
-    log('随机挑战', '完成', { xp: this.data.challenge.xp })
     this.setData({ challengeDone: true })
-    wx.showToast({ title: '挑战完成 +' + this.data.challenge.xp + 'XP', icon: 'success' })
+    wx.showToast({ title: '本次挑战已完成', icon: 'success' })
   },
 
   // ═══════════ 工具弹窗方法 ═══════════
 
   openTool(e) {
-    const tool = e.currentTarget.dataset.tool || ''
+    const name = e.currentTarget.dataset.tool || ''
     const titles = {
       pomodoro: '🍅 森林番茄钟',
       todoDraw: '🎲 今日待办抽签',
@@ -2501,29 +2606,27 @@ Page({
       disciplineCard: '🪪 自律人格卡',
       energyCheck: '🔋 情绪能量检测',
     }
+    if (!titles[name]) return
+    this.syncToolboxOwner()
     this.setData({
-      activeTool: tool,
+      activeTool: name,
       showToolSheet: true,
-      toolSheetTitle: titles[tool] || '',
+      toolSheetTitle: titles[name],
     })
-    this._resetToolState(tool)
+    return this._resetToolState(name)
   },
 
   closeToolSheet() {
     this.setData({ showToolSheet: false })
-    this.pausePomodoro()
   },
 
   _resetToolState(tool) {
     if (tool === 'pomodoro') {
-      this.setData({
-        pomodoroRunning: false,
-        pomodoroStatus: '准备开始',
-      })
+      this._refreshPomodoro()
     } else if (tool === 'todoDraw') {
-      this.setData({ drawnTodo: null })
+      return this.loadTodayTodos()
     } else if (tool === 'focusOath') {
-      this.setData({ focusOath: '' })
+      this.setData({ focusHistoryExpanded: false })
       this._loadFocusHistory()
     } else if (tool === 'delayHelp') {
       this.setData({ delaySelected: '', delayResult: null })
@@ -2543,65 +2646,111 @@ Page({
 
   // ═══════════ 番茄钟 ═══════════
 
+  syncToolboxOwner() {
+    const owner = toolbox.owner(getApp)
+    if (this._toolboxOwner === owner) return
+    if (this._toolboxOwner !== undefined) this.setData({
+      showToolSheet: false, drawnTodo: null, todoStatus: 'idle', todoCount: 0,
+      focusInput: '', focusObstacle: '', focusOath: '', focusHistory: [], focusHistoryExpanded: false,
+      capsuleText: '', capsuleSaved: false, myCapsules: [], capsuleLoading: false,
+      capsuleLoadError: false, capsuleSaving: false, capsuleHistoryExpanded: false, capsuleUnconfirmed: false,
+    })
+    this._toolboxOwner = owner
+    this._toolboxEpoch = (this._toolboxEpoch || 0) + 1
+    this._todoRequestId = (this._todoRequestId || 0) + 1
+    this._capsuleLoadId = (this._capsuleLoadId || 0) + 1
+    this._capsuleUnconfirmed = null
+    this._todayTodos = []
+    this._stopPomodoroTimer()
+    let session
+    try { if (owner) session = wx.getStorageSync('forestPomodoro:' + owner) } catch (e) {}
+    const mode = toolbox.TIMER_SECONDS[session?.mode] ? session.mode : 'focus25'
+    this._pomodoroDeadline = Number.isFinite(session?.deadline) ? session.deadline : 0
+    this.setData({
+      pomodoroMode: mode, pomodoroRunning: this._pomodoroDeadline > 0,
+      pomodoroTask: session?.task || null, pomodoroStatus: session?.status || '准备开始',
+    })
+    this._setPomodoroSeconds(Number.isInteger(session?.seconds) ? session.seconds : toolbox.TIMER_SECONDS[mode])
+  },
+
+  _savePomodoro() {
+    const { pomodoroMode, pomodoroTask, pomodoroStatus, pomodoroSeconds } = this.data
+    try {
+      if (this._toolboxOwner) wx.setStorageSync('forestPomodoro:' + this._toolboxOwner, {
+        mode: pomodoroMode, task: pomodoroTask, status: pomodoroStatus,
+        seconds: pomodoroSeconds, deadline: this._pomodoroDeadline,
+      })
+    } catch (e) {
+      // The current page can still run the timer when device storage is unavailable.
+    }
+  },
+
   setPomodoroMode(e) {
     if (this.data.pomodoroRunning) return
-    const mode = e.currentTarget.dataset.mode || 'focus25'
-    const secondsMap = { focus25: 25 * 60, focus15: 15 * 60, break5: 5 * 60 }
-    const seconds = secondsMap[mode] || 25 * 60
-    this.setData({
-      pomodoroMode: mode,
-      pomodoroSeconds: seconds,
-      pomodoroStatus: '准备开始',
-      pomodoroFormattedTime: this._formatPomodoroTime(seconds),
-    })
+    const mode = e.currentTarget.dataset.mode
+    if (!Object.prototype.hasOwnProperty.call(toolbox.TIMER_SECONDS, mode) || mode === this.data.pomodoroMode) return
+    this.setData({ pomodoroMode: mode })
+    this.resetPomodoro()
   },
 
   startPomodoro() {
     if (this.data.pomodoroRunning) return
-    this.setData({ pomodoroRunning: true, pomodoroStatus: '专注中...' })
+    const seconds = this.data.pomodoroSeconds || toolbox.TIMER_SECONDS[this.data.pomodoroMode]
+    this._pomodoroDeadline = Date.now() + seconds * 1000
+    this.setData({ pomodoroRunning: true, pomodoroStatus: this.data.pomodoroMode === 'break5' ? '休息中' : '专注中' })
+    this._setPomodoroSeconds(seconds)
+    this._savePomodoro()
     this._startPomodoroTimer()
   },
 
   pausePomodoro() {
-    if (pomodoroTimer) {
-      clearInterval(pomodoroTimer)
-      pomodoroTimer = null
-    }
+    this._refreshPomodoro()
+    if (!this.data.pomodoroRunning) return
+    this._stopPomodoroTimer()
+    this._pomodoroDeadline = 0
     this.setData({ pomodoroRunning: false, pomodoroStatus: '已暂停' })
+    this._savePomodoro()
   },
 
   resetPomodoro() {
-    this.pausePomodoro()
-    const secondsMap = { focus25: 25 * 60, focus15: 15 * 60, break5: 5 * 60 }
-    const seconds = secondsMap[this.data.pomodoroMode] || 25 * 60
-    this.setData({
-      pomodoroSeconds: seconds,
-      pomodoroStatus: '准备开始',
-      pomodoroFormattedTime: this._formatPomodoroTime(seconds),
-    })
+    this._stopPomodoroTimer()
+    this._pomodoroDeadline = 0
+    this.setData({ pomodoroRunning: false, pomodoroStatus: '准备开始' })
+    this._setPomodoroSeconds(toolbox.TIMER_SECONDS[this.data.pomodoroMode])
+    this._savePomodoro()
+  },
+
+  clearPomodoroTask() {
+    if (this.data.pomodoroRunning) return
+    this.setData({ pomodoroTask: null })
+    this._savePomodoro()
   },
 
   _startPomodoroTimer() {
-    if (pomodoroTimer) clearInterval(pomodoroTimer)
-    pomodoroTimer = setInterval(() => {
-      const seconds = this.data.pomodoroSeconds - 1
-      if (seconds <= 0) {
-        this.pausePomodoro()
-        this.setData({ 
-          pomodoroSeconds: 0,
-          pomodoroFormattedTime: '00:00',
-        })
-        wx.showToast({ title: '本轮专注完成', icon: 'success', duration: 2000 })
-        setTimeout(() => {
-          wx.showToast({ title: '你刚刚守护了一小片森林 🌱', icon: 'none', duration: 3000 })
-        }, 2200)
-      } else {
-        this.setData({ 
-          pomodoroSeconds: seconds,
-          pomodoroFormattedTime: this._formatPomodoroTime(seconds),
-        })
-      }
-    }, 1000)
+    this._stopPomodoroTimer()
+    this._pomodoroTimer = setInterval(() => this._refreshPomodoro(true), 250)
+  },
+
+  _stopPomodoroTimer() {
+    if (this._pomodoroTimer) clearInterval(this._pomodoroTimer)
+    this._pomodoroTimer = null
+  },
+
+  _refreshPomodoro(showToast) {
+    if (!this._pomodoroDeadline) return
+    const seconds = toolbox.remainingSeconds(this._pomodoroDeadline, Date.now())
+    if (seconds !== this.data.pomodoroSeconds) this._setPomodoroSeconds(seconds)
+    if (seconds) return
+    this._stopPomodoroTimer()
+    this._pomodoroDeadline = 0
+    const status = this.data.pomodoroMode === 'break5' ? '本轮休息结束' : '本轮专注结束'
+    this.setData({ pomodoroRunning: false, pomodoroStatus: status })
+    this._savePomodoro()
+    if (showToast) wx.showToast({ title: status, icon: 'none' })
+  },
+
+  _setPomodoroSeconds(seconds) {
+    this.setData({ pomodoroSeconds: seconds, pomodoroFormattedTime: this._formatPomodoroTime(seconds) })
   },
 
   _formatPomodoroTime(seconds) {
@@ -2612,35 +2761,94 @@ Page({
 
   // ═══════════ 今日待办抽签 ═══════════
 
+  async loadTodayTodos() {
+    const owner = this._toolboxOwner
+    const date = schedule.today()
+    const request = this._todoRequestId = (this._todoRequestId || 0) + 1
+    this._todayTodos = []
+    this._drawnTodoIds = new Set()
+    this.setData({ todoStatus: 'loading', todoCount: 0, drawnTodo: null })
+    try {
+      if (!owner || getApp().isOfflineMode) throw new Error('需要在线登录')
+      const [tasks, goals] = await Promise.all([cloudApi.tasks({ date }), cloudApi.goals()])
+      if (request !== this._todoRequestId || owner !== toolbox.owner(getApp)) return
+      if (date !== schedule.today()) return this.loadTodayTodos()
+      if (!Array.isArray(tasks) || !Array.isArray(goals)) throw new Error('无法读取任务')
+      this._todayTodos = toolbox.todayTasks(tasks, goals, date)
+      this.setData({ todoStatus: 'ready', todoCount: this._todayTodos.length })
+    } catch (e) {
+      if (request === this._todoRequestId && owner === toolbox.owner(getApp)) this.setData({ todoStatus: 'error' })
+    }
+  },
+
   drawTodo() {
+    if (!this._todayTodos?.length) return
+    if (this._todayTodos[0].date !== schedule.today()) return this.loadTodayTodos()
+    let choices = this._todayTodos.filter(task => !this._drawnTodoIds.has(task.id))
+    if (!choices.length) {
+      this._drawnTodoIds.clear()
+      choices = this._todayTodos.filter(task => task.id !== this.data.drawnTodo?.id)
+      if (!choices.length) choices = this._todayTodos
+    }
+    const task = choices[Math.floor(Math.random() * choices.length)]
+    this._drawnTodoIds.add(task.id)
+    this.setData({ drawnTodo: task })
+  },
+
+  drawTodoIdea() {
     const todo = TODO_POOL[Math.floor(Math.random() * TODO_POOL.length)]
     this.setData({ drawnTodo: todo })
   },
 
-  acceptTodo() {
-    wx.showToast({ title: '已收下这个任务！', icon: 'success' })
-    this.setData({ drawnTodo: null })
+  openToolGoals() {
+    wx.switchTab({ url: '/pages/goals/goals', fail: () => wx.showToast({ title: '暂时无法打开目标页', icon: 'none' }) })
+  },
+
+  openToolMood() {
+    wx.switchTab({ url: '/pages/home/home', fail: () => wx.showToast({ title: '暂时无法打开首页', icon: 'none' }) })
+  },
+
+  focusFromTool(e) {
+    const source = e.currentTarget.dataset.source
+    let task = source === 'todo' ? this.data.drawnTodo : null
+    if (task?.id && task.date !== schedule.today()) return this.loadTodayTodos()
+    const text = e.currentTarget.dataset.text
+    if (!task && text) task = { text }
+    this.openTool({ currentTarget: { dataset: { tool: 'pomodoro' } } })
+    if (this.data.pomodoroRunning || this.data.pomodoroStatus === '已暂停') {
+      wx.showToast({ title: '已保留原计时，重置后可换', icon: 'none' })
+      return
+    }
+    this.setData({ pomodoroTask: task, pomodoroMode: e.currentTarget.dataset.rest ? 'break5' : 'focus5' })
+    this.resetPomodoro()
+  },
+
+  openToolTask(e) {
+    const task = e.currentTarget.dataset.source === 'todo' ? this.data.drawnTodo : this.data.pomodoroTask
+    if (!task?.goalId) return
+    wx.navigateTo({
+      url: '/pages/goal-detail/goal-detail?id=' + encodeURIComponent(task.goalId) +
+        '&date=' + encodeURIComponent(task.date) + '&task=' + encodeURIComponent(task.id),
+      fail: () => wx.showToast({ title: '暂时无法打开任务', icon: 'none' }),
+    })
   },
 
   // ═══════════ 专注宣言 ═══════════
 
   onFocusInput(e) {
-    this.setData({ focusInput: e.detail.value })
+    this.setData({ focusInput: e.detail.value, focusOath: '' })
+  },
+
+  onFocusObstacleInput(e) {
+    this.setData({ focusObstacle: e.detail.value, focusOath: '' })
   },
 
   generateFocusOath() {
     const input = this.data.focusInput.trim()
     if (!input) return wx.showToast({ title: '请输入要专注的事', icon: 'none' })
 
-    const oaths = [
-      `从现在开始，我会把注意力交给${input}。哪怕只前进一点点，也算今天的胜利。`,
-      `今天，${input}是我的唯一目标。排除干扰，心无旁骛，专注当下。`,
-      `我选择${input}作为今天的焦点。每一分钟的专注，都在为未来积蓄力量。`,
-      `让${input}成为今天的主旋律。沉浸其中，享受专注带来的成长。`,
-      `此刻，我与${input}为伴。不求完美，只求投入，这就是最好的状态。`,
-    ]
-    const oath = oaths[Math.floor(Math.random() * oaths.length)]
-    this.setData({ focusOath: oath })
+    const obstacle = this.data.focusObstacle.trim() || '我有点想拖延'
+    this.setData({ focusOath: `如果${obstacle}，我就先用 5 分钟做「${input}」，到点再决定要不要继续。` })
   },
 
   copyFocusOath() {
@@ -2651,21 +2859,27 @@ Page({
   },
 
   saveFocusOath() {
-    const history = this.data.focusHistory || []
-    history.unshift({
-      content: this.data.focusOath,
-      date: getTodayStr(),
-    })
-    if (history.length > 10) history.pop()
-    this.setData({ focusHistory: history })
-    wx.setStorageSync('focusOathHistory', history)
-    wx.showToast({ title: '已保存到历史', icon: 'success' })
+    const content = this.data.focusOath
+    const date = getTodayStr()
+    if (!content) return
+    const history = [{ content, date }, ...this.data.focusHistory.filter(item => item.content !== content || item.date !== date)].slice(0, 10)
+    try {
+      wx.setStorageSync('focusOathHistory', history)
+      this.setData({ focusHistory: history })
+      wx.showToast({ title: '已保存到本机', icon: 'success' })
+    } catch (e) {
+      wx.showToast({ title: '保存失败，可先复制宣言', icon: 'none' })
+    }
+  },
+
+  toggleFocusHistory() {
+    this.setData({ focusHistoryExpanded: !this.data.focusHistoryExpanded })
   },
 
   _loadFocusHistory() {
     try {
       const history = wx.getStorageSync('focusOathHistory') || []
-      this.setData({ focusHistory: history })
+      this.setData({ focusHistory: Array.isArray(history) ? history : [] })
     } catch (e) {
       this.setData({ focusHistory: [] })
     }
@@ -2727,6 +2941,7 @@ Page({
       personalityStep: 0,
       personalityAnswers: [],
       personalityResult: null,
+      currentPersonalityQuestion: PERSONALITY_QUESTIONS[0],
     })
   },
 
@@ -2771,16 +2986,24 @@ Page({
   // ═══════════ 页面生命周期 ═══════════
 
   onHide() {
-    if (pomodoroTimer) {
-      clearInterval(pomodoroTimer)
-      pomodoroTimer = null
-    }
+    this.pausePetChat()
+    this.stopTypewriter()
+    this.persistPlannerWorkingCopy()
+    this.setData({ showPlanModal: false })
+    this.leavePartnerWorkspace()
+    this._stopPomodoroTimer()
   },
 
   onUnload() {
-    if (pomodoroTimer) {
-      clearInterval(pomodoroTimer)
-      pomodoroTimer = null
-    }
+    this.pausePetChat()
+    this._toolboxUnloaded = true
+    this._todoRequestId = (this._todoRequestId || 0) + 1
+    this._capsuleLoadId = (this._capsuleLoadId || 0) + 1
+    this._plannerGenerationId = (this._plannerGenerationId || 0) + 1
+    this._draftLoadId = (this._draftLoadId || 0) + 1
+    this.stopTypewriter()
+    this.persistPlannerWorkingCopy()
+    this.leavePartnerWorkspace()
+    this._stopPomodoroTimer()
   },
 })

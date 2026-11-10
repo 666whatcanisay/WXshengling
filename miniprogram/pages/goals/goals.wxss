@@ -7,10 +7,36 @@
 /* 内容区内边距 */
 .page-inner { max-width: 720rpx; margin: 0 auto; padding: 20rpx 24rpx 150rpx; box-sizing: border-box; }
 
-/* ===== 头部区域：标题栏 + 新建按钮 ===== */
-/* 新建目标按钮 — 独占一行 */
+/* ===== 目标看板 ===== */
+.wood-title {
+  display: flex;
+  gap: 16rpx;
+  background: linear-gradient(135deg, #8B6914, #B8860B);
+  padding: 18rpx 48rpx;
+  margin-bottom: 28rpx;
+  box-shadow: 0 6rpx 20rpx rgba(0, 0, 0, 0.3), inset 0 2rpx 4rpx rgba(255, 255, 255, 0.1);
+}
+.wood-title-leaf { font-size: 32rpx; animation: sway 3s ease-in-out infinite; }
+.wood-title-leaf-right { animation-delay: -1.5s; }
+.wood-title-text { font-size: 34rpx; font-weight: 800; color: #F5E6C8; letter-spacing: 4rpx; }
 .btn-add-goal { width: 100% !important; height: 72rpx; font-size: 28rpx; margin-bottom: 24rpx; }
 .btn-add-goal::after { border: none; }
+
+.goal-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16rpx; }
+.goal-tile { min-width: 0; padding: 18rpx 20rpx 4rpx; border: 1rpx solid #577264; border-radius: 24rpx; background: #3B5B4E; }
+.goal-tile-top, .goal-title-row, .goal-metrics, .completed-goals-toggle { display: flex; align-items: center; justify-content: space-between; gap: 8rpx; }
+.goal-emoji { flex-shrink: 0; display: grid; place-items: center; width: 54rpx; height: 54rpx; border-radius: 14rpx; background: #486858; font-size: 32rpx; }
+.goal-status { min-width: 0; color: #CBD8B6; font-size: 22rpx; }
+.goal-title-row { margin-top: 12rpx; }
+.goal-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #F5E6C8; font-size: 30rpx; font-weight: 700; }
+.goal-arrow { flex-shrink: 0; color: #D8C184; font-size: 28rpx; }
+.goal-metrics { min-height: 64rpx; flex-wrap: wrap; margin-top: 10rpx; border-top: 1rpx solid #557363; }
+.goal-days, .goal-no-tasks, .goal-task-toggle { font-size: 23rpx; }
+.goal-days { color: #D5DFC9; font-weight: 600; }
+.goal-no-tasks { color: #C2D1BA; }
+.goal-task-toggle { margin-left: auto; min-height: 64rpx; color: #E9CE90; font-weight: 600; text-align: right; }
+.completed-goals-toggle { width: 100%; min-height: 82rpx; margin: 10rpx 0; padding: 0 6rpx; border-radius: 0; border-bottom: 1rpx solid #4E6B5B; color: #D4DCC8; font-size: 26rpx; text-align: left; }
+.completed-goals-count { margin-left: 10rpx; color: #DECA98; }
 
 /* ===== 空状态 ===== */
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 100rpx 40rpx 160rpx; }
@@ -22,51 +48,10 @@
 .card-solid { background: linear-gradient(135deg, #3D6254, #4A7361); border: 3rpx solid #B8860B; border-radius: 28rpx; padding: 28rpx; margin-bottom: 20rpx; box-shadow: 0 6rpx 24rpx rgba(0,0,0,0.25); position: relative; overflow: hidden; transition: transform 0.2s ease; }
 .card-solid:active { transform: scale(0.98); }
 
-/* 左侧深棕色装饰条 — 渐变木纹 */
-.card-wood-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 8rpx; background: linear-gradient(180deg, #DAA520, #8B6914); border-radius: 28rpx 0 0 28rpx; }
-
-/* ===== 目标卡片内部 ===== */
-.goal-card-inner { padding: 8rpx 16rpx 8rpx 24rpx; }
-
-/* 标题行 */
-.goal-header { display: flex; align-items: center; gap: 16rpx; margin-bottom: 12rpx; }
-.goal-emoji { font-size: 44rpx; width: 60rpx; height: 60rpx; display: flex; align-items: center; justify-content: center; background: rgba(124,179,66,0.15); border-radius: 16rpx; border: 2rpx solid rgba(124,179,66,0.3); flex-shrink: 0; }
-.goal-info { flex: 1; min-width: 0; }
-.goal-title { font-size: 30rpx; font-weight: 700; color: #F5E6C8; display: block; margin-bottom: 4rpx; }
-
-/* 状态标签 — 木片样式 */
-.status-chip { font-size: 20rpx; padding: 4rpx 16rpx; border-radius: 999rpx; display: inline-block; font-weight: 600; }
-.wood-chip-style { background: rgba(139,105,20,0.25); color: #DAA520; border: 1rpx solid rgba(184,134,11,0.4); }
-
-/* 目标描述 */
-.goal-desc { font-size: 23rpx; color: #C4B89A; display: block; margin-bottom: 16rpx; line-height: 1.5; }
-
-/* ===== 进度展示区域 ===== */
-.progress-area { display: flex; align-items: center; gap: 16rpx; margin-bottom: 12rpx; }
-
-/* 渐变进度条轨道 */
-.progress-bar-track { flex: 1; height: 20rpx; background: rgba(45,74,62,0.6); border-radius: 10rpx; overflow: hidden; border: 1rpx solid rgba(139,105,20,0.2); position: relative; }
-
-/* 渐变填充 — 叶子绿渐变 + 微光效果 */
-.progress-bar-fill { height: 100%; border-radius: 10rpx; background: linear-gradient(90deg, #7CB342, #AED581, #C5E1A5); box-shadow: 0 0 12rpx rgba(124,179,66,0.4); transition: width 0.5s ease; position: relative; }
-.progress-bar-fill::after { content: ''; position: absolute; right: 0; top: -2rpx; width: 8rpx; height: 24rpx; background: #E8F5E9; border-radius: 4rpx; opacity: 0.8; animation: shine 2s ease-in-out infinite; }
-@keyframes shine { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
-
-/* 环形百分比指示器 */
-.progress-ring-wrap { width: 72rpx; height: 72rpx; flex-shrink: 0; position: relative; display: flex; align-items: center; justify-content: center; }
-.progress-ring-bg { position: absolute; inset: 0; border-radius: 50%; border: 4rpx solid rgba(139,105,20,0.3); }
-.progress-pct { font-size: 22rpx; font-weight: 800; color: #FFAB40; z-index: 1; text-shadow: 0 2rpx 6rpx rgba(0,0,0,0.3); }
-
-/* ===== 天数信息 ===== */
-.days-info { display: flex; align-items: center; gap: 12rpx; margin-bottom: 16rpx; padding: 10rpx 16rpx; background: rgba(53,84,71,0.5); border-radius: 12rpx; border: 1rpx dashed rgba(184,134,11,0.25); }
-.days-num { font-size: 26rpx; font-weight: 700; color: #F5E6C8; }
-.days-label { font-size: 21rpx; color: #8B9A7D; }
-
 /* ===== 今日任务子列表 ===== */
-.today-tasks { border-top: 2rpx dashed rgba(184,134,11,0.2); padding-top: 14rpx; }
-.today-tasks-title { font-size: 23rpx; font-weight: 600; color: #AED581; display: block; margin-bottom: 10rpx; }
-
-.task-item { display: flex; align-items: center; gap: 12rpx; margin-bottom: 8rpx; padding: 4rpx 0; }
+.today-tasks { margin-bottom: 12rpx; padding: 0 12rpx; border-radius: 12rpx; background: #324F43; }
+.task-item { display: flex; align-items: center; gap: 10rpx; min-height: 76rpx; padding: 8rpx 0; }
+.task-item + .task-item { border-top: 1rpx solid #486557; }
 
 /* 圆角复选框 */
 .task-round-box { width: 34rpx; height: 34rpx; border-radius: 50%; border: 3rpx solid #8B6914; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.25s ease; background: transparent; }
@@ -74,7 +59,7 @@
 .task-check-mark { font-size: 19rpx; color: #FFFFFF; font-weight: 700; }
 
 /* 任务文字 */
-.task-text { font-size: 25rpx; color: #E8D9BB; flex: 1; }
+.task-text { min-width: 0; font-size: 25rpx; color: #E8D9BB; flex: 1; overflow-wrap: break-word; }
 .task-text.text-done { color: #8B9A7D; text-decoration: line-through; text-decoration-color: #8B9A7D; }
 
 /* ===== 表单覆盖层（毛玻璃效果） ===== */
@@ -133,10 +118,6 @@
 .loading-tip { text-align: center; padding: 40rpx; color: #8B9A7D; font-size: 26rpx; }
 
 /* ===== 动森通用组件样式 ===== */
-.wood-title { display: flex; align-items: center; justify-content: center; gap: 16rpx; background: linear-gradient(135deg, #8B6914, #B8860B); border-radius: 50rpx; padding: 16rpx 40rpx; margin-bottom: 24rpx; box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.3); }
-.wood-title-leaf { font-size: 26rpx; }
-.wood-title-text { font-size: 30rpx; font-weight: 800; color: #F5E6C8; letter-spacing: 2px; }
-
 .btn-leaf { display: inline-flex; align-items: center; justify-content: center; height: 70rpx; padding: 0 32rpx; background: linear-gradient(135deg, #7CB342, #689F38); border-radius: 999rpx; font-size: 26rpx; font-weight: 600; color: #fff; border: none; box-shadow: 0 4rpx 14rpx rgba(124,179,66,0.35); }
 
 .btn-wood { display: inline-flex; align-items: center; justify-content: center; height: 70rpx; padding: 0 32rpx; background: linear-gradient(135deg, #8B6914, #B8860B); border-radius: 999rpx; font-size: 26rpx; font-weight: 600; color: #F5E6C8; border: none; box-shadow: 0 4rpx 14rpx rgba(0,0,0,0.25); }

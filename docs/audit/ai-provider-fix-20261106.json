@@ -1,0 +1,53 @@
+{
+  "status": "deployed-and-source-verified",
+  "envId": "cloud1-d5gz9j6zh654f4b36",
+  "function": "app-node24",
+  "runtime": "Nodejs24.11",
+  "changedFiles": [
+    "index.js"
+  ],
+  "preservedFiles": 3778,
+  "incrementalZipFiles": [
+    "index.js"
+  ],
+  "databaseWrites": false,
+  "modelCalls": false,
+  "miniProgramPublish": false,
+  "nativeConfigReadonly": {
+    "userReported": true,
+    "currentProvider": "deepseek",
+    "currentModel": "deepseek-chat",
+    "fullKeyReturned": false,
+    "configuredProviders": [
+      "deepseek",
+      "qwen"
+    ],
+    "modelConnectionVerified": false
+  },
+  "nativeConnectionTest": {
+    "userReported": true,
+    "success": true,
+    "requestedProvider": "deepseek",
+    "requestedModel": "deepseek-chat",
+    "rawResponseProvided": false,
+    "plannerChatVerified": false,
+    "planGenerationVerified": false
+  },
+  "modelCallsScope": "modelCalls=false describes deployment only; the user subsequently ran a successful connection test",
+  "nativePlannerFlow": {
+    "userReported": true,
+    "chatSucceeded": true,
+    "chatElapsedMs": 3106,
+    "chatReplyLength": 219,
+    "generationSucceeded": true,
+    "generationTotalElapsedMs": 4907,
+    "taskCount": 6,
+    "goalTitle": "10天学会游泳",
+    "reviewerDraftVisible": true,
+    "formalPublicationVerified": false,
+    "observedContextMismatch": {
+      "frontendGoal": "先了解一下你",
+      "generatedTitle": "10天学会游泳"
+    }
+  }
+}

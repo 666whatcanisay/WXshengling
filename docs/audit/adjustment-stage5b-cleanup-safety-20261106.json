@@ -1,0 +1,7 @@
+{
+  "assertions": 22,
+  "passed": true,
+  "scope": "Local transaction rollback/owner/source/balance/reward/collection guards using the exact private preview",
+  "cloudCalls": false,
+  "modelCalls": false
+}

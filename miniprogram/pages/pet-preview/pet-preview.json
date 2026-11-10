@@ -1,1 +1,6 @@
-{"navigationBarTitleText": "宠物图鉴预览", "navigationBarBackgroundColor": "#2D4A3E", "navigationBarTextStyle": "white"}
+{
+  "navigationBarTitleText": "宠物图鉴预览",
+  "navigationBarBackgroundColor": "#2D4A3E",
+  "navigationBarTextStyle": "white",
+  "usingComponents": { "lynx-demo": "/components/lynx-demo/index" }
+}

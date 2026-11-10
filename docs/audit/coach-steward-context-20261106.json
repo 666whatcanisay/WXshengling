@@ -1,0 +1,171 @@
+{
+  "date": "2026-11-06",
+  "status": "normal-coach-flow-accepted-final-native-invalidation-verified",
+  "diagnosis": {
+    "selectedGoal": "建立游泳习惯",
+    "selectedFeedbackRevision": 1,
+    "pageAndNativeCloudReportAbsent": true,
+    "sameCurrentCoachGoalAndDate": true,
+    "successfulReportGoal": "300天晨跑计划",
+    "successfulReportFeedbackRevision": 3,
+    "successfulReportObservations": 3,
+    "successfulReportSuggestions": 2,
+    "distinctGoalIds": true,
+    "duplicateTitles": false,
+    "rootCause": "Independent goal selection and manager-to-coach navigation changed current context; comparison did not identify the last generated report."
+  },
+  "fix": "Explicit account-scoped one-shot goal/date handoff from current successful report into manager; verify accessible goal and retain date for refresh/return",
+  "validation": {
+    "node": "v24.22.2",
+    "assertions": 1533,
+    "coachClientAssertions": 63,
+    "newAssertions": 13,
+    "syntax": 5,
+    "wxmlCompiled": [
+      "ai",
+      "forest-steward"
+    ],
+    "compiledRenderAssertions": 91
+  },
+  "cloudDeployment": false,
+  "assistantModelCalls": false,
+  "assistantBusinessWrites": false,
+  "wechatFixedFlowVerified": false,
+  "acceptanceInterruption": {
+    "reportedError": "webapi_getwxaasyncsecinfo:fail Failed to fetch",
+    "stack": "WAServiceMainContext.js / appServiceSDKScriptError",
+    "developerTools": "2.01.2510290",
+    "baseLibrary": "3.14.3",
+    "uiBlocked": null,
+    "codeReferencesFound": false,
+    "managementReadonlyStillShowsCurrentDone": true,
+    "nativeClientNetworkVerified": false
+  },
+  "recovery": {
+    "source": "user Console and display feedback",
+    "nativeReadOnlyOk": true,
+    "feedbackRevision": 4,
+    "reportStatus": "done",
+    "userSaysDisplayNormal": true,
+    "managementReadonly": {
+      "inspectedAt": "2026-11-06T08:52:24.454Z",
+      "readOnly": true,
+      "goalsRead": 27,
+      "goalsComplete": true,
+      "hasGoal": true,
+      "period": [
+        "2026-10-31",
+        "2026-11-06"
+      ],
+      "complete": true,
+      "pastTasks": 0,
+      "completed": 0,
+      "todayPending": 0,
+      "feedbackRevision": 4,
+      "reportStatus": "done",
+      "latestStoredReportStatus": "done",
+      "latestReportIsCurrent": true,
+      "latestReportAttempt": 1,
+      "latestReportFailureKind": "",
+      "feedbackHasNote": true,
+      "latestReportFeedbackRevision": 4,
+      "observations": 2,
+      "suggestions": 1,
+      "functionInvocations": false,
+      "modelCalls": false,
+      "businessWrites": false
+    },
+    "feedbackInvalidationVerified": false
+  },
+  "latestRecheck": {
+    "source": "management readonly",
+    "feedbackRevision": 4,
+    "reportStatus": "done",
+    "isCurrent": true,
+    "invalidationObserved": false,
+    "userSaid": "好了，我找到了，继续推进",
+    "meaning": "input location found; does not explicitly confirm save and invalidation"
+  },
+  "invalidationReconciliation": {
+    "userResponse": "已保存，旧总结已消失",
+    "userReportsSummaryHidden": true,
+    "managementReadonly": {
+      "reportGoal": "300天晨跑计划",
+      "feedbackRevision": 4,
+      "reportFeedbackRevision": 4,
+      "reportStatus": "done",
+      "isCurrent": true,
+      "otherGoal": "建立游泳习惯",
+      "otherFeedbackRevision": 1,
+      "otherHasReport": false
+    },
+    "cloudInvalidationVerified": false,
+    "causeKnown": false,
+    "clientSaveStateRequested": true,
+    "assistantWrites": false,
+    "assistantModelCalls": false
+  },
+  "clientSaveDiagnostic": {
+    "goal": "300天晨跑计划",
+    "revision": 4,
+    "dirty": false,
+    "saving": false,
+    "conflict": false,
+    "message": "已读取云端反馈 · 版本 4",
+    "error": "",
+    "localError": "",
+    "report": "done",
+    "requestedPhraseAlreadyInReport": false,
+    "causeKnown": false,
+    "scriptPrepared": "tools/coach-manual-invalidation.js",
+    "scriptExecutedInWechat": false
+  },
+  "finalAcceptance": {
+    "date": "2026-11-06",
+    "userNativeResult": {
+      "ok": true,
+      "previousRevision": 4,
+      "cloudRevision": 5,
+      "markerSaved": true,
+      "oldReportAbsent": true,
+      "localDirty": false,
+      "saveError": "",
+      "modelCalls": false
+    },
+    "managementReadonly": {
+      "inspectedAt": "2026-11-06T09:34:35.168Z",
+      "readOnly": true,
+      "goalsRead": 27,
+      "goalsComplete": true,
+      "hasGoal": true,
+      "period": [
+        "2026-10-31",
+        "2026-11-06"
+      ],
+      "complete": true,
+      "pastTasks": 0,
+      "completed": 0,
+      "todayPending": 0,
+      "feedbackRevision": 5,
+      "reportStatus": "",
+      "latestStoredReportStatus": "done",
+      "latestReportIsCurrent": false,
+      "latestReportAttempt": 1,
+      "latestReportFailureKind": "",
+      "feedbackHasNote": true,
+      "latestReportFeedbackRevision": 4,
+      "observations": null,
+      "suggestions": null,
+      "functionInvocations": false,
+      "modelCalls": false,
+      "businessWrites": false
+    },
+    "verdict": "New feedback revision invalidates the report; historical report retained",
+    "assistantBusinessWrites": false,
+    "assistantModelCalls": false,
+    "testMarkerRetainedInFeedback": true,
+    "feedbackInvalidationVerified": true,
+    "historicalReportRetained": true,
+    "futureAdjustmentsImplemented": false
+  }
+}

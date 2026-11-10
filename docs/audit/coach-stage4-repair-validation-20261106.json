@@ -1,0 +1,159 @@
+{
+  "date": "2026-11-06",
+  "status": "normal-coach-flow-accepted-final-native-invalidation-verified",
+  "sourceOfIssue": "user-reported WeChat feedback save unclear and coach content validation failure",
+  "cloudEvidence": {
+    "inspectedAt": "2026-11-06T05:33:27.270Z",
+    "readOnly": true,
+    "goalsRead": 27,
+    "goalsComplete": true,
+    "hasGoal": true,
+    "period": [
+      "2026-10-31",
+      "2026-11-06"
+    ],
+    "complete": true,
+    "pastTasks": 0,
+    "completed": 0,
+    "todayPending": 0,
+    "feedbackRevision": 2,
+    "reportStatus": "failed",
+    "latestStoredReportStatus": "failed",
+    "latestReportIsCurrent": true,
+    "latestReportAttempt": 1,
+    "latestReportFailureKind": "content_validation",
+    "feedbackHasNote": true,
+    "latestReportFeedbackRevision": 2,
+    "observations": null,
+    "suggestions": null,
+    "functionInvocations": false,
+    "modelCalls": false,
+    "businessWrites": false
+  },
+  "findings": {
+    "feedbackPersisted": true,
+    "feedbackRevision": 2,
+    "failedReportUsedFeedbackRevision": 2,
+    "firstModelAttemptFailedContentValidation": true,
+    "rawModelOutputRetained": false,
+    "specificInvalidFieldKnown": false,
+    "misleadingLocalStatusAndConflatedValidationErrorsConfirmed": true
+  },
+  "fixes": [
+    "Separate synced/local/pending feedback status and show acknowledged-save toast",
+    "Explicit evidence-ID whitelist and valid JSON example, compact output instructions",
+    "Opt-in JSON object mode and lower temperature only for coach on official DeepSeek endpoint",
+    "Normalize ID boundary whitespace, still reject unknown IDs and invalid structures",
+    "Separate item format, citation format and unknown citation errors; feedback-preservation hint"
+  ],
+  "localVerification": {
+    "node": "v24.22.2",
+    "assertions": 1520,
+    "coachBackendAssertions": 95,
+    "coachClientAssertions": 50,
+    "changedJsSyntaxChecks": 10,
+    "compiledWxmlChecks": 59,
+    "wxmlCompiler": "WeChat Developer Tools wcc",
+    "note": "Final restore-status wording edit followed by targeted coach-client and ai-partner-workspaces rerun; all passed."
+  },
+  "deployment": {
+    "status": "deployed-and-source-verified",
+    "verifiedAt": "2026-11-06T05:35:18.822Z",
+    "changedFiles": [
+      "index.js",
+      "lib/coachFacts.js",
+      "lib/coachService.js"
+    ],
+    "preservedFiles": 3785,
+    "totalFiles": 3788,
+    "configurationUnchanged": true,
+    "authorization": "Same D039 three-file scope already explicitly approved by user; corrective update only"
+  },
+  "assistantBusinessWrites": false,
+  "assistantModelCalls": false,
+  "publishedMiniProgram": false,
+  "realModelRetryVerified": false,
+  "references": [
+    "https://api-docs.deepseek.com/guides/json_mode/"
+  ],
+  "liveAcceptance": {
+    "userResponse": "可以，一切顺利",
+    "feedbackSyncAndModelOutputNormal": true,
+    "cloudReadOnlyEvidence": {
+      "inspectedAt": "2026-11-06T05:39:11.541Z",
+      "readOnly": true,
+      "goalsRead": 27,
+      "goalsComplete": true,
+      "hasGoal": true,
+      "period": [
+        "2026-10-31",
+        "2026-11-06"
+      ],
+      "complete": true,
+      "pastTasks": 0,
+      "completed": 0,
+      "todayPending": 0,
+      "feedbackRevision": 3,
+      "reportStatus": "done",
+      "latestStoredReportStatus": "done",
+      "latestReportIsCurrent": true,
+      "latestReportAttempt": 1,
+      "latestReportFailureKind": "",
+      "feedbackHasNote": true,
+      "latestReportFeedbackRevision": 3,
+      "observations": 3,
+      "suggestions": 2,
+      "functionInvocations": false,
+      "modelCalls": false,
+      "businessWrites": false
+    },
+    "managerSharingVerified": false,
+    "feedbackChangeInvalidationVerified": false
+  },
+  "realModelSuccessWithNewFeedbackFingerprintVerified": true,
+  "finalFeedbackInvalidation": {
+    "date": "2026-11-06",
+    "userNativeResult": {
+      "ok": true,
+      "previousRevision": 4,
+      "cloudRevision": 5,
+      "markerSaved": true,
+      "oldReportAbsent": true,
+      "localDirty": false,
+      "saveError": "",
+      "modelCalls": false
+    },
+    "managementReadonly": {
+      "inspectedAt": "2026-11-06T09:34:35.168Z",
+      "readOnly": true,
+      "goalsRead": 27,
+      "goalsComplete": true,
+      "hasGoal": true,
+      "period": [
+        "2026-10-31",
+        "2026-11-06"
+      ],
+      "complete": true,
+      "pastTasks": 0,
+      "completed": 0,
+      "todayPending": 0,
+      "feedbackRevision": 5,
+      "reportStatus": "",
+      "latestStoredReportStatus": "done",
+      "latestReportIsCurrent": false,
+      "latestReportAttempt": 1,
+      "latestReportFailureKind": "",
+      "feedbackHasNote": true,
+      "latestReportFeedbackRevision": 4,
+      "observations": null,
+      "suggestions": null,
+      "functionInvocations": false,
+      "modelCalls": false,
+      "businessWrites": false
+    },
+    "verdict": "New feedback revision invalidates the report; historical report retained",
+    "assistantBusinessWrites": false,
+    "assistantModelCalls": false,
+    "testMarkerRetainedInFeedback": true
+  }
+}

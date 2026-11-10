@@ -1,0 +1,4 @@
+{
+  "navigationBarTitleText": "森林立绘图鉴",
+  "usingComponents": { "pet-portrait": "../portrait/index" }
+}

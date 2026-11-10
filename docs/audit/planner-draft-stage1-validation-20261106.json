@@ -1,0 +1,30 @@
+{
+  "status": "local-verified-not-deployed",
+  "date": "2026-11-06",
+  "node": "v24.22.2",
+  "sdk": "2.4.0",
+  "assertions": 1168,
+  "newAssertions": 116,
+  "wxmlCompilation": true,
+  "wxssCompilation": true,
+  "compiledRenderAssertions": 10,
+  "approximateLayouts": {
+    "count": 12,
+    "widths": [
+      320,
+      375
+    ],
+    "horizontalOverflow": false,
+    "realWeChat": false
+  },
+  "syntaxFiles": 8,
+  "patchHashes": {
+    "index.js": "5322c1950a29006a5749c82d5069535fa3fd7a6ab30b0746089d82439b0d2e30",
+    "lib/plannerContext.js": "182b58ca5d7536ad04fcfc2f5e82270461645773f9d60b6b1ca3759125f338d7",
+    "lib/plannerDrafts.js": "f7b885c6c1724ea8f71433d1caf2ffcd0f3e0a591c3c8fa506d44359e7080dda"
+  },
+  "cloudWrites": false,
+  "modelCalls": false,
+  "deployed": false,
+  "miniProgramPublished": false
+}

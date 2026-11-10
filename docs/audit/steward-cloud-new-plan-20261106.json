@@ -1,0 +1,49 @@
+{
+  "envId": "cloud1-d5gz9j6zh654f4b36",
+  "inspectedAt": "2026-11-06T04:34:04.392Z",
+  "readOnly": true,
+  "hasRun": true,
+  "status": "awaiting_confirmation",
+  "mode": "new",
+  "next": "wait_user",
+  "draftRevision": 4,
+  "hasCheckpoint": true,
+  "steps": [
+    {
+      "role": "manager",
+      "status": "done"
+    },
+    {
+      "role": "planner",
+      "status": "done"
+    },
+    {
+      "role": "rules",
+      "status": "done"
+    },
+    {
+      "role": "review",
+      "status": "done"
+    }
+  ],
+  "error": "",
+  "reports": [
+    {
+      "mode": "rules",
+      "status": "done",
+      "errorCount": 0,
+      "warningCount": 0,
+      "semanticCount": null
+    },
+    {
+      "mode": "ai",
+      "status": "done",
+      "errorCount": 0,
+      "warningCount": 0,
+      "semanticCount": 7
+    }
+  ],
+  "functionInvocations": false,
+  "modelCalls": false,
+  "businessWrites": false
+}

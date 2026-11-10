@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-06",
+  "status": "native-api-application-verified-test-batch-cleaned",
+  "incident": "Native wx applyAdjustment document.get TransactionBusy",
+  "unchangedDataEvidence": "adjustment-transaction-failure-state-20261106.json",
+  "readOnlyManagerProbe": {
+    "readOnly": true,
+    "modelCalls": false,
+    "businessWrites": false,
+    "parallel": {
+      "ok": true
+    },
+    "serial": {
+      "ok": true
+    }
+  },
+  "change": "Sequential awaits for the same transaction read set; no validation or API removal",
+  "localRegression": {
+    "previousConcurrentReadFailedUnderBusySimulation": true,
+    "fullAssertions": 1840,
+    "node": "v24.22.2",
+    "snapshotIsolationModel": true,
+    "optInSerialTransactionModel": true,
+    "notUniversalTransportRule": true,
+    "syntaxChecks": 3
+  },
+  "deployment": {
+    "authorizedWithinExistingStage5bFiveFileScope": true,
+    "changedFiles": [
+      "lib/adjustmentApplication.js"
+    ],
+    "verifiedAt": "2026-11-06T14:51:42.436Z",
+    "preservedFiles": 3791,
+    "totalFiles": 3792,
+    "configurationPreserved": true,
+    "sourceEvidence": "adjustment-stage5b-txfix-20261106.json"
+  },
+  "realApplicationVerified": true,
+  "cleanupCompleted": true,
+  "businessWrites": false,
+  "modelCalls": false,
+  "miniProgramPublished": false,
+  "nativeSuccessEvidence": "adjustment-stage5b-native-application-20261106.json",
+  "cleanupEvidence": "adjustment-stage5b-test-cleanup-20261106.json"
+}

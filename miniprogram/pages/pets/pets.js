@@ -2,6 +2,14 @@
 const PetConst = require('../../utils/petConstants')
 const PersonalityConfig = require('../../utils/personalityConfig')
 const TitleConfig = require('../../utils/titleConfig')
+const { getPetPortrait } = require('../../utils/petPortrait')
+const { createNavigation } = require('../../utils/aiNavigation')
+const { accountScope } = require('../../utils/userSession')
+const REWARD_PENDING_PREFIX = 'forest_reward_pending_v1:'
+
+function getPetId(pet) {
+  return pet && (pet._id || pet.id)
+}
 
 const DEFAULT_BACKPACK = [
   { name: '普通饲料', count: 3, icon: '🍍', desc: '+10EXP' },
@@ -27,6 +35,7 @@ Page({
     // V6 多宠物卡片列表
     displayPets: [],
     currentSwiperIndex: 0,     // V6: 当前轮播索引
+    campVisible: false,
 
     app: null,
     isEgg: false,
@@ -58,7 +67,8 @@ Page({
     showRenameModal: false,
     renameInput: '',
     activeSection: 'stats',
-    backpack: DEFAULT_BACKPACK,
+    backpack: [],
+    backpackLoadError: false,
 
     // 鏂板寮哄寲鏁版嵁
     bondProgress: null,
@@ -183,7 +193,10 @@ Page({
     showParticle: false,
     showEmptyPetState: false,
     showFloatingFeedback: false,
-    _isUsingItem: false,
+    allocationPending: null,
+    itemPending: null,
+    rewardStorageError: '',
+    rewardBusy: false,
     showStatsPanel: false,
     showGrowthPanel: false,
     showBackpackPanel: false,
@@ -217,19 +230,31 @@ Page({
   },
 
   onShow: function() {
+    this.setData({ campVisible: true })
+    const session = this.syncRewardSession()
+    if (session) this.refreshRewardPending()
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 2 })
     }
     // 【安全修复】离线模式不加载云端数据，避免串号
     var app = getApp()
+    var petIntent = createNavigation(wx, getApp).takePetIntent()
     if (app.isOfflineMode) {
       console.warn('[Pets] 离线模式，跳过云端数据加载')
       this.setData({ loading: false })
       return
     }
+    this._petSelectionIntent = petIntent
     this._initBondMaps()
-    this.loadData()
+    var load = this.loadData()
     this.loadGrowthPool()
+    return load
+  },
+
+  onHide: function() {
+    this._rewardView = (this._rewardView || 0) + 1
+    this._petSelectionIntent = null
+    this.setData({ campVisible: false })
   },
 
   _initBondMaps: function() {
@@ -330,7 +355,7 @@ Page({
     var _attrTypeName = !isEgg ? (topAttrConfig.name || '') : ''
     var sp = PetConst.getSpeciesInfo(pet.species)
     var _speciesName = !isEgg ? (sp.name || '') : ''
-    var stageInfo = PetConst.getStageInfo(pet.stage)
+    var stageInfo = app.currentStage || {}
     var _stageName = !isEgg ? (stageInfo.name || '') : ''
 
     // ===== V5 蛋类型预计算 =====
@@ -387,7 +412,7 @@ Page({
     }
 
     // 觉醒判断
-    var canAwaken = !isEgg && pet.stage === 'ADULT' && !(pet.awakened === true)
+    var canAwaken = !isEgg && ['ADULT', 'PERFECT'].includes(app.currentStage?.key) && pet.awakened !== true
 
     // 粒子特效
     var showParticle = !!(app && app.rarityEffect && app.rarityEffect.particle && app.rarityEffect.particle.enabled)
@@ -427,16 +452,18 @@ Page({
       _raw: pet,
       isEgg: isEgg,
       isHatched: !isEgg,
+      portrait: getPetPortrait(pet, app),
 
       // V7 异色
-      isShiny: pet.is_shiny === true,
+      isShiny: app.isShiny === true,
+      isRare: app.isRare === true,
       // V7.1 颜色档次
-      colorTier: pet.color_tier || 'normal',
+      colorTier: app.colorTier || 'normal',
       colorLabel: pet.color_label || '普通',
       // V8.0 天赋
       talent: pet.talent || 1,
-      talentGrade: pet.talent_grade || 'F',
-      talentName: pet.talent_name || '普通',
+      talentGrade: app.talentGrade || 'F',
+      talentName: app.talentName || '普通',
       // V8.0 天赋显示字段（扁平化供WXML直接使用）
       appTalentIcon: app.talentIcon || '⚪',
       appTalentName: app.talentName || '普通',
@@ -524,13 +551,13 @@ Page({
     }
   },
 
-  // ===== V10.4：合并背包（云端优先，本地兜底）=====
+  // ===== 展示已确认的云端库存 =====
   _mergeBackpack: function(cloudBackpack) {
     var ICON_MAP = { '普通饲料': '🍍', '高级饲料': '🍠', '成长药水': '🍓', '补签卡': '🎣' }
     var DESC_MAP = { '普通饲料': '+10EXP', '高级饲料': '+30EXP', '成长药水': '+30~50XP', '补签卡': '补签一次' }
 
     var rawBackpack
-    if (cloudBackpack && Array.isArray(cloudBackpack) && cloudBackpack.length > 0) {
+    if (Array.isArray(cloudBackpack)) {
       // 云端数据 → 补充 icon/desc（云端只存 name+count）
       rawBackpack = cloudBackpack.map(function(item) {
         return {
@@ -541,75 +568,106 @@ Page({
         }
       })
     } else {
-      // 无云端数据 → 用本地存储或默认值
-      var stored = wx.getStorageSync('pet_backpack')
-      rawBackpack = (stored && Array.isArray(stored) && stored.length > 0)
-        ? stored : DEFAULT_BACKPACK.slice()
+      // A successful null reply means no backpack has been created yet.
+      rawBackpack = cloudBackpack === null ? DEFAULT_BACKPACK : []
     }
 
-    // 标记空物品 + 同步到本地
+    // 标记空物品
     var final = rawBackpack.map(function(item) {
       return Object.assign({}, item, { isEmptyClass: item.count <= 0 ? 'item-empty' : '' })
     })
-    wx.setStorageSync('pet_backpack', final)
     return final
+  },
+
+  async loadBackpack() {
+    const app = getApp()
+    const { currentOpenid, userInfo } = app.globalData
+    const request = this._backpackRead = {}
+    const current = () => request === this._backpackRead &&
+      currentOpenid === app.globalData.currentOpenid && userInfo === app.globalData.userInfo
+    try {
+      const result = await cloudApi.getBackpack({ includeGiftStatus: true })
+      if (!current()) return
+      const hasGiftStatus = typeof result?.children_day_claimed === 'boolean'
+      const items = hasGiftStatus ? result.backpack : result
+      if (items !== null && !Array.isArray(items)) throw new Error('背包返回格式不正确')
+      const backpack = this._mergeBackpack(items)
+      if (hasGiftStatus && result.children_day_claimed) this._childrenGiftConfirmed = true
+      this.setData({ backpack, bagEmpty: !backpack.some(item => item.count > 0), backpackLoadError: false,
+        showChildrenDayGift: !this._childrenGiftConfirmed && (hasGiftStatus || items === null) })
+    } catch (_) {
+      if (current()) this.setData({ backpackLoadError: true })
+    }
   },
 
   loadData: function() {
     var self = this
+    var app = getApp()
+    var owner = app.globalData.currentOpenid
+    var session = app.globalData.userInfo
+    var loadId = this._campLoadId = (this._campLoadId || 0) + 1
+    var intent = this._petSelectionIntent
+    var isCurrentLoad = function() {
+      return loadId === self._campLoadId && owner === app.globalData.currentOpenid && session === app.globalData.userInfo
+    }
+    var takeTarget = function() {
+      if (!intent || intent.scope !== accountScope(app.globalData) || self._petSelectionIntent !== intent) return ''
+      self._petSelectionIntent = null
+      return intent.petId
+    }
     wx.showLoading({ title: '加载中...' })
 
     // 【V10.4】并行请求：云端背包 + 宠物数据
-    var bpPromise = cloudApi.getBackpack().catch(function(err) {
-      console.warn('[Pet] 云端背包同步失败，使用本地:', err)
-      return null  // null 表示回退到本地
-    })
+    var bpPromise = this.loadBackpack()
     var petsPromise = cloudApi.petOverview()
 
-    Promise.all([bpPromise, petsPromise]).then(async function(results) {
-      var cloudBackpack = results[0]
-      var petsList = results[1]
-
-      // ===== 合并背包（云端优先，本地兜底）=====
-      var finalBackpack = self._mergeBackpack(cloudBackpack)
-
-      // 检查儿童节礼包：云端无记录 → 显示领取入口
-      if (cloudBackpack === null || !cloudBackpack) {
-        self.setData({ showChildrenDayGift: true })
-      }
+    return Promise.all([petsPromise, bpPromise]).then(async function(results) {
+      if (!isCurrentLoad()) return
+      var petsList = results[0]
 
       if (!petsList || petsList.length === 0) {
+        self._displayCache = {}
+        self._profileCache = {}
         self.setData({
           loading: false,
           activePet: null,
+          activePetId: '',
+          currentSwiperIndex: 0,
+          petList: [],
+          profileData: null,
           isEgg: false,
           displayPets: [],
           showEmptyPetState: true,
           showEggState: false,
           showHatchedState: false,
-          backpack: finalBackpack,
-          bagEmpty: !finalBackpack.some(function(i) { return i.count > 0 }),
         })
         wx.hideLoading()
+        if (takeTarget()) wx.showToast({ title: '这只宠物已不在森林里', icon: 'none' })
         return
       }
 
       // 遍历所有宠物，构建显示列表
       var displayPets = []
-      self._displayCache = {}  // 清空旧缓存
-       self._profileCache = {} // 清空档案缓存
-       for (var i = 0; i < petsList.length; i++) {
+      var displayCache = {}
+      for (var i = 0; i < petsList.length; i++) {
         var dp = self.buildDisplayPet(petsList[i])
         displayPets.push(dp)
-        self._displayCache[dp._id] = dp  // 缓存以便轮播切换时复用
+        displayCache[dp._id] = dp
       }
 
       // 【V12】将 cloud:// fileID 转换为临时 HTTPS 链接后再 setData
       await self.resolvePetImageUrls(displayPets)
+      if (!isCurrentLoad()) return
+      self._displayCache = displayCache
+      self._profileCache = {}
 
-      // activePet 取第一个（供弹窗/交互使用）
-      var firstDp = displayPets[0]
-      var firstPet = petsList[0]
+      var targetId = takeTarget()
+      var targetIndex = targetId ? displayPets.findIndex(function(dp) { return dp._id === targetId }) : -1
+      // 普通刷新按 ID 保留当前宠物。
+      var selectedId = getPetId(self.data.activePet)
+      var selectedIndex = targetIndex >= 0 ? targetIndex : Math.max(0, displayPets.findIndex(function(dp) { return dp._id === selectedId }))
+      var firstDp = displayPets[selectedIndex]
+      var firstPet = petsList[selectedIndex]
 
       // 合并所有未读事件（打上所属宠物 ID）
       var allUnreadEvents = []
@@ -630,6 +688,7 @@ Page({
 
       // 【V10.5】同步历史物种到云端，返回合并后的完整列表
       cloudApi.syncEverOwnedSpecies(currentSpecies).then(function(syncRes) {
+        if (!isCurrentLoad()) return
         var mergedSpecies = (syncRes && syncRes.all_ever_owned_species)
           ? syncRes.all_ever_owned_species
           : currentSpecies
@@ -646,6 +705,8 @@ Page({
       self.setData({
         loading: false,
         activePet: firstPet,
+        activePetId: getPetId(firstPet) || '',
+        currentSwiperIndex: selectedIndex,
         petList: petsList,
         app: firstDp.app,
         isEgg: firstDp.isEgg,
@@ -705,104 +766,8 @@ Page({
 
         // 宠物陪伴事件：合并所有未读事件
         unreadEvents: allUnreadEvents,
-        activePetId: firstPet.id || firstPet._id || '',
 
-      // P7：完整档案预计算字段（供弹窗使用）
-      profileData: (function() {
-        var SpeciesConfig = require('../../utils/speciesConfig')
-        var _app = firstDp.app
-        var _pet = firstPet
-        var _isEgg = firstDp.isEgg
-
-        // 基本信息
-        var speciesInfo = !_isEgg && _pet.species ? SpeciesConfig.getSpecies(_pet.species) : null
-        var currentStage = !_isEgg && _app.currentStage ? _app.currentStage : null
-
-        // 四维属性（V6新属性：vitality, wisdom, luck, resonance）
-        var rawAttrs2 = _pet.attributes || {}
-        var v6AttrList = [
-          { key: 'vitality', label: '活力', icon: '🔥', color: '#EF5350' },
-          { key: 'wisdom', label: '智慧', icon: '📖', color: '#42A5F5' },
-          { key: 'luck', label: '幸运', icon: '⭐', color: '#FFD54F' },
-          { key: 'resonance', label: '共鸣', icon: '💗', color: '#AB47BC' },
-        ].map(function(attr) {
-          var val = rawAttrs2[attr.key] || 0
-          var percent = Math.min(100, Math.max(0, val))
-          return {
-            key: attr.key,
-            label: attr.label,
-            icon: attr.icon,
-            color: attr.color,
-            val: val,
-            percent: percent,
-          }
-        })
-
-        // BUFF信息
-        var buffInfo = null
-        if (!_isEgg && _app.buffEffect && _app.buffEffect.isActive) {
-          buffInfo = {
-            label: _app.buffEffect.label || '',
-            desc: _app.buffEffect.desc || '',
-          }
-        }
-
-        // 亲密度信息
-        var bondVal = _pet.bond || 0
-        var bondLevelInfo = PetConst.getBondLevelInfo ? PetConst.getBondLevelInfo(bondVal) : { name: '陌生人', icon: '🤝', color: '#999' }
-
-        // 心情
-        var moodKey = _pet.mood || 'normal'
-        var moodConfig = (PetConst.MOOD && PetConst.MOOD[moodKey]) || {}
-        var moodEmoji = moodConfig.emoji || '😐'
-
-        // 陪伴天数
-        var companionDays = Math.max(0, Math.floor((Date.now() - (_pet.hatch_time || _pet.created_at || Date.now())) / 86400000))
-
-        // 蛋类型信息（如果是蛋）
-        var eggTypeInfo = null
-        if (_isEgg) {
-          eggTypeInfo = _app.eggTypeInfo || {}
-        }
-
-        return {
-          // 基本信息
-          species: _pet.species || '',
-          speciesName: speciesInfo ? (speciesInfo.name || '未知') : (_isEgg ? '神秘蛋' : '未知'),
-          speciesIcon: speciesInfo ? (speciesInfo.icon || '❓') : (_isEgg ? '🥚' : '❓'),
-          name: _pet.name || _app.displayName || '未命名',
-          stage: currentStage ? currentStage.key : '',
-          stageName: currentStage ? currentStage.name : (_isEgg ? '蛋期' : '未知'),
-          stageIcon: currentStage ? currentStage.icon : (_isEgg ? '🥚' : '❓'),
-          growthValue: _pet.growth_value || 0,
-          stageMaxGrowth: currentStage ? (currentStage.maxGrowth || 100) : 100,
-          level: _pet.level || 1,
-
-          // 四维属性
-          attrList: v6AttrList,
-
-          // 成长记录
-          growthRecords: firstDp.growthRecords,
-
-          // 性格设定
-          personalityPrompt: _pet.personality_prompt || _pet.personality_desc || '暂无设定',
-
-          // BUFF
-          buffLabel: buffInfo ? buffInfo.label : null,
-          buffDesc: buffInfo ? buffInfo.desc : null,
-
-          // 陪伴信息
-          bond: bondVal,
-          bondLevel: bondLevelInfo,
-          mood: moodKey,
-          moodEmoji: moodEmoji,
-          companionDays: companionDays,
-
-          // 蛋类型
-          isEgg: _isEgg,
-          eggType: _isEgg ? eggTypeInfo : null,
-        }
-      })(),
+        profileData: self.buildPetProfile(firstPet, firstDp),
 
         // UI状态
         showEggState: firstDp.isEgg,
@@ -830,8 +795,6 @@ Page({
         dexCollected: initialDexP && initialDexP.collected ? initialDexP.collected : 0,
         dexTotal: initialDexP && initialDexP.total ? initialDexP.total : 0,
         dexPercent: initialDexP && initialDexP.percent ? initialDexP.percent : 0,
-        bagEmpty: !finalBackpack.some(function(i) { return i.count > 0 }),
-        backpack: finalBackpack,
         statsTabActive: "tab-active",
         growthTabActive: "",
         backpackTabActive: "",
@@ -844,6 +807,7 @@ Page({
         displayPets: displayPets,
       })
       wx.hideLoading()
+      if (targetId && targetIndex < 0) wx.showToast({ title: '这只宠物已不在森林里', icon: 'none' })
 
       // 每日问候（仅当不是蛋状态时显示）
       if (!firstDp.isEgg && firstPet.personality) {
@@ -861,8 +825,10 @@ Page({
       // 图鉴现在由 syncEverOwnedSpecies 统一管理（历史+当前合并）
 
     }).catch(function(err) {
+      if (!isCurrentLoad()) return
       wx.hideLoading()
       self.setData({ loading: false })
+      if (takeTarget()) wx.showToast({ title: '宠物列表加载失败，请返回图鉴重试', icon: 'none' })
       console.error('[PetV5] loadData error:', err)
     })
   },
@@ -883,7 +849,7 @@ Page({
 
     for (var i = 0; i < displayPets.length; i++) {
       var dp = displayPets[i]
-      if (dp.isEgg) continue  // 蛋不走图片加载
+      if (dp.isEgg || dp.portrait) continue  // 蛋和动态立绘不依赖旧云图
       var bs = dp.app && dp.app.baseSprite
       if (bs && typeof bs === 'string' && bs.indexOf('cloud://') === 0) {
         // 保存原始 fileID
@@ -898,48 +864,23 @@ Page({
 
     if (fileList.length === 0) return displayPets
 
-    // 2. 调用 wx.cloud.getTempFileURL 批量转换
+    var urlByFileId = {}
     try {
       var res = await wx.cloud.getTempFileURL({ fileList: fileList })
       var tempUrls = res.fileList || []
-
-      for (var j = 0; j < tempUrls.length; j++) {
-        var item = tempUrls[j]
-        var fid = item.fileID
-        var tempUrl = item.tempFileURL
-        var errMsg = item.errMsg || ''
-        var indices = petIndexMap[fid]
-
-        if (indices && tempUrl && errMsg.indexOf('fail') === -1) {
-          console.log('[PetImageResolve] fileID=' + fid + ' temp=' + tempUrl)
-          for (var k = 0; k < indices.length; k++) {
-            var idx = indices[k]
-            if (displayPets[idx] && displayPets[idx].app) {
-              displayPets[idx].app.baseSprite = tempUrl
-            }
-          }
-        } else if (indices) {
-          // 单个 fileID 转换失败
-          console.warn('[PetImageResolve] 转换失败: fileID=' + fid + ' err=' + errMsg)
-          for (var k = 0; k < indices.length; k++) {
-            var idx = indices[k]
-            if (displayPets[idx] && displayPets[idx].app) {
-              displayPets[idx].app.baseSprite = ''
-            }
-          }
+      tempUrls.forEach(function(item) {
+        if (item.tempFileURL && (item.errMsg || '').indexOf('fail') === -1) {
+          urlByFileId[item.fileID] = item.tempFileURL
         }
-      }
+      })
     } catch (err) {
-      // 整个 API 调用失败，所有 cloud:// baseSprite 置空
       console.warn('[PetImageResolve] getTempFileURL 调用失败:', err)
-      for (var i = 0; i < displayPets.length; i++) {
-        var dp = displayPets[i]
-        if (!dp.isEgg && dp.app && dp.app.baseSprite && typeof dp.app.baseSprite === 'string' && dp.app.baseSprite.indexOf('cloud://') === 0) {
-          console.warn('[PetImageResolve] 回退 emoji species=' + ((dp._raw || {}).species || '?') + ' path=' + dp.app.baseSprite)
-          dp.app.baseSprite = ''
-        }
-      }
     }
+    fileList.forEach(function(fileId) {
+      petIndexMap[fileId].forEach(function(index) {
+        displayPets[index].app.baseSprite = urlByFileId[fileId] || ''
+      })
+    })
 
     return displayPets
   },
@@ -959,6 +900,7 @@ Page({
 
     this.setData({
       showHatchReveal: true,
+      _revealPetId: getPetId(pet),
       _revealSpeciesText: PetConst.getSpeciesInfo(pet.species).name || '???',
       _revealRarityColor: rc.color || '#95A5A6',
       _revealRarityShadow: rc.color || 'rgba(0,0,0,0)',
@@ -973,10 +915,18 @@ Page({
   },
 
   closeHatchReveal: function() {
-    this.setData({ showHatchReveal: false, hatchRevealData: null })
-    if (this.data.activePet) {
+    const revealed = this.data._revealPetId
+    this.setData({ showHatchReveal: false, hatchRevealData: null, _revealPetId: '' })
+    if (getPetId(this.data.activePet) === revealed && revealed) {
       this.setData({ ['activePet._hatch_revealed']: true })
     }
+  },
+
+  chatWithRevealedPet: function() {
+    const petId = this.data._revealPetId
+    createNavigation(wx, getApp).openPartner('chat', { petId, onOpen: () => {
+      if (this.data._revealPetId === petId) this.closeHatchReveal()
+    } })
   },
 
   // 铔嬪垱寤?
@@ -1034,7 +984,11 @@ Page({
 
     var type = e.currentTarget.dataset.type || 'pet'
     var pet = this.data.activePet
-    if (!pet) return
+    var petId = getPetId(pet)
+    if (!petId) return
+    const inFlight = this._petInteractionRequests || (this._petInteractionRequests = new Set())
+    if (inFlight.has(petId)) return
+    inFlight.add(petId)
 
     var self = this
 
@@ -1042,118 +996,43 @@ Page({
     self.setData({ interacting: true, interactBounceClass: "interact-bounce" })
     setTimeout(function() { self.setData({ interacting: false, interactBounceClass: "" }) }, 600)
 
-    cloudApi.petInteract(pet.id, type).then(function(res) {
+    return cloudApi.petInteract(petId, type).then(function(res) {
       if (!res.success) {
         wx.showToast({ title: res.message || '互动失败', icon: 'none' })
         return
       }
 
+      // 响应可能在滑到另一只后返回，只更新发起互动的那只。
+      var current = self.data.petList.find(function(item) { return getPetId(item) === petId })
+      if (!current) return
       var xpEarned = res.xp_earned || 0
       var bondAdded = res.bond_added || 0
+      var updatedPet = {
+        experience: res.new_xp != null ? res.new_xp : (current.experience || 0) + xpEarned,
+        level: res.new_level || current.level,
+        stage: res.new_stage || current.stage,
+        bond: res.new_bond != null ? res.new_bond : current.bond,
+        mood: res.mood || current.mood,
+        mood_message: res.mood_message || current.mood_message,
+      }
+      if (!self._refreshPetUI(petId, updatedPet)) return
+
       var feedbackLines = []
       if (xpEarned > 0) feedbackLines.push('+' + xpEarned + ' XP')
       if (bondAdded > 0) feedbackLines.push('+' + bondAdded + ' 亲密度')
-      var fbText = feedbackLines.join('\n')
+      self._showFloatingFeedback(feedbackLines.join('\n'))
 
-      var newExp = res.new_xp || ((pet.experience || 0) + xpEarned)
-      var newStage = pet.stage
-      var stageChanged = false
-      if (res.stage_changed) { newStage = res.new_stage; stageChanged = true }
-
-      var updatedPet = Object.assign({}, pet, {
-        experience: newExp,
-        level: res.new_level || pet.level,
-        stage: newStage,
-        bond: res.new_bond || pet.bond,
-        mood: res.mood || pet.mood,
-        mood_message: res.mood_message || pet.mood_message,
-      })
-
-      // 【V8.5优化】只在阶段变化时才调用 getPetAppearance（重度）
-      // 普通互动只更新 mood/attrs/bond 等轻量字段
-      var updateData = { activePet: updatedPet }
-      var moodChanged = updatedPet.mood !== pet.mood
-
-      if (stageChanged) {
-        var newApp = PetConst.getPetAppearance(updatedPet)
-        var newColorStyle = ''
-        if (newApp.rarityEffect && newApp.rarityEffect.colorLayer && newApp.rarityEffect.colorLayer.enabled) {
-          newColorStyle = 'filter: hue-rotate(' + newApp.rarityEffect.colorLayer.hueRotate + 'deg) saturate(' + (1 + newApp.rarityEffect.colorLayer.saturate / 100) + ')'
-        }
-        updateData.app = newApp
-        updateData.colorLayerStyle = newColorStyle
-      } else {
-        // 轻量增量更新：心情变了才更新 moodDisplay
-        updateData.app = self.data.app
-        if (moodChanged) {
-          updateData.moodDisplay = PetConst.getMoodDisplay(updatedPet.mood || 'normal')
-          var dialogue = PersonalityConfig.getPersonalityDialogue(pet.personality, updatedPet.name || '??')
-          updateData.personalityDialogue = dialogue
-        }
-      }
-
-      var newBondProgress = PetConst.calcBondProgress(updatedPet.bond || 0)
-      updateData.xpPercent = PetConst.calcXpPercent(newExp, newStage)
-      updateData.bondProgress = newBondProgress
-      updateData.attrList = PetConst.buildAttrList(updatedPet.attributes || {})
-
-      // 【V8.6修复】同步更新 displayPets 中的亲密度相关字段
-      //   之前只更新了 bondProgress 对象，但 WXML 使用的是 dp.bondPercent 等派生字段
-      //   且 setData 未包含 displayPets，框架不知道需要重新渲染
-      var newBondPct = newBondProgress ? newBondProgress.percent : 0
-      var newShowRemaining = newBondProgress && !newBondProgress.isHighest
-      var newRemainingText = newBondProgress && !newBondProgress.isHighest && newBondProgress.nextName
-        ? '距离' + newBondProgress.nextName + '还差' + (newBondProgress.remaining || 0) + '点' : ''
-
-      var cacheKey = updatedPet._id || updatedPet.id
-      var swiperIdx = self.data.currentSwiperIndex || 0
-      var displayPets = self.data.displayPets || []
-      if (self._displayCache[cacheKey]) {
-        var cachedDp = self._displayCache[cacheKey]
-        if (stageChanged && updateData.app) cachedDp.app = updateData.app
-        cachedDp.xpPercent = updateData.xpPercent
-        cachedDp.bondProgress = newBondProgress
-        cachedDp.bondPercent = newBondPct
-        cachedDp.showBondRemaining = newShowRemaining
-        cachedDp.bondRemainingText = newRemainingText
-        cachedDp.attrList = updateData.attrList
-        if (moodChanged && updateData.moodDisplay) cachedDp.moodDisplay = updateData.moodDisplay
-        if (stageChanged && updateData.colorLayerStyle) cachedDp.colorLayerStyle = updateData.colorLayerStyle
-      }
-
-      // 【V8.6修复】把当前宠物的 dp 写回 displayPets 数组并纳入 setData
-      //   让微信框架感知到变化，触发 WXML 重新渲染亲密度进度条
-      if (displayPets[swiperIdx] && displayPets[swiperIdx]._id === cacheKey) {
-        updateData['displayPets[' + swiperIdx + '].bondProgress'] = newBondProgress
-        updateData['displayPets[' + swiperIdx + '].bondPercent'] = newBondPct
-        updateData['displayPets[' + swiperIdx + '].showBondRemaining'] = newShowRemaining
-        updateData['displayPets[' + swiperIdx + '].bondRemainingText'] = newRemainingText
-        updateData['displayPets[' + swiperIdx + '].xpPercent'] = updateData.xpPercent
-        updateData['displayPets[' + swiperIdx + '].attrList'] = updateData.attrList
-        if (moodChanged && updateData.moodDisplay) {
-          updateData['displayPets[' + swiperIdx + '].moodDisplay'] = updateData.moodDisplay
-        }
-      }
-
-      // 浮动反馈
-      self._showFloatingFeedback(fbText)
-
-      // 亲密度里程碑检查（异步，不阻塞）
-      var milestone = PetConst.checkBondMilestone(pet.bond || 0, updatedPet.bond || 0)
+      var milestone = PetConst.checkBondMilestone(current.bond || 0, updatedPet.bond || 0)
       if (milestone) {
-        updateData.bondMilestone = milestone
-        updateData.showBondMilestone = true
+        self.setData({ bondMilestone: milestone, showBondMilestone: true })
         setTimeout(function() {
-          if (self.data.showBondMilestone) {
-            self.setData({ showBondMilestone: false })
-          }
+          if (self.data.showBondMilestone) self.setData({ showBondMilestone: false })
         }, 4000)
       }
-
-      self.setData(updateData)
-
     }).catch(function() {
       wx.showToast({ title: '互动失败', icon: 'none' })
+    }).finally(function() {
+      inFlight.delete(petId)
     })
   },
 
@@ -1163,7 +1042,8 @@ Page({
     var x = 30 + Math.random() * 40
     var y = 30 + Math.random() * 20
     self.setData({
-      floatingFeedback: { text: text, x: x, y: y, id: id }
+      floatingFeedback: { text: text, x: x, y: y, id: id },
+      showFloatingFeedback: true,
     })
     setTimeout(function() {
       if (self.data.floatingFeedback && self.data.floatingFeedback.id === id) {
@@ -1174,271 +1054,209 @@ Page({
 
   // ===== 物品使用（V10.3：按类型分发真实效果）=====
 
-  useItem: function(e) {
-    // 【防重复点击】
-    if (this.data._isUsingItem) return
-    this.setData({ _isUsingItem: true })
-
-    var index = e.currentTarget.dataset.index
-    var item = this.data.backpack[index]
-    if (!item || item.count <= 0) {
-      this.setData({ _isUsingItem: false })
-      return wx.showToast({ title: '道具数量不足', icon: 'none' })
+  syncRewardSession() {
+    const { globalData } = getApp()
+    const scope = accountScope(globalData)
+    const user = scope ? globalData.userInfo : null
+    if (this._rewardSession?.scope === scope && this._rewardSession.user === user) return user ? this._rewardSession : null
+    const changed = !!this._rewardSession
+    if (this._rewardFlight) wx.hideLoading()
+    this._rewardFlight = null
+    this._shownAllocationId = null
+    this._rewardSession = { scope, user }
+    if (changed) {
+      this._childrenGiftConfirmed = false
+      this.setData({ activePet: null, petList: [], displayPets: [], backpack: [], fountainPoolValue: 0,
+        bagEmpty: true, backpackLoadError: false, showStarterGift: false, starterClaimed: false, showChildrenDayGift: false,
+        allocateAmount: '', allocateTargetId: '', allocateTargetName: '', allocatePetList: [],
+        showHatchReveal: false, _revealPetId: '', showStageUpModal: false, showPersonalityModal: false, showPersonalityPromptModal: false })
     }
+    this.setData({ allocationPending: null, itemPending: null, rewardStorageError: '',
+      rewardBusy: false, showAllocateModal: false })
+    return user ? this._rewardSession : null
+  },
 
-    var self = this
-    var pet = this.data.activePet
+  ownsRewardSession(session) {
+    const { globalData } = getApp()
+    return this._rewardSession === session && session.user === globalData.userInfo && session.scope === accountScope(globalData)
+  },
 
-    // 按物品名分发效果
-    var itemName = item.name
-    if (itemName === '成长药水') {
-      self._useGrowthPotion(index, item, pet)
-    } else if (itemName === '补签卡') {
-      self._useMakeupCard(index, item, pet)
-    } else if (itemName === '普通饲料' || itemName === '高级饲料') {
-      self._useFeed(index, item, pet)
+  readRewardPending(kind, session) {
+    const key = REWARD_PENDING_PREFIX + kind + ':' + session.scope
+    const entry = wx.getStorageSync(key) || null
+    if (!entry) return null
+    const { request } = entry
+    if (entry.version !== 1 || typeof entry.label !== 'string' || !request ||
+        typeof request.request_id !== 'string' || !/^[\w:.-]{1,128}$/.test(request.request_id)) {
+      throw new Error('待确认记录无效')
+    }
+    if (kind === 'allocation') {
+      if (typeof request.pet_id !== 'string' || !request.pet_id || !Number.isSafeInteger(request.amount) || request.amount < 1) {
+        throw new Error('待确认灌注无效')
+      }
+    } else if (request.itemName === '补签卡') {
+      if (typeof request.task_id !== 'string' || !request.task_id) throw new Error('待确认补签无效')
+    } else if (!['普通饲料', '高级饲料', '成长药水'].includes(request.itemName) || typeof request.pet_id !== 'string' || !request.pet_id) {
+      throw new Error('待确认道具无效')
+    }
+    return entry
+  },
+
+  refreshRewardPending() {
+    const session = this._rewardSession
+    if (!session?.user || !this.ownsRewardSession(session)) return
+    let readFailed = false
+    for (const kind of ['allocation', 'item']) {
+      try { this.setData({ [kind + 'Pending']: this.readRewardPending(kind, session) }) }
+      catch (_) { readFailed = true }
+    }
+    this.setData({ rewardStorageError: readFailed ? '本机待确认记录读取失败，点击重试。' : '' })
+  },
+
+  saveRewardPending(kind, session, entry) {
+    wx.setStorageSync(REWARD_PENDING_PREFIX + kind + ':' + session.scope, entry)
+    this.setData({ [kind + 'Pending']: entry, rewardStorageError: '' })
+  },
+
+  clearRewardPending(kind, session, entry) {
+    const saved = this.readRewardPending(kind, session)
+    if (saved?.request.request_id === entry.request.request_id) {
+      wx.removeStorageSync(REWARD_PENDING_PREFIX + kind + ':' + session.scope)
+      this.setData({ [kind + 'Pending']: null })
     } else {
-      self._useFeed(index, item, pet)
+      this.setData({ [kind + 'Pending']: saved })
     }
-
-    // 800ms 后解锁（覆盖大多数云端响应时间）
-    setTimeout(function() { self.setData({ _isUsingItem: false }) }, 800)
   },
 
-  // --- 饲料：直接加经验值+成长值到宠物（V10.5：云端确认后才更新UI）---
-  _useFeed: function(index, item, pet) {
-    if (!pet) return wx.showToast({ title: '没有可用的宠物', icon: 'none' })
-
-    var xpMatch = (item.desc || '').match(/\+(\d+)/)
-    var addXp = xpMatch ? parseInt(xpMatch[1]) : 10
-    var self = this
-    var petId = pet._id || pet.id
-
-    console.log('[Pet][useFeed] 开始:', item.name, 'XP:', addXp, '当前exp:', pet.experience, '当前gv:', pet.growth_value, 'petId:', petId)
-
-    wx.showLoading({ title: '使用中...' })
-
-    // 先消耗物品
-    this._consumeItem(index, item)
-
-    var newExp = (pet.experience || 0) + addXp
-    var newGv = (pet.growth_value || 0) + addXp  // 经验和成长值同步增加
-    var newStage = pet.stage || 'EGG'
-    var STAGE_THRESHOLDS = { EGG: 0, BABY: 50, YOUTH: 150, ADULT: 300, PERFECT: 500 }
-    for (var sk in STAGE_THRESHOLDS) {
-      if (newExp >= STAGE_THRESHOLDS[sk]) newStage = sk
-    }
-
-    console.log('[Pet][useFeed] 目标: exp=', newExp, 'gv=', newGv, 'stage=', newStage)
-
-    // 写云端：同时更新 experience + growth_value
-    cloudApi.petUpdate(petId, { experience: newExp, growth_value: newGv, stage: newStage }).then(function(res) {
-      console.log('[Pet][useFeed] ✓ 云端写入成功:', JSON.stringify(res))
-      wx.hideLoading()
-
-      // 用完整更新后的数据构建新显示对象
-      var updatedPet = Object.assign({}, pet, { experience: newExp, growth_value: newGv, stage: newStage })
-
-      self._addGrowthLog(addXp, '使用了【' + item.name + '】')
-      self._showFloatingFeedback('+' + addXp + ' XP')
-      self._refreshPetUI(updatedPet)
-    }).catch(function(err) {
-      console.error('[Pet][useFeed] ✗ 云端写入失败:', err)
-      wx.hideLoading()
-      wx.showToast({ title: '使用失败，请检查网络', icon: 'none' })
-      self._rollbackItem(index, item)
-    })
+  useItem(e) {
+    this.syncRewardSession()
+    return this.settleBackpackItem(this.data.backpack?.[e.currentTarget.dataset.index])
   },
+  resumeBackpackItem() { return this.settleBackpackItem(null, true) },
 
-  // --- 成长药水（V10.5 重做）：90%概率加30-50XP，10%概率随机属性+1 ---
-  _useGrowthPotion: function(index, item, pet) {
-    if (!pet) return wx.showToast({ title: '没有可用的宠物', icon: 'none' })
-    var self = this
-    var petId = pet._id || pet.id
-
-    wx.showLoading({ title: '使用中...' })
-
-    // 随机判定：90% 加经验 / 10% 加属性
-    var roll = Math.random()
-    var isXpMode = roll < 0.9
-
-    // 消耗物品
-    this._consumeItem(index, item)
-
-    var updateData = {}
-    var fbText = ''
-
-    if (isXpMode) {
-      // 【90%】随机 30~50 XP（同步增加成长值，确保界面数字跳动）
-      var addXp = Math.floor(Math.random() * 21) + 30  // 30~50
-      var newExp = (pet.experience || 0) + addXp
-      var newGv = (pet.growth_value || 0) + addXp
-      var newStage = pet.stage || 'EGG'
-      var STAGE_THRESHOLDS = { EGG: 0, BABY: 50, YOUTH: 150, ADULT: 300, PERFECT: 500 }
-      for (var sk in STAGE_THRESHOLDS) {
-        if (newExp >= STAGE_THRESHOLDS[sk]) newStage = sk
+  async settleBackpackItem(item, resume = false) {
+    const session = this.syncRewardSession()
+    if (this._rewardFlight) return
+    if (!session) return wx.showToast({ title: '请先登录', icon: 'none' })
+    let entry
+    try {
+      entry = this.readRewardPending('item', session)
+      this.setData({ itemPending: entry })
+    } catch (_) {
+      this.setData({ rewardStorageError: '本机待确认记录读取失败，请重试。' })
+      return
+    }
+    if (resume && !entry) return
+    if (!resume && entry) return wx.showToast({ title: '请先确认上次道具使用', icon: 'none' })
+    if (!resume && (!item || item.count <= 0)) return wx.showToast({ title: '道具数量不足', icon: 'none' })
+    const pet = this.data.activePet
+    const petId = getPetId(pet)
+    const makeup = (entry?.request.itemName || item?.name) === '补签卡'
+    if (!entry && !makeup && !petId) return wx.showToast({ title: '请先选择宠物', icon: 'none' })
+    const operation = this._rewardFlight = {}
+    this.setData({ rewardBusy: true })
+    wx.showLoading({ title: '使用中...', mask: true })
+    let result
+    try {
+      if (!entry) {
+        const request = { itemName: item.name, request_id: 'item-' + Date.now() + '-' + Math.random().toString(36).slice(2) }
+        let label = pet?.name || '所选宠物'
+        if (makeup) {
+          const tasks = await cloudApi.tasks()
+          if (!this.ownsRewardSession(session)) return
+          const task = tasks.find(row => !row.completed && row.goal_id && (row.id || row._id))
+          if (!task) return wx.showToast({ title: '今天没有可补签的任务', icon: 'none' })
+          request.task_id = task.id || task._id
+          label = task.title || '所选任务'
+        } else {
+          request.pet_id = petId
+        }
+        const next = { version: 1, request, label }
+        try { this.saveRewardPending('item', session, next) }
+        catch (_) {
+          this.setData({ rewardStorageError: '本机未能保留道具操作，请稍后重试。' })
+          return
+        }
+        entry = next
       }
-      updateData.experience = newExp
-      updateData.growth_value = newGv
-      updateData.stage = newStage
-      fbText = '+' + addXp + ' XP 🍓'
-
-      console.log('[Potion] XP模式 +', addXp, '→ exp=', newExp, 'gv=', newGv, newStage)
-    } else {
-      // 【10%】随机属性 +1
-      var ATTR_KEYS = ['strength', 'agility', 'intelligence', 'charm', 'luck']
-      var rawAttrs = pet.attributes || {}
-      var attrKey = ATTR_KEYS[Math.floor(Math.random() * ATTR_KEYS.length)]
-      var newVal = (rawAttrs[attrKey] || 0) + 1
-      updateData.attributes = Object.assign({}, rawAttrs)
-      updateData.attributes[attrKey] = newVal
-      fbText = attrKey + '+1 ⭐'
-
-      console.log('[Potion] 属性模式', attrKey, '+1 →', newVal)
+      result = await cloudApi.useBackpackItemOnce(entry.request)
+      if (!this.ownsRewardSession(session)) return
+      if (!result?.success && !result?.rejected) throw new Error('使用结果未确认')
+      this.clearRewardPending('item', session, entry)
+    } catch (error) {
+      if (!this.ownsRewardSession(session)) return
+      const outdated = error === '未知操作: useBackpackItemOnce'
+      wx.showToast({ title: outdated ? '云端待更新，道具操作已保留' : entry ? '使用结果待确认，请继续确认' : '暂时无法读取补签任务', icon: 'none' })
+      return
+    } finally {
+      if (this._rewardFlight === operation) {
+        this._rewardFlight = null
+        wx.hideLoading()
+        if (this.ownsRewardSession(session)) this.setData({ rewardBusy: false })
+      }
     }
-
-    cloudApi.petUpdate(petId, updateData).then(function(res) {
-      console.log('[Potion] ✓ 云端写入成功')
-      wx.hideLoading()
-
-      var updatedPet = Object.assign({}, pet, updateData)
-      var reason = isXpMode
-        ? ('使用了【成长药水】，+' + fbText)
-        : ('使用了【成长药水】，' + fbText)
-      self._addGrowthLog(isXpMode ? parseInt(fbText.match(/\d+/)[0]) : 0, reason)
-      self._showFloatingFeedback(fbText)
-      self._refreshPetUI(updatedPet)
-    }).catch(function(err) {
-      console.error('[Potion] ✗ 云端写入失败:', err)
-      wx.hideLoading()
-      wx.showToast({ title: '使用失败', icon: 'none' })
-      self._rollbackItem(index, item)
-    })
+    if (!this.ownsRewardSession(session) || !this.data.campVisible) return
+    if (result.rejected) return wx.showToast({ title: result.message || '道具操作未受理', icon: 'none' })
+    if (Array.isArray(result.backpack)) {
+      this._backpackRead = null
+      const backpack = this._mergeBackpack(result.backpack)
+      this.setData({ backpack, backpackLoadError: false, bagEmpty: !backpack.some(row => row.count > 0) })
+    }
+    if (makeup) {
+      this.loadData()
+      wx.showToast({ title: result.already_completed ? '这项任务已完成' : '补签成功', icon: 'success' })
+    } else if (result.already_used) {
+      if (result.pet) this._refreshPetUI(entry.request.pet_id, result.pet)
+      wx.showToast({ title: '已确认这次道具使用', icon: 'none' })
+    } else if (result.pet && this._refreshPetUI(entry.request.pet_id, result.pet)) {
+      this._showFloatingFeedback(result.attribute ? result.attribute + '+1 ⭐' : '+' + result.xp_added + ' XP')
+    }
   },
 
-  // --- 补签卡：对今日未完成任务进行补签 ---
-  _useMakeupCard: function(index, item, pet) {
-    var self = this
+  // 更新同一宠物的原始记录、卡片和当前选择。返回它现在是否可见。
+  _refreshPetUI: function(petId, patch) {
+    const pets = this.data.petList || []
+    var index = pets.findIndex(function(item) { return getPetId(item) === petId })
+    if (index < 0) return false
 
-    // 查找今日未完成的任务
-    cloudApi.tasks().then(function(tasks) {
-      if (!tasks || tasks.length === 0) {
-        self._rollbackItem(index, item)
-        return wx.showToast({ title: '今天还没有创建任务哦', icon: 'none' })
-      }
+    var updatedPet = Object.assign({}, pets[index], patch)
+    var dp = this.buildDisplayPet(updatedPet)
+    var oldCard = this.data.displayPets[index]
+    var fileId = dp.app.baseSprite
+    var needsUrl = !dp.isEgg && !dp.portrait && typeof fileId === 'string' && fileId.indexOf('cloud://') === 0
+    if (needsUrl && oldCard && oldCard.app.rawBaseSprite === fileId && /^https:\/\//.test(oldCard.app.baseSprite)) {
+      dp.app.rawBaseSprite = fileId
+      dp.app.baseSprite = oldCard.app.baseSprite
+      needsUrl = false
+    } else if (needsUrl) {
+      dp.app.baseSprite = ''
+    }
 
-      var undoneTasks = tasks.filter(function(t) {
-        return !t.completed && t.goal_id
+    this._displayCache[petId] = dp
+    delete this._profileCache[petId]
+    var update = {}
+    update['petList[' + index + ']'] = updatedPet
+    update['displayPets[' + index + ']'] = dp
+    this.setData(update)
+    var selected = index === this.data.currentSwiperIndex
+    if (selected) this.switchToPetByIndex(index)
+
+    if (needsUrl) {
+      var self = this
+      var sprite = { isEgg: false, app: { baseSprite: fileId } }
+      this.resolvePetImageUrls([sprite]).then(function() {
+        if (self._displayCache[petId] !== dp) return
+        var cardIndex = self.data.displayPets.findIndex(function(card) { return card._id === petId })
+        if (cardIndex < 0) return
+        dp.app.rawBaseSprite = fileId
+        dp.app.baseSprite = sprite.app.baseSprite
+        var imageUpdate = {}
+        imageUpdate['displayPets[' + cardIndex + '].app'] = dp.app
+        if (cardIndex === self.data.currentSwiperIndex) imageUpdate.app = dp.app
+        self.setData(imageUpdate)
       })
-
-      if (undoneTasks.length === 0) {
-        self._rollbackItem(index, item)
-        return wx.showToast({ title: '今日任务全部已完成~', icon: 'none' })
-      }
-
-      // 消耗物品
-      self._consumeItem(index, item)
-
-      // 补签第一个未完成任务
-      var targetTask = undoneTasks[0]
-      cloudApi.taskCheckin({ task_id: targetTask._id || targetTask.id }).then(function(res) {
-        self._addGrowthLog(0, '使用了【补签卡】，补签了「' + targetTask.title + '」')
-        self._showFloatingFeedback('补签成功 🎣')
-        wx.showToast({ title: '补签成功！+' + (res.xp_earned || 0) + 'XP', icon: 'success' })
-        setTimeout(function() { self.loadData() }, 800)
-      }).catch(function(err) {
-        console.error('[Pet] 补签失败:', err)
-        wx.showToast({ title: '补签失败，请重试', icon: 'none' })
-        self._rollbackItem(index, item)
-      })
-    }).catch(function(err) {
-      console.error('[Pet] 获取任务列表失败:', err)
-      wx.showToast({ title: '获取任务失败，请检查网络', icon: 'none' })
-    })
-  },
-
-  // --- 消耗物品：本地+云端双写（V10.4）---
-  _consumeItem: function(index, item) {
-    var backpack = this.data.backpack.slice()
-    var newCount = item.count - 1
-    backpack[index] = Object.assign({}, item, { count: newCount, isEmptyClass: newCount <= 0 ? 'item-empty' : '' })
-    wx.setStorageSync('pet_backpack', backpack)
-    this.setData({
-      backpack: backpack,
-      bagEmpty: !backpack.some(function(i) { return i.count > 0 })
-    })
-    // 【V10.4】同步扣减云端背包（异步，不阻塞 UI）
-    cloudApi.useBackpackItem(item.name).catch(function(err) {
-      console.warn('[Pet] 云端物品扣减失败:', err)
-    })
-  },
-
-  // --- 回滚物品：本地+云端双恢复 ---
-  _rollbackItem: function(index, item) {
-    var backpack = this.data.backpack.slice()
-    var newCount = item.count + 1
-    backpack[index] = Object.assign({}, item, { count: newCount, isEmptyClass: newCount <= 0 ? 'item-empty' : '' })
-    wx.setStorageSync('pet_backpack', backpack)
-    this.setData({
-      backpack: backpack,
-      bagEmpty: !backpack.some(function(i) { return i.count > 0 })
-    })
-    // 【V10.4】回滚云端（异步）
-    cloudApi.useBackpackItem(item.name).then(function() {
-      // useBackpackItem 是扣减操作，回滚需要加回 → 这里通过重新同步解决
-      cloudApi.getBackpack().then(function(cloudBp) {
-        if (cloudBp) wx.setStorageSync('pet_backpack', cloudBp)
-      }).catch(function() {})
-    }).catch(function(err) {
-      console.warn('[Pet] 云端回滚失败:', err)
-    })
-  },
-
-  // --- 写入成长记录 ---
-  _addGrowthLog: function(xpChange, reason) {
-    cloudApi.addGrowthLog({ xp_change: xpChange, reason: reason, source: 'item_use' }).catch(function(err) {
-      console.warn('[Pet] growth_log写入失败(非致命):', err)
-    })
-  },
-
-  // --- 使用道具后刷新宠物UI（V10.5：重新构建displayPets确保所有派生字段同步）---
-  _refreshPetUI: function(updatedPet) {
-    // 【核心】用更新后的宠物数据重新构建完整显示对象
-    //   这样 _growthValueDisplay / xpPercent / app / stage 等全部派生字段都会正确刷新
-    var newDp = this.buildDisplayPet(updatedPet)
-
-    var cacheKey = updatedPet._id || updatedPet.id
-    var swiperIdx = this.data.currentSwiperIndex || 0
-
-    // 更新缓存
-    if (cacheKey) {
-      this._displayCache[cacheKey] = newDp
     }
-
-    // 构建 setData 对象
-    var updateData = {
-      activePet: updatedPet,
-      app: newDp.app,
-      xpPercent: newDp.xpPercent,
-      colorLayerStyle: '',
-      _growthValue: newDp._growthValue,
-      _growthPercent: newDp._growthPercent,
-      _growthValueDisplay: newDp._growthValueDisplay,
-    }
-    if (newDp.app && newDp.app.rarityEffect && newDp.app.rarityEffect.colorLayer && newDp.app.rarityEffect.colorLayer.enabled) {
-      updateData.colorLayerStyle = 'filter: hue-rotate(' + newDp.app.rarityEffect.colorLayer.hueRotate + 'deg) saturate(' + (1 + newDp.app.rarityEffect.colorLayer.saturate / 100) + ')'
-    }
-
-    // 【关键】同步 displayPets 轮播数组
-    var displayPets = this.data.displayPets || []
-    if (displayPets[swiperIdx] && displayPets[swiperIdx]._id === cacheKey) {
-      displayPets[swiperIdx] = newDp
-      updateData.displayPets = displayPets
-    }
-
-    console.log('[Pet][_refreshPetUI] 刷新完成 exp=', updatedPet.experience, 'gv=', updatedPet.growth_value, 'display=', newDp._growthValueDisplay)
-
-    this.setData(updateData)
+    return selected
   },
 
   // 鏀瑰悕
@@ -1461,13 +1279,10 @@ Page({
     var pet = this.data.activePet
     var self = this
     if (pet) {
-      cloudApi.petUpdate(pet.id, { name: newName }).then(function() {
-        var updatedPet = Object.assign({}, pet, { name: newName })
-        self.setData({
-          activePet: updatedPet,
-          showRenameModal: false,
-          app: PetConst.getPetAppearance(updatedPet),
-        })
+      var petId = getPetId(pet)
+      cloudApi.petUpdate(petId, { name: newName }).then(function() {
+        self._refreshPetUI(petId, { name: newName })
+        self.setData({ showRenameModal: false })
         wx.showToast({ title: '改名成功 🎊', icon: 'success' })
       }).catch(function() {
         wx.showToast({ title: '改名失败', icon: 'none' })
@@ -1548,23 +1363,13 @@ Page({
       success: function(res) {
         if (!res.confirm) return
         wx.showLoading({ title: '觉醒中...' })
-        cloudApi.awakenPet(pet.id).then(function(result) {
+        var petId = getPetId(pet)
+        cloudApi.awakenPet(petId).then(function(result) {
           wx.hideLoading()
           if (result && result.success) {
-            var updatedPet = Object.assign({}, pet, {
+            self._refreshPetUI(petId, {
               awakened: true,
-              name: result.new_name || pet.name,
-            })
-            var newApp = PetConst.getPetAppearance(updatedPet)
-            var newColorStyle = ''
-            if (newApp.rarityEffect && newApp.rarityEffect.colorLayer && newApp.rarityEffect.colorLayer.enabled) {
-              newColorStyle = 'filter: hue-rotate(' + newApp.rarityEffect.colorLayer.hueRotate + 'deg) saturate(' + (1 + newApp.rarityEffect.colorLayer.saturate / 100) + ')'
-            }
-            self.setData({
-              activePet: updatedPet,
-              app: newApp,
-              canAwaken: false,
-              colorLayerStyle: newColorStyle,
+              name: result.awakened_name || result.new_name || pet.name,
             })
             wx.showToast({ title: '✨ 觉醒成功！', icon: 'success' })
           } else {
@@ -1596,6 +1401,101 @@ Page({
 
   // P7：完整档案弹窗
 
+  buildPetProfile: function(_pet, dp) {
+    var SpeciesConfig = require('../../utils/speciesConfig')
+    var _app = dp.app
+    var _isEgg = dp.isEgg
+
+    // 基本信息
+    var speciesInfo = !_isEgg && _pet.species ? SpeciesConfig.getSpecies(_pet.species) : null
+    var currentStage = !_isEgg && _app.currentStage ? _app.currentStage : null
+
+    // 四维属性（V6新属性：vitality, wisdom, luck, resonance）
+    var rawAttrs2 = _pet.attributes || {}
+    var v6AttrList = [
+      { key: 'vitality', label: '活力', icon: '🔥', color: '#EF5350' },
+      { key: 'wisdom', label: '智慧', icon: '📖', color: '#42A5F5' },
+      { key: 'luck', label: '幸运', icon: '⭐', color: '#FFD54F' },
+      { key: 'resonance', label: '共鸣', icon: '💗', color: '#AB47BC' },
+    ].map(function(attr) {
+      var val = rawAttrs2[attr.key] || 0
+      var percent = Math.min(100, Math.max(0, val))
+      return {
+        key: attr.key,
+        label: attr.label,
+        icon: attr.icon,
+        color: attr.color,
+        val: val,
+        percent: percent,
+      }
+    })
+
+    // BUFF信息
+    var buffInfo = null
+    if (!_isEgg && _app.buffEffect && _app.buffEffect.isActive) {
+      buffInfo = {
+        label: _app.buffEffect.label || '',
+        desc: _app.buffEffect.desc || '',
+      }
+    }
+
+    // 亲密度信息
+    var bondVal = _pet.bond || 0
+    var bondLevelInfo = PetConst.getBondLevelInfo ? PetConst.getBondLevelInfo(bondVal) : { name: '陌生人', icon: '🤝', color: '#999' }
+
+    // 心情
+    var moodKey = _pet.mood || 'normal'
+    var moodConfig = (PetConst.MOOD && PetConst.MOOD[moodKey]) || {}
+    var moodEmoji = moodConfig.emoji || '😐'
+
+    // 陪伴天数
+    var companionDays = Math.max(0, Math.floor((Date.now() - (_pet.hatch_time || _pet.created_at || Date.now())) / 86400000))
+
+    // 蛋类型信息（如果是蛋）
+    var eggTypeInfo = null
+    if (_isEgg) {
+      eggTypeInfo = _app.eggTypeInfo || {}
+    }
+
+    return {
+      // 基本信息
+      species: _pet.species || '',
+      speciesName: speciesInfo ? (speciesInfo.name || '未知') : (_isEgg ? '神秘蛋' : '未知'),
+      speciesIcon: speciesInfo ? (speciesInfo.icon || '❓') : (_isEgg ? '🥚' : '❓'),
+      name: _pet.name || _app.displayName || '未命名',
+      stage: currentStage ? currentStage.key : '',
+      stageName: currentStage ? currentStage.name : (_isEgg ? '蛋期' : '未知'),
+      stageIcon: currentStage ? currentStage.icon : (_isEgg ? '🥚' : '❓'),
+      growthValue: _pet.growth_value || 0,
+      stageMaxGrowth: currentStage ? (currentStage.maxGrowth || 100) : 100,
+      level: _pet.level || 1,
+
+      // 四维属性
+      attrList: v6AttrList,
+
+      // 成长记录
+      growthRecords: dp.growthRecords,
+
+      // 性格设定
+      personalityPrompt: _pet.personality_prompt || _pet.personality_desc || '暂无设定',
+
+      // BUFF
+      buffLabel: buffInfo ? buffInfo.label : null,
+      buffDesc: buffInfo ? buffInfo.desc : null,
+
+      // 陪伴信息
+      bond: bondVal,
+      bondLevel: bondLevelInfo,
+      mood: moodKey,
+      moodEmoji: moodEmoji,
+      companionDays: companionDays,
+
+      // 蛋类型
+      isEgg: _isEgg,
+      eggType: _isEgg ? eggTypeInfo : null,
+    }
+  },
+
   openProfile: function() {
     if (!this.data.profileData) return
     this.setData({ showProfileModal: true })
@@ -1609,31 +1509,18 @@ Page({
 
   loadGrowthPool: function() {
     var self = this
-    cloudApi.getGrowthPool().then(function(res) {
-      if (res.success) {
-        var poolVal = res.growth_pool || 0
-        // 同步池子值到每个 displayPet
-        var displayPets = self.data.displayPets || []
-        if (displayPets.length > 0) {
-          for (var i = 0; i < displayPets.length; i++) {
-            displayPets[i]._poolValue = poolVal
-          }
-        }
-        self.setData({
-          _poolValue: poolVal,
-          _poolTotalEarned: res.total_earned || 0,
-          fountainPoolValue: poolVal,
-          fountainTotalEarned: res.total_earned || 0,
-          displayPets: displayPets,
-        })
-      }
-      // 检查新手礼包状态
-      var starterClaimed = !!(res.starter_claimed)
-      if (!starterClaimed && (res.growth_pool || 0) < 100) {
-        self.setData({ showStarterGift: true, starterClaimed: false })
-      } else {
-        self.setData({ showStarterGift: false, starterClaimed: starterClaimed })
-      }
+    const app = getApp()
+    const owner = app.globalData.currentOpenid
+    const session = app.globalData.userInfo
+    const request = this._growthPoolRead = {}
+    return cloudApi.getGrowthPool().then(function(res) {
+      if (request !== self._growthPoolRead || owner !== app.globalData.currentOpenid || session !== app.globalData.userInfo || !res?.success) return
+      const poolVal = res.growth_pool || 0
+      const displayPets = (self.data.displayPets || []).map(pet => ({ ...pet, _poolValue: poolVal }))
+      const starterClaimed = self.data.starterClaimed || !!res.starter_claimed
+      self.setData({ _poolValue: poolVal, _poolTotalEarned: res.total_earned || 0, fountainPoolValue: poolVal,
+        fountainTotalEarned: res.total_earned || 0, displayPets,
+        showStarterGift: !starterClaimed && poolVal < 100, starterClaimed })
     }).catch(function() {})
   },
 
@@ -1696,17 +1583,15 @@ Page({
     if (desc.length > 50) return wx.showToast({ title: '最多50个字哦', icon: 'none' })
 
     var pet = this.data.activePet
+    if (!pet) return
     var self = this
-    cloudApi.setPersonality({ pet_id: pet._id || pet.id, personality_desc: desc }).then(function(res) {
+    var petId = getPetId(pet)
+    cloudApi.setPersonality({ pet_id: petId, personality_desc: desc }).then(function(res) {
       self.setData({
         showPersonalityModal: false,
         personalityInput: '',
       })
-      // 更新本地宠物数据
-      if (pet) {
-        var updatedPet = Object.assign({}, pet, { personality_desc: desc })
-        self.setData({ activePet: updatedPet })
-      }
+      self._refreshPetUI(petId, { personality_desc: desc })
       wx.showToast({ title: '性格记录成功 ✨', icon: 'success' })
     }).catch(function() {
       wx.showToast({ title: '记录失败', icon: 'none' })
@@ -1717,6 +1602,21 @@ Page({
 
   // 打开分配弹窗
   openAllocateModal: function() {
+    const session = this.syncRewardSession()
+    if (this._rewardFlight) return
+    if (!session) return wx.showToast({ title: '请先登录', icon: 'none' })
+    try {
+      const pending = this.readRewardPending('allocation', session)
+      this.setData({ allocationPending: pending })
+      if (pending) {
+        this._shownAllocationId = pending.request.request_id
+        return this.setData({ showAllocateModal: true })
+      }
+    } catch (_) {
+      this.setData({ rewardStorageError: '本机待确认记录读取失败，点击重试。' })
+      return
+    }
+    this._shownAllocationId = null
     if (this.data.fountainPoolValue <= 0) {
       return wx.showToast({ title: '泉水是空的哦～', icon: 'none' })
     }
@@ -1778,6 +1678,7 @@ Page({
 
   // 选择目标宠物
   selectAllocateTarget: function(e) {
+    if (this.data.allocationPending || this._rewardFlight) return
     var idx = e.currentTarget.dataset.index
     var list = this.data.allocatePetList
     if (!list || !list[idx]) return
@@ -1791,109 +1692,154 @@ Page({
 
   // 输入分配数量
   onAllocateInput: function(e) {
+    if (this.data.allocationPending || this._rewardFlight) return
     this.setData({ allocateAmount: e.detail.value })
   },
 
   // 确认分配
-  confirmAllocate: function() {
-    var amountStr = this.data.allocateAmount && this.data.allocateAmount.trim()
-    if (!amountStr) return wx.showToast({ title: '请输入分配数量', icon: 'none' })
-
-    var amount = parseInt(amountStr)
-    if (isNaN(amount) || amount <= 0) return wx.showToast({ title: '请输入有效数字', icon: 'none' })
-    if (amount > this.data.allocateMaxPool) return wx.showToast({ title: '不能超过池子余额', icon: 'none' })
-
-    if (!this.data.allocateTargetId) return wx.showToast({ title: '请选择目标宠物', icon: 'none' })
-
-    var self = this
-    self.setData({ showAllocateModal: false }) // 先关弹窗
-
-    wx.showLoading({ title: '灌注中...' })
-
-    cloudApi.allocatePool({
-      pet_id: self.data.allocateTargetId,
-      amount: amount,
-    }).then(function(res) {
-      wx.hideLoading()
-
-      // 刷新池子和宠物数据
-      self.loadGrowthPool()
-      self.loadData()
-
-      // 显示结果
-      if (res.message) {
-        wx.showToast({ title: res.message, icon: 'success', duration: 2000 })
+  async confirmAllocate() {
+    const session = this.syncRewardSession()
+    if (this._rewardFlight) return
+    if (!session) return wx.showToast({ title: '请先登录并选择宠物', icon: 'none' })
+    let entry
+    try {
+      entry = this.readRewardPending('allocation', session)
+      this.setData({ allocationPending: entry })
+    } catch (_) {
+      this.setData({ rewardStorageError: '本机待确认记录读取失败，点击重试。' })
+      return
+    }
+    if (entry && entry.request.request_id !== this._shownAllocationId) return this.openAllocateModal()
+    if (!entry && this._shownAllocationId) {
+      this._shownAllocationId = null
+      return this.closeAllocateModal()
+    }
+    if (!entry) {
+      const amountStr = this.data.allocateAmount?.trim()
+      const amount = Number(amountStr)
+      if (!/^\d+$/.test(amountStr) || !Number.isSafeInteger(amount) || amount < 1) {
+        return wx.showToast({ title: '请输入有效的整数', icon: 'none' })
       }
-
-      // 处理孵化结果（V8.4修复：分配触发孵化时显示揭晓弹窗）
-      if (res.hatched === true && res.pet) {
-        // 延迟显示揭晓弹窗（等loadData刷新完UI后再展示）
-        setTimeout(function() {
-          var revealPet = res.pet
-          var rc = { color: '#95A5A6', name: '普通' }
-          if (revealPet.rarity === 'rare') rc = { color: '#448AFF', name: '稀有' }
-          else if (revealPet.rarity === 'epic') rc = { color: '#9C27B0', name: '史诗' }
-          else if (revealPet.rarity === 'legendary') rc = { color: '#FF9800', name: '传说' }
-
-          var spInfo = PetConst.getSpeciesInfo(revealPet.species)
-          var attrType = revealPet.attribute_type || ''
-          var attrInfo = PetConst.getAttributeInfo(attrType)
-          var rawAttrs = revealPet.attributes || {}
-          var attrListWithVals = PetConst.buildAttrList(rawAttrs)
-
-          self.setData({
-            showHatchReveal: true,
-            _revealSpeciesText: spInfo.name || '神秘生物',
-            _revealRarityColor: rc.color,
-            _revealRarityShadow: rc.color,
-            _revealRarityName: rc.name,
-            _revealAttrName: attrInfo ? attrInfo.name : '',
-            _revealAttrColor: attrInfo ? attrInfo.color : '#999',
-            _revealAttrs: attrListWithVals,
-          })
-        }, 800)
+      const petId = this.data.allocateTargetId
+      if (!petId) return wx.showToast({ title: '请先选择宠物', icon: 'none' })
+      if (amount > this.data.allocateMaxPool) return wx.showToast({ title: '不能超过池子余额', icon: 'none' })
+      entry = { version: 1, label: this.data.allocateTargetName || '所选宠物',
+        request: { pet_id: petId, amount, request_id: 'fountain-' + Date.now() + '-' + Math.random().toString(36).slice(2) } }
+      try { this.saveRewardPending('allocation', session, entry) }
+      catch (_) {
+        this.setData({ rewardStorageError: '本机未能保留灌注操作，请稍后重试。' })
+        return
       }
-
-      // 处理阶段升级弹窗
-      if (res.stage_up) {
-        var attrBonusList = Object.keys(res.attr_bonus || {}).map(function(k) {
-          var icons = { wisdom: '💡', luck: '🍀', vitality: '❤️', resonance: '💗' }
-          var names = { wisdom: '智慧', luck: '幸运', vitality: '活力', resonance: '共鸣' }
-          return { key: k, icon: icons[k] || '⭐', name: names[k] || k, value: res.attr_bonus[k] }
-        })
-
-        setTimeout(function() {
-          self.setData({
-            showStageUpModal: true,
-            _stageUpData: res.stage_up,
-            _attrBonusList: attrBonusList,
-          })
-        }, 1500)
+    }
+    const operation = this._rewardFlight = {}
+    this._shownAllocationId = entry.request.request_id
+    this.setData({ rewardBusy: true, showAllocateModal: false })
+    wx.showLoading({ title: '灌注中...', mask: true })
+    let result
+    try {
+      result = await cloudApi.allocatePoolOnce(entry.request)
+      if (!this.ownsRewardSession(session)) return
+      if (!result?.success && !result?.rejected) throw new Error('灌注结果未确认')
+      this.clearRewardPending('allocation', session, entry)
+      this._shownAllocationId = null
+    } catch (error) {
+      if (!this.ownsRewardSession(session)) return
+      const outdated = error === '未知操作: allocatePoolOnce'
+      wx.showToast({ title: outdated ? '云端待更新，灌注操作已保留' : '灌注结果待确认，请继续确认', icon: 'none' })
+      return
+    } finally {
+      if (this._rewardFlight === operation) {
+        this._rewardFlight = null
+        wx.hideLoading()
+        if (this.ownsRewardSession(session)) this.setData({ rewardBusy: false })
       }
+    }
+    if (!this.ownsRewardSession(session) || !this.data.campVisible) return
+    if (result.rejected) return wx.showToast({ title: result.message || '灌注操作未受理', icon: 'none' })
+    this.showAllocationResult(result, entry.request, session)
+  },
 
-      // 处理孵化后性格输入
-      if (res.need_personality) {
-        setTimeout(function() {
-          self.setData({ showPersonalityModal: true })
-        }, 2000)
-      }
+  showAllocationResult(res, request, session) {
+    const self = this
+    const { amount, pet_id: petId } = request
+    const view = this._rewardView
+    const current = () => view === self._rewardView && self.ownsRewardSession(session) && self.data.campVisible
+    // 刷新池子和宠物数据
+    self.loadGrowthPool()
+    self.loadData()
 
-      // P4：跨阶段升级时需要性格期望
-      if (res.need_personality_prompt) {
-        var targetId = self.data.allocateTargetId || ''
+    // 显示结果
+    if (res.message) {
+      var title = res.hatched && res.allocated < amount ? '已孵化，剩余成长留在泉水' : res.message
+      wx.showToast({ title: title, icon: 'none', duration: 2000 })
+    }
+
+    // 处理孵化结果（V8.4修复：分配触发孵化时显示揭晓弹窗）
+    if (res.hatched === true && res.pet) {
+      // 延迟显示揭晓弹窗（等loadData刷新完UI后再展示）
+      setTimeout(function() {
+        if (!current()) return
+        var revealPet = res.pet
+        var rc = { color: '#95A5A6', name: '普通' }
+        if (revealPet.rarity === 'rare') rc = { color: '#448AFF', name: '稀有' }
+        else if (revealPet.rarity === 'epic') rc = { color: '#9C27B0', name: '史诗' }
+        else if (revealPet.rarity === 'legendary') rc = { color: '#FF9800', name: '传说' }
+
+        var spInfo = PetConst.getSpeciesInfo(revealPet.species)
+        var attrType = revealPet.attribute_type || ''
+        var attrInfo = PetConst.getAttributeInfo(attrType)
+        var rawAttrs = revealPet.attributes || {}
+        var attrListWithVals = PetConst.buildAttrList(rawAttrs)
+
         self.setData({
-          showPersonalityPromptModal: true,
-          promptPetId: targetId,
-          promptTargetStage: (res.stage_up && res.stage_up.name) || '',
-          personalityPromptText: '',
+          showHatchReveal: true,
+          _revealPetId: getPetId(revealPet),
+          _revealSpeciesText: spInfo.name || '神秘生物',
+          _revealRarityColor: rc.color,
+          _revealRarityShadow: rc.color,
+          _revealRarityName: rc.name,
+          _revealAttrName: attrInfo ? attrInfo.name : '',
+          _revealAttrColor: attrInfo ? attrInfo.color : '#999',
+          _revealAttrs: attrListWithVals,
         })
-      }
+      }, 800)
+    }
 
-    }).catch(function(err) {
-      wx.hideLoading()
-      var msg = typeof err === 'string' ? err : (err.message || '分配失败')
-      wx.showToast({ title: msg, icon: 'none' })
-    })
+    // 处理阶段升级弹窗
+    if (res.stage_up) {
+      var attrBonusList = Object.keys(res.attr_bonus || {}).map(function(k) {
+        var icons = { wisdom: '💡', luck: '🍀', vitality: '❤️', resonance: '💗' }
+        var names = { wisdom: '智慧', luck: '幸运', vitality: '活力', resonance: '共鸣' }
+        return { key: k, icon: icons[k] || '⭐', name: names[k] || k, value: res.attr_bonus[k] }
+      })
+
+      setTimeout(function() {
+        if (!current()) return
+        self.setData({
+          showStageUpModal: true,
+          _stageUpData: res.stage_up,
+          _attrBonusList: attrBonusList,
+        })
+      }, 1500)
+    }
+
+    // 处理孵化后性格输入
+    if (res.need_personality) {
+      setTimeout(function() {
+        if (!current()) return
+        self.setData({ showPersonalityModal: true })
+      }, 2000)
+    }
+
+    // P4：跨阶段升级时需要性格期望
+    if (res.need_personality_prompt) {
+      self.setData({
+        showPersonalityPromptModal: true,
+        promptPetId: petId,
+        promptTargetStage: (res.stage_up && res.stage_up.name) || '',
+        personalityPromptText: '',
+      })
+    }
   },
 
   // 关闭分配弹窗
@@ -1910,11 +1856,13 @@ Page({
 
   // 一键填入全部
   setAllAmount: function() {
+    if (this.data.allocationPending || this._rewardFlight) return
     this.setData({ allocateAmount: String(this.data.allocateMaxPool) })
   },
 
   // 快捷投入按钮
   quickAddAmount: function(e) {
+    if (this.data.allocationPending || this._rewardFlight) return
     var addAmount = parseInt(e.currentTarget.dataset.amount) || 0
     var currentVal = parseInt(this.data.allocateAmount) || 0
     var maxPool = this.data.allocateMaxPool || 0
@@ -2025,51 +1973,11 @@ Page({
       this._displayCache[dp._id] = dp
     }
 
-    // P7：完整档案 — 同样使用缓存
-    var profileData = this.data.profileData
-    if (!this._profileCache) this._profileCache = {}
-    var pCacheKey = rawPet._id || rawPet.id
-    if (!this._profileCache[pCacheKey] || dp.isEgg) {
-      var SpeciesConfig = require('../../utils/speciesConfig')
-      var _app = dp.app
-      profileData = (function() {
-        if (!rawPet.is_hatched) return null
-        var sp = SpeciesConfig.getSpecies(rawPet.species)
-        if (!sp) return null
-        var baseInfo = {
-          species_id: sp.id,
-          species_name: sp.name,
-          category: sp.category,
-          rarity: rawPet.rarity || 'common',
-          color_tier: rawPet.color_tier || 'normal',
-          color_label: rawPet.color_label || '普通',
-          talent: rawPet.talent || 1,
-          talent_grade: rawPet.talent_grade || 'F',
-          talent_name: rawPet.talent_name || '普通',
-          hatch_time: rawPet.hatch_time,
-          awakened: rawPet.awakened === true,
-        }
-        var stageInfo = PetConst.getStageInfo(rawPet.stage)
-        var attrNames = { vitality: '活力', wisdom: '智慧', luck: '幸运', resonance: '共鸣' }
-        var attrs = (rawPet.attributes || {})
-        var attrDisplay = Object.keys(attrNames).map(function(k) {
-          return { key: k, name: attrNames[k], value: attrs[k] || 0 }
-        })
-        return {
-          base: baseInfo,
-          stage: stageInfo ? { key: stageInfo.key, name: stageInfo.name } : null,
-          level: rawPet.level || 1,
-          bond: rawPet.bond || 0,
-          mood: rawPet.mood || 'normal',
-          attributes: attrDisplay,
-          growth_records: dp.growthRecords,
-          titles: rawPet.titles || [],
-          personality: rawPet.personality,
-        }
-      })()
-      if (!dp.isEgg) this._profileCache[pCacheKey] = profileData
-    } else {
-      profileData = this._profileCache[pCacheKey]
+    var petId = getPetId(rawPet)
+    var profileData = this._profileCache[petId]
+    if (!profileData) {
+      profileData = this.buildPetProfile(rawPet, dp)
+      this._profileCache[petId] = profileData
     }
 
     this.setData({
@@ -2132,58 +2040,43 @@ Page({
     this.switchToPetByIndex(idx)
   },
 
-  // ===== 新手礼包 =====
+  // ===== 森林礼包 =====
+  claimStarterXp() { return this.claimForestGift(true) },
+  claimChildrenDayGift() { return this.claimForestGift(false) },
 
-  claimStarterXp: function() {
-    var self = this
-    wx.showLoading({ title: '领取中...' })
-    cloudApi.claimStarterXp().then(function(res) {
-      wx.hideLoading()
-      if (res.success) {
-        self.setData({ showStarterGift: false, starterClaimed: true })
-        // 刷新池子
-        self.loadGrowthPool()
-        wx.showToast({ title: res.message, icon: 'success', duration: 2500 })
-      } else {
-        if (res.already_claimed) {
-          self.setData({ showStarterGift: false, starterClaimed: true })
-        }
-        wx.showToast({ title: res.message || '领取失败', icon: 'none' })
+  async claimForestGift(starter) {
+    const session = this.syncRewardSession()
+    if (!session || this._rewardFlight || !this.data[starter ? 'showStarterGift' : 'showChildrenDayGift']) return
+    const operation = this._rewardFlight = {}
+    this.setData({ rewardBusy: true })
+    wx.showLoading({ title: '领取中...', mask: true })
+    let receipt
+    try {
+      receipt = await (starter ? cloudApi.claimStarterXp() : cloudApi.claimChildrenDayGift())
+    } catch (_) {
+      // A refresh can reconcile a committed claim even if its response was lost.
+    } finally {
+      if (this._rewardFlight === operation) {
+        this._rewardFlight = null
+        wx.hideLoading()
+        if (this.ownsRewardSession(session)) this.setData({ rewardBusy: false })
       }
-    }).catch(function(err) {
-      wx.hideLoading()
-      wx.showToast({ title: typeof err === 'string' ? err : '领取失败', icon: 'none' })
-    })
-  },
-
-  // ===== V10.4：儿童节礼包（每人一次，各20个道具）=====
-  claimChildrenDayGift: function() {
-    var self = this
-    wx.showLoading({ title: '领取中...' })
-    cloudApi.claimChildrenDayGift().then(function(res) {
-      wx.hideLoading()
-      if (res.success) {
-        self.setData({ showChildrenDayGift: false })
-        // 刷新背包（从云端重新拉取）
-        cloudApi.getBackpack().then(function(cloudBp) {
-          var finalBackpack = self._mergeBackpack(cloudBp)
-          self.setData({
-            backpack: finalBackpack,
-            bagEmpty: !finalBackpack.some(function(i) { return i.count > 0 }),
-          })
-        }).catch(function() {})
-        wx.showToast({ title: res.message, icon: 'success', duration: 3000 })
-      } else {
-        if (res.already_claimed) {
-          self.setData({ showChildrenDayGift: false })
-        }
-        wx.showToast({ title: res.message || '领取失败', icon: 'none' })
+    }
+    if (!this.ownsRewardSession(session)) return
+    const confirmed = receipt?.success === true || receipt?.already_claimed === true
+    if (confirmed) {
+      if (starter) this.setData({ showStarterGift: false, starterClaimed: true })
+      else {
+        this._childrenGiftConfirmed = true
+        this.setData({ showChildrenDayGift: false })
       }
-    }).catch(function(err) {
-      wx.hideLoading()
-      console.error('[Pet] 儿童节礼包领取失败:', err)
-      wx.showToast({ title: '网络错误，请重试', icon: 'none' })
+    }
+    if (!this.data.campVisible) return
+    wx.showToast({
+      title: receipt?.message || (confirmed ? '礼包已领取' : '领取结果待确认，请核对礼包状态'),
+      icon: confirmed && !receipt.already_claimed ? 'success' : 'none',
     })
+    if (confirmed || !receipt) return starter ? this.loadGrowthPool() : this.loadBackpack()
   },
 
   randomRefreshEgg: function() {

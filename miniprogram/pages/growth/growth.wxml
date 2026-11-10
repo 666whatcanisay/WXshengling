@@ -11,11 +11,11 @@
     </view>
 
   <!-- 统计概览（3项） -->
-  <view class="card-solid overview-row">
+  <view wx:if="{{!loading && !loadError}}" class="card-solid overview-row">
     <view class="overview-item">
       <text class="overview-icon">⭐</text>
       <text class="overview-num">{{stats.totalXp}}</text>
-      <text class="overview-label">总经验</text>
+      <text class="overview-label">近期经验变动</text>
     </view>
     <view class="overview-divider"></view>
     <view class="overview-item">
@@ -83,7 +83,7 @@
   </view>
 
   <!-- 时间线列表 -->
-  <view class="timeline-wrap">
+  <view wx:if="{{!loading && !loadError}}" class="timeline-wrap">
     <view
       wx:for="{{filteredLogs}}"
       wx:key="id"
@@ -105,17 +105,24 @@
           <text class="tl-content">{{item.content}}</text>
         </view>
         <view class="tl-footer">
-          <text class="tl-date">{{item.created_at.slice(0,10)}}</text>
-          <text wx:if="{{item.xp_amount}}" class="tl-xp">+{{item.xp_amount}} XP</text>
+          <text class="tl-date">{{item.createdDate}}</text>
+          <text wx:if="{{item.xp_amount}}" class="tl-xp">{{item.xpText}} XP</text>
         </view>
       </view>
     </view>
   </view>
 
   <!-- 空状态 -->
-  <view wx:if="{{filteredLogs.length === 0 && !loading}}" class="empty-tip">
+  <view wx:if="{{loading}}" class="empty-tip">
+    <text class="empty-text">正在加载成长记录…</text>
+  </view>
+  <view wx:elif="{{loadError}}" class="empty-tip">
+    <text class="empty-text">{{loadError}}</text>
+    <button class="btn-leaf" bindtap="loadLogs">重新加载</button>
+  </view>
+  <view wx:elif="{{filteredLogs.length === 0}}" class="empty-tip">
     <text class="empty-icon">🍂</text>
-    <text class="empty-text">暂无成长记录哦～</text>
+    <text class="empty-text">{{filter === 'all' ? '暂无成长记录哦～' : '这个分类暂无记录'}}</text>
   </view>
 
     </view>

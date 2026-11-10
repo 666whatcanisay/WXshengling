@@ -1,0 +1,25 @@
+{
+  "status": "deployed-and-source-verified",
+  "envId": "cloud1-d5gz9j6zh654f4b36",
+  "function": "app-node24",
+  "runtime": "Nodejs24.11",
+  "changedFiles": [
+    "index.js",
+    "lib/plannerContext.js",
+    "lib/plannerDrafts.js",
+    "lib/plannerReviewRules.js",
+    "lib/plannerReviews.js"
+  ],
+  "preservedFiles": 3778,
+  "expectedTotalFiles": 3783,
+  "incrementalZipFiles": [
+    "index.js",
+    "lib/plannerContext.js",
+    "lib/plannerDrafts.js",
+    "lib/plannerReviewRules.js",
+    "lib/plannerReviews.js"
+  ],
+  "databaseWrites": false,
+  "modelCalls": false,
+  "miniProgramPublish": false
+}

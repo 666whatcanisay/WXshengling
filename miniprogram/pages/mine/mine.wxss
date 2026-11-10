@@ -57,6 +57,7 @@
 
 /* 菜单项 */
 .menu-card-item { display: flex; align-items: center; padding: 26rpx 30rpx; gap: 18rpx; }
+.menu-contact { width: 100%; box-sizing: border-box; margin: 0 0 12rpx; line-height: normal; text-align: left; }
 
 /* 菜单图标（更大更装饰） */
 .menu-icon { font-size: 38rpx; width: 46rpx; text-align: center; flex-shrink: 0; }

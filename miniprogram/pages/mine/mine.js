@@ -1,5 +1,6 @@
 const cloudApi = require('../../utils/cloudApi')
 const PetConst = require('../../utils/petConstants')
+const { createNavigation } = require('../../utils/aiNavigation')
 
 function getPetEmoji(stage) {
   return { egg: '🥚', baby: '🐥', youth: '🐾', adult: '🦦', perfect: '⭐' }[stage] || '🥚'
@@ -30,25 +31,30 @@ function buildCollectionMaps() {
   return { speciesMap, rarityColorMap, stageTextMap, eggStageTextMap, bondLevelMap }
 }
 
+const emptyProfile = () => ({
+  userInfo: {},
+  levelInfo: {},
+  achievementCount: 0,
+  avatarText: '',
+  totalXp: 0,
+  signInDays: 0,
+  myPet: null,
+  petEmoji: '',
+  petStageText: '',
+  isAdmin: false,
+  collectionCount: 0,
+  myOpenid: '',
+})
+
 Page({
   data: {
+    ...emptyProfile(),
     isLoading: true,
-    userInfo: {},
-    levelInfo: {},
-    achievementCount: 0,
-    avatarText: '',
-    totalXp: 0,
-    signInDays: 0,
-    myPet: null,
-    petEmoji: '',
-    petStageText: '',
-    isAdmin: false,
     maxPets: 3,
-    collectionCount: 0,
-    myOpenid: '',
 
     // ===== 宠物图鉴 =====
     showCollection: false,
+    collectionStatus: 'loading',
     colActiveTab: 'current',
     currentPets: [],
     releasedPets: [],
@@ -62,6 +68,7 @@ Page({
 
     // ===== 放行确认 =====
     showDeleteConfirm: false,
+    releasingPet: false,
     deleteTargetId: '',
     deleteTargetName: '',
   },
@@ -77,15 +84,35 @@ Page({
       this.setData({ isLoading: false })
       return
     }
-    this.loadUserData()
+    return this.loadUserData()
+  },
+
+  onHide() {
+    if (this.data.showCollection) this.closeCollection()
+    if (this.data.showDeleteConfirm) this.cancelDelete()
   },
 
   async loadUserData() {
+    const app = getApp()
+    const { currentOpenid: owner, userInfo: account } = app.globalData
+    const request = this._profileRequest = {}
+    const isCurrent = () => this._profileRequest === request &&
+      app.globalData.currentOpenid === owner && app.globalData.userInfo === account
+    if (this._profileOwner !== owner || this._profileAccount !== account) {
+      this._profileOwner = owner
+      this._profileAccount = account
+      this.setData(emptyProfile())
+    }
+    if (!owner) {
+      this.setData({ isLoading: false })
+      return
+    }
     wx.showLoading({ title: '加载中...' })
     this.setData({ isLoading: true })
 
     try {
       const dashboard = await cloudApi.dashboard()
+      if (!isCurrent()) return
       const user = dashboard.user || {}
       const activePet = dashboard.activePet || null
       const totalXp = user.total_xp || 0
@@ -110,12 +137,6 @@ Page({
         }
       }
 
-      let isAdmin = (user.role === 'admin')
-      if (!isAdmin) {
-        const cached = wx.getStorageSync('cloud_userInfo') || {}
-        isAdmin = (cached.role === 'admin' || cached._isLocalAdmin)
-      }
-
       // 获取当前宠物数量用于图鉴徽章
       let collectionCount = 0
       try {
@@ -124,6 +145,7 @@ Page({
         const petsList = Array.isArray(petsRaw) ? petsRaw : (petsRaw && petsRaw.data ? petsRaw.data : [])
         collectionCount = Array.isArray(petsList) ? petsList.filter(p => !p.deleted_at).length : 0
       } catch (e) { /* ignore */ }
+      if (!isCurrent()) return
 
       this.setData({
         userInfo: { nickname, username: user.username || '', avatar: user.avatar || '' },
@@ -135,17 +157,16 @@ Page({
         myPet,
         petEmoji,
         petStageText,
-        isAdmin,
+        isAdmin: user.role === 'admin',
         collectionCount,
-        myOpenid: getApp().globalData.currentOpenid ||
-          (getApp().globalData.userInfo || {}).openid ||
-          (wx.getStorageSync('cloud_userInfo') || {}).openid ||
-          '(未获取)',
+        myOpenid: owner,
       })
     } catch (err) {
+      if (!isCurrent()) return
       console.warn('[Mine] 云端加载失败，使用本地缓存:', err)
       const cached = wx.getStorageSync('cloud_userInfo') || {}
-      if (cached.nickname || cached.username) {
+      this.setData({ isAdmin: false })
+      if (cached.openid === owner && (cached.nickname || cached.username)) {
         const totalXp = cached.total_xp || 0
         const level = cached.level || Math.floor(totalXp / 100) + 1
         const nickname = cached.nickname || cached.username || '森林居民'
@@ -156,34 +177,44 @@ Page({
           avatarText: (nickname[0] || '森'),
           totalXp,
           signInDays: cached.streak_days || 0,
-          isAdmin: (cached.role === 'admin' || cached._isLocalAdmin),
+          myOpenid: owner,
         })
       }
     } finally {
-      this.setData({ isLoading: false })
-      wx.hideLoading()
+      if (isCurrent()) {
+        this.setData({ isLoading: false })
+        wx.hideLoading()
+      }
     }
   },
 
   // ===== 头像上传 =====
   chooseAvatar() {
+    const app = getApp()
+    const { currentOpenid: owner, userInfo: account } = app.globalData
+    if (!owner) return
+    const isCurrent = () => app.globalData.currentOpenid === owner && app.globalData.userInfo === account
     wx.chooseMedia({
       count: 1, mediaType: ['image'], sourceType: ['album', 'camera'], sizeType: ['compressed'],
       success: async (res) => {
-        const tempFilePath = res.tempFiles[0].tempFilePath
+        const tempFilePath = res.tempFiles?.[0]?.tempFilePath
+        if (!tempFilePath || !isCurrent()) return
         wx.showLoading({ title: '上传中...' })
         try {
           const uploadRes = await wx.cloud.uploadFile({ cloudPath: `avatars/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`, filePath: tempFilePath })
-          await cloudApi.updateMe({ avatar: uploadRes.fileID })
+          if (!isCurrent()) return
+          const result = await cloudApi.updateMe({ avatar: uploadRes.fileID })
+          if (!isCurrent()) return
+          if (result?.success !== true) throw new Error('头像保存失败')
           this.setData({ 'userInfo.avatar': uploadRes.fileID })
-          const cached = wx.getStorageSync('cloud_userInfo') || {}
-          cached.avatar = uploadRes.fileID
-          wx.setStorageSync('cloud_userInfo', cached)
+          const cached = wx.getStorageSync('cloud_userInfo')
+          if (cached?.openid === owner) wx.setStorageSync('cloud_userInfo', { ...cached, avatar: uploadRes.fileID })
           wx.showToast({ title: '头像更新成功', icon: 'success' })
         } catch (e) {
+          if (!isCurrent()) return
           console.error('[Mine] 上传头像失败:', e)
           wx.showToast({ title: '上传失败，请重试', icon: 'none' })
-        } finally { wx.hideLoading() }
+        } finally { if (isCurrent()) wx.hideLoading() }
       },
     })
   },
@@ -193,7 +224,8 @@ Page({
   goPets() { wx.switchTab({ url: '/pages/pets/pets' }) },
   goAdmin() {
     // 仅当服务端已确认管理员身份时才允许进入
-    if (!this.data.isAdmin) {
+    const { currentOpenid, userInfo } = getApp().globalData
+    if (!this.data.isAdmin || this._profileOwner !== currentOpenid || this._profileAccount !== userInfo) {
       wx.showToast({ title: '无管理员权限', icon: 'none' })
       return
     }
@@ -218,20 +250,17 @@ Page({
 
   /** 打开图鉴弹窗 */
   async openCollection() {
-    wx.showLoading({ title: '加载图鉴...' })
-    this.setData({ showCollection: true })
+    const owner = getApp().globalData.currentOpenid
+    const request = this._collectionRequest = {}
+    const isCurrent = () => this._collectionRequest === request && getApp().globalData.currentOpenid === owner
+    this.setData({ showCollection: true, collectionStatus: 'loading', currentPets: [], releasedPets: [], stats: {} })
 
     try {
       const raw = await cloudApi.petCollection()
-      console.log('[Mine-Dex] raw type=', typeof raw, 'keys=', raw ? Object.keys(raw).slice(0,5) : 'null')
-      console.log('[Mine-Dex] raw=', JSON.stringify(raw).substring(0, 300))
+      if (!isCurrent()) return
       // 【V8.5修复】兼容 callCloud 双重解包：已解包时 raw 直接是数据对象
-      const res = (raw && raw.success !== undefined) ? raw : { success: true, data: raw || {} }
-      console.log('[Mine-Dex] res.success=', res.success, 'has data=', !!res.data)
-      if (!res.success) throw new Error(res.message)
-
-      const data = res.data || {}
-      console.log('[Mine-Dex] data keys=', Object.keys(data), 'current=', Array.isArray(data.current) ? data.current.length : 'not array')
+      const data = raw?.success === true ? raw.data : raw
+      if (!Array.isArray(data?.current) || !Array.isArray(data?.released)) throw new Error('图鉴数据不完整')
       const maps = buildCollectionMaps()
       const { speciesMap, rarityColorMap, stageTextMap, eggStageTextMap, bondLevelMap } = maps
 
@@ -279,6 +308,7 @@ Page({
       }
 
       this.setData({
+        collectionStatus: 'ready',
         currentPets,
         releasedPets,
         stats: data.stats || {},
@@ -286,21 +316,13 @@ Page({
         colActiveTab: currentPets.length > 0 ? 'current' : 'released',
         ...maps,
       })
-    } catch (e) {
-      // 【V8.5诊断】输出真实错误信息
-      console.log('[Mine-Dex] ERROR:', e.message || e, 'stack=', (e.stack || '').substring(0, 200))
-      console.log('[Mine] 图鉴接口暂不可用，显示空状态')
-      this.setData({
-        currentPets: [],
-        releasedPets: [],
-        stats: { total: 0, current: 0, released: 0, awakened: 0 },
-      })
-    } finally {
-      wx.hideLoading()
+    } catch {
+      if (isCurrent()) this.setData({ collectionStatus: 'error' })
     }
   },
 
   closeCollection() {
+    this._collectionRequest = null
     this.setData({ showCollection: false })
   },
 
@@ -317,8 +339,7 @@ Page({
   /** 查看宠物详情 */
   goPetDetail(e) {
     const id = e.currentTarget.dataset.id
-    this.closeCollection()
-    setTimeout(() => wx.switchTab({ url: '/pages/pets/pets' }), 200)
+    if (createNavigation(wx, getApp).openPet(id)) this.closeCollection()
   },
 
   // ===== 放行宠物 =====
@@ -333,32 +354,40 @@ Page({
   },
 
   cancelDelete() {
-    this.setData({ showDeleteConfirm: false, deleteTargetId: '', deleteTargetName: '' })
+    this._releaseRequest = null
+    this.setData({ showDeleteConfirm: false, releasingPet: false, deleteTargetId: '', deleteTargetName: '' })
   },
 
   async doDeletePet() {
     const petId = this.data.deleteTargetId
-    if (!petId) return
+    if (!petId || this.data.releasingPet) return
+    const owner = getApp().globalData.currentOpenid
+    const collection = this._collectionRequest
+    const request = this._releaseRequest = {}
+    const isCurrent = () => this._releaseRequest === request && this._collectionRequest === collection &&
+      getApp().globalData.currentOpenid === owner
 
-    wx.showLoading({ title: '放行中...' })
+    this.setData({ releasingPet: true })
     try {
       const raw = await cloudApi.deletePet(petId)
+      if (!isCurrent()) return
       // 【V8.5修复】兼容 callCloud 双重解包
       const res = (raw && raw.success !== undefined) ? raw : { success: !!raw, message: raw && raw.message ? raw.message : '' }
-      wx.hideLoading()
+      this.setData({ releasingPet: false })
 
       if (res.success) {
         wx.showToast({ title: res.message || '已放行', icon: 'success' })
-        this.setData({ showDeleteConfirm: false, deleteTargetId: '', deleteTargetName: '' })
+        this.cancelDelete()
         // 刷新图鉴数据
         await this.openCollection()
         // 刷新主页面宠物信息
-        this.loadUserData()
+        if (getApp().globalData.currentOpenid === owner) this.loadUserData()
       } else {
         wx.showToast({ title: res.message || '放行失败', icon: 'none' })
       }
     } catch (err) {
-      wx.hideLoading()
+      if (!isCurrent()) return
+      this.setData({ releasingPet: false })
       wx.showToast({ title: '放行失败', icon: 'none' })
     }
   },

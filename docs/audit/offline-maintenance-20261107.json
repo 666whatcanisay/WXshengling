@@ -1,0 +1,160 @@
+{
+  "stage": "D043",
+  "date": "2026-11-07",
+  "scope": "Approved local offline maintenance",
+  "runtime": "Node v24.22.2",
+  "verification": {
+    "fullCommand": "npm run verify",
+    "exitCode": 0,
+    "assertions": 2037,
+    "newAssertions": {
+      "fixtureClock": 66,
+      "workspaceLifecycle": 11,
+      "uiVerifier": 28,
+      "plannerRestore": 5
+    },
+    "nativeCompiler": {
+      "command": "npm run verify:ui -- --wcc <installed-wcc> --wcsc <installed-wcsc>",
+      "ok": true,
+      "registeredPages": 19,
+      "compiledTemplates": 3,
+      "compiledStyles": 4
+    },
+    "dateCoverage": [
+      "Beijing midnight",
+      "month boundary",
+      "year boundary",
+      "2028 leap day"
+    ],
+    "processTimezones": [
+      "UTC",
+      "Asia/Shanghai",
+      "America/Los_Angeles"
+    ]
+  },
+  "reproducedAndFixed": [
+    "Fixed service clock versus real page clock caused next-day test failure",
+    "Old navigation fail cleared newer intent",
+    "Hidden steward accepted late coach data and started dependent read",
+    "Cloud draft refresh overwrote edits made while read pending"
+  ],
+  "cloudReads": false,
+  "cloudWrites": false,
+  "paidModelCalls": false,
+  "deployed": false,
+  "published": false,
+  "committed": false,
+  "pushed": false,
+  "nativeUIVerified": false,
+  "phoneVerified": false,
+  "preserved": [
+    {
+      "file": "cloudfunctions/app/index.js",
+      "sha256": "d7b7f3d299f1d3f13f09f7fb6da9f4d0d1d2ab493c8dc58014d842c08b5f0196",
+      "unchanged": true
+    },
+    {
+      "file": "cloudfunctions/app/package.json",
+      "sha256": "8e93a0bc673d7d4c7e4731943882a1ad16d13b151077fd496334506a719753a5",
+      "unchanged": true
+    },
+    {
+      "file": "cloudfunctions/app/package-lock.json",
+      "sha256": "f0497fc9bfeaed0148faa9b1fd647efe1bce1dcbee3faf38d1f45978f7e53935",
+      "unchanged": true
+    },
+    {
+      "file": "miniprogram/app.json",
+      "sha256": "892c2e158b15da0b49b9b498654af19edd6828f767a1625a50d6b765d1dfd79d",
+      "unchanged": true
+    },
+    {
+      "file": "miniprogram/pages/ai/ai.wxml",
+      "sha256": "38927ace7931f4d8d609cc006984f1da8f6b70e53b78df727b253be63f4f059c",
+      "unchanged": true
+    },
+    {
+      "file": "miniprogram/pages/ai/ai.wxss",
+      "sha256": "5d1595ff2e0ba009ff7f6d07bb3c038c4e133fa7635092956b3fdedaa4f7f5ca",
+      "unchanged": true
+    },
+    {
+      "file": "miniprogram/pages/forest-steward/forest-steward.wxml",
+      "sha256": "873efe8f3f5dfe8bc93cefb5acf2fff9117cb531a5f865b9ffdc43c9cb486934",
+      "unchanged": true
+    },
+    {
+      "file": "miniprogram/pages/forest-steward/forest-steward.wxss",
+      "sha256": "368e17bfeb0944aa4a329ed4ef2f948f4cdc69c6890cd2655ec57547f0740a1b",
+      "unchanged": true
+    },
+    {
+      "file": "miniprogram/utils/cloudApi.js",
+      "sha256": "f9481caca1373e59bafbab04abadaa85ab44f1d35e148ca5a67f87cf0029056a",
+      "unchanged": true
+    }
+  ],
+  "files": [
+    {
+      "file": "miniprogram/utils/aiNavigation.js",
+      "sha256": "3200840109dc89b276c8b262065bfa748afa0417b4bbfad76dfc932db2f94c45"
+    },
+    {
+      "file": "miniprogram/pages/forest-steward/forest-steward.js",
+      "sha256": "512239354eca534525fc13dbd8b2a300619999168884534afdc95c97fa595405"
+    },
+    {
+      "file": "miniprogram/utils/plannerDraftWorkspace.js",
+      "sha256": "cae20cc63063aed35570e8ddb5e78f1db044bbe9772029f6b84ad1419062df76"
+    },
+    {
+      "file": "tests/helpers/clock.cjs",
+      "sha256": "dcc466f7a6d97b7d902f8f5179a7e77ac9ad1d4f15e157b7ac47033ef4ec2bc6"
+    },
+    {
+      "file": "tests/adjustment-client.cjs",
+      "sha256": "be8f503d2e4f48ea414b4ed5ab1ce9a4a6c2e22857cc95b3c62d416009cf16e3"
+    },
+    {
+      "file": "tests/adjustment-application.cjs",
+      "sha256": "71d70ff82153c9f4e24ba3ab2bb0649300896596ea6305152d475e7e70e0d7bf"
+    },
+    {
+      "file": "tests/adjustment-application-client.cjs",
+      "sha256": "e6fd7a68397160bf47be2ee8f19c73d3e0d05732b4daadb4bf9b690f3794bcae"
+    },
+    {
+      "file": "tests/adjustment-guided-flow.cjs",
+      "sha256": "68d2c668b4e7e93d51b061c0521532d712141ef6e2d627ddecd30ba749a44278"
+    },
+    {
+      "file": "tests/planner-draft-reliability.cjs",
+      "sha256": "d0fcd041a50151f41b5d59b9ce3352d7ce5cede269dc214c532a13e14bda2a96"
+    },
+    {
+      "file": "tests/fixture-clock.cjs",
+      "sha256": "305ef359d3471dc15b95d2f68b9eb5e316d8b5c5c2072f3e07fe4ae56a85ad33"
+    },
+    {
+      "file": "tests/workspace-lifecycle.cjs",
+      "sha256": "a507c8f723c07748e8208ec178855193961f551c4b924eac9c4ac52eafdf0bcb"
+    },
+    {
+      "file": "tests/ui-verifier.cjs",
+      "sha256": "01925de3607c182231a7999555dc448a15053cecb13939a02f1b2d3ea19bc91a"
+    },
+    {
+      "file": "tools/verify-ui.cjs",
+      "sha256": "a604aba3d562cd9a110f11b108aac2c145ecd0a8de94621e9cbb8a20cbc49e49"
+    },
+    {
+      "file": "package.json",
+      "sha256": "42ac69e3c76e9102da5c4a439a4e987201403988fda0a0be9ecf5922454e03ff"
+    }
+  ],
+  "followUp": [
+    "Review model/network retry idempotency by endpoint before any policy change",
+    "Define pet integration scope and preference confirmation with user",
+    "Native/phone acceptance remains pending"
+  ]
+}

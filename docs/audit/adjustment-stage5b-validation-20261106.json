@@ -1,0 +1,255 @@
+{
+  "date": "2026-11-06",
+  "status": "native-core-api-path-verified-and-authorized-test-cleanup-complete",
+  "node": "v24.22.2",
+  "assertions": 1782,
+  "newApplicationAssertions": 81,
+  "newClientAssertions": 33,
+  "expandedRouterAssertions": 8,
+  "syntaxChecks": 14,
+  "compiledWxml": true,
+  "compiledWxss": true,
+  "compiledRender": {
+    "checks": 67,
+    "states": [
+      "ready",
+      "empty",
+      "ended",
+      "capped",
+      "loading",
+      "done",
+      "dirty",
+      "stale",
+      "running",
+      "failed",
+      "conflict",
+      "error",
+      "noGoal",
+      "applied",
+      "pending",
+      "unsupported",
+      "blockedRules"
+    ]
+  },
+  "approximateLayouts": {
+    "approximateHtml": true,
+    "includesGlobalStyles": true,
+    "checks": [
+      {
+        "state": "done",
+        "width": 320,
+        "overflow": false,
+        "headingColor": "rgb(47, 73, 50)",
+        "bodyWidth": 320
+      },
+      {
+        "state": "done",
+        "width": 375,
+        "overflow": false,
+        "headingColor": "rgb(47, 73, 50)",
+        "bodyWidth": 375
+      },
+      {
+        "state": "pending",
+        "width": 320,
+        "overflow": false,
+        "headingColor": "rgb(47, 73, 50)",
+        "bodyWidth": 320
+      },
+      {
+        "state": "pending",
+        "width": 375,
+        "overflow": false,
+        "headingColor": "rgb(47, 73, 50)",
+        "bodyWidth": 375
+      },
+      {
+        "state": "applied",
+        "width": 320,
+        "overflow": false,
+        "headingColor": "rgb(47, 73, 50)",
+        "bodyWidth": 320
+      },
+      {
+        "state": "applied",
+        "width": 375,
+        "overflow": false,
+        "headingColor": "rgb(47, 73, 50)",
+        "bodyWidth": 375
+      },
+      {
+        "state": "blockedRules",
+        "width": 320,
+        "overflow": false,
+        "headingColor": "rgb(47, 73, 50)",
+        "bodyWidth": 320
+      },
+      {
+        "state": "blockedRules",
+        "width": 375,
+        "overflow": false,
+        "headingColor": "rgb(47, 73, 50)",
+        "bodyWidth": 375
+      }
+    ]
+  },
+  "screenshotsInspected": [
+    "D:/Temp/adjustment-apply-done-375.png",
+    "D:/Temp/adjustment-apply-pending-320.png",
+    "D:/Temp/adjustment-apply-applied-375.png"
+  ],
+  "snapshotIsolationWriteSetModel": true,
+  "nativeCloudApplicationVerified": true,
+  "nativeMobileVerified": false,
+  "ordinaryAccountVerified": false,
+  "newRealTestDataCreated": true,
+  "cloudDeployed": true,
+  "businessWrites": false,
+  "modelCalls": false,
+  "miniProgramPublished": false,
+  "codeReview": {
+    "nativeIdentityAndOwner": true,
+    "privateProofNotReturned": true,
+    "docOnlyTransaction": true,
+    "checkedUpdatedCounts": true,
+    "modelCallsOutsideApply": true,
+    "explicitSnapshotLimitations": true,
+    "knownReadProofLimit": 100,
+    "newCollections": false,
+    "newPermissions": false,
+    "newDependencies": false
+  },
+  "deploymentApproval": {
+    "response": "现在更新 app-node24",
+    "scope": [
+      "index.js",
+      "lib/coachService.js",
+      "lib/recordProof.js",
+      "lib/adjustmentService.js",
+      "lib/adjustmentApplication.js"
+    ]
+  },
+  "deployment": {
+    "verifiedAt": "2026-11-06T14:01:13.351Z",
+    "evidence": "adjustment-stage5b-20261106.json",
+    "allFilesVerified": 3792,
+    "preservedFiles": 3787,
+    "runtime": "Nodejs24.11",
+    "active": true,
+    "configurationPreserved": true,
+    "businessWrites": false,
+    "modelCalls": false,
+    "miniProgramPublished": false
+  },
+  "temporaryCredentialFailure": {
+    "beforeUpload": true,
+    "recovered": true,
+    "newLoginRequired": false
+  },
+  "nativeReadonly": {
+    "passed": true,
+    "evidence": "adjustment-stage5b-native-readonly-20261106.json"
+  },
+  "nativeTestSetup": {
+    "script": "tools/adjustment-apply-manual-setup.js",
+    "syntaxPassed": true,
+    "isolatedSafetyAssertions": 15,
+    "authorized": true,
+    "executed": true,
+    "proposedScope": {
+      "goals": 1,
+      "futureTasks": 2,
+      "maxModelRequests": 2,
+      "checkins": 0,
+      "rewardWrites": 0,
+      "applyOnlyTestBatch": true,
+      "sameVersionReplay": true,
+      "cleanupOnlyTestBatch": true
+    },
+    "authorization": {
+      "response": "允许本批创建、应用和清理",
+      "date": "2026-11-06",
+      "scope": {
+        "goals": 1,
+        "futureTasks": 2,
+        "maxModelRequests": 2,
+        "checkins": 0,
+        "rewardWrites": 0,
+        "applyOnlyTestBatch": true,
+        "sameVersionReplay": true,
+        "cleanupOnlyTestBatch": true
+      }
+    },
+    "actualCreated": {
+      "goals": 1,
+      "tasks": 2
+    },
+    "complete": true,
+    "repairEvidence": "adjustment-stage5b-setup-repair-20261106.json"
+  },
+  "realCloudBusinessWritesByUser": {
+    "goals": 1,
+    "tasks": 2,
+    "adjustmentRunAndCheckpoints": true
+  },
+  "assistantBusinessWrites": true,
+  "nativeRecoveryAndPlanning": {
+    "evidence": "adjustment-stage5b-native-planning-20261106.json",
+    "privateBaselineSaved": true,
+    "baselineEvidence": "adjustment-stage5b-test-baseline-20261106.json"
+  },
+  "receiptScript": {
+    "path": "tools/adjustment-apply-manual-replay.js",
+    "syntaxPassed": true,
+    "actualNativeHandlersOfflineAssertions": 25,
+    "executed": true,
+    "doesNotPerformFirstApply": true,
+    "singleSameVersionReplayOnly": true,
+    "lastUserResult": {
+      "ok": false,
+      "replaySent": false,
+      "message": "请先在本批目标确认应用第1版；本脚本不会首次应用"
+    },
+    "replayActuallySent": false,
+    "passed": false,
+    "cloudDiagnostic": "adjustment-stage5b-replay-block-diagnostic-20261106.json"
+  },
+  "latestFullAssertions": 1840,
+  "transactionFix": {
+    "evidence": "adjustment-stage5b-txfix-validation-20261106.json",
+    "deployed": true,
+    "nativeRetryPassed": true,
+    "originalConfirmationPreserved": true
+  },
+  "combinedSubmitScript": {
+    "path": "tools/adjustment-apply-manual-submit.js",
+    "authorizedWithinExistingTestBatch": true,
+    "originalConfirmationPinned": true,
+    "syntaxPassed": true,
+    "actualNativeHandlersOfflineAssertions": 34,
+    "oldReplayRegressionAssertions": 25,
+    "executed": true,
+    "cloudSourceChanged": false,
+    "modelCalls": false,
+    "userResponse": "有显示ok=true",
+    "fullJsonSupplied": false,
+    "reportedPassed": true,
+    "cloudApplicationEvidence": "adjustment-stage5b-native-application-20261106.json"
+  },
+  "nativeReplayVerifiedByCombinedSuccessReport": true,
+  "cleanupCompleted": true,
+  "cleanupEvidence": "adjustment-stage5b-test-cleanup-20261106.json",
+  "cleanupSafetyEvidence": "adjustment-stage5b-cleanup-safety-20261106.json",
+  "cleanupSafetyAssertions": 22,
+  "assistantBusinessWriteScope": "Authorized exact deletion of 1 marked test goal, 2 tasks and 15 associated adjustment records only",
+  "assistantModelCalls": false,
+  "newModelCallsDuringApplyOrCleanup": false,
+  "nativeButtonSuccessVerified": false,
+  "nativeRecompileVisualSeparatelyConfirmed": false,
+  "remainingNativeGaps": [
+    "Explicit successful button submission/recompile visual confirmation",
+    "Ordinary account",
+    "Phone",
+    "Real cloud concurrency/failure matrix beyond the limited normal path"
+  ]
+}

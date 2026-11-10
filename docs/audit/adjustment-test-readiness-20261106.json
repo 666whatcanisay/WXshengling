@@ -1,0 +1,16 @@
+{
+  "readOnly": true,
+  "period": [
+    "2026-11-07",
+    "2026-11-13"
+  ],
+  "goalsRead": 27,
+  "goalsReadComplete": true,
+  "futureReadComplete": true,
+  "futurePendingTasks": 0,
+  "activeNonExpiredGoals": 6,
+  "usableGoals": [],
+  "functionInvocations": false,
+  "modelCalls": false,
+  "businessWrites": false
+}

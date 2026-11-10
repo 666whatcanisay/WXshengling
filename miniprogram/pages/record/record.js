@@ -25,7 +25,7 @@ Page({
         title: t.title || '',
         completed: t.completed || false,
         task_date: t.date || this.data.today,
-        xp_reward: t.xp_reward || 10,
+        xp_reward: t.xp_reward ?? 10,
         goal_id: t.goal_id || '',
       }));
 
